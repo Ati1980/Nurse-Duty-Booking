@@ -1,0 +1,177 @@
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Prompt:wght@400;500;600;700&display=swap');
+
+:root {
+  --primary-color: #0f766e;
+  --primary-hover: #0d9488;
+}
+
+body {
+  font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, .font-heading {
+  font-family: 'Prompt', 'Sarabun', sans-serif;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Sticky columns for Matrix Table */
+.sticky-col-1 {
+  position: sticky;
+  left: 0;
+  z-index: 20;
+}
+.sticky-col-2 {
+  position: sticky;
+  left: 45px;
+  z-index: 20;
+}
+.sticky-col-3 {
+  position: sticky;
+  left: 135px;
+  z-index: 20;
+}
+
+/* Shift Badges */
+.shift-tag {
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 4px;
+  font-weight: 700;
+  display: inline-block;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.shift-m {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+.shift-m:hover {
+  background-color: #bae6fd;
+}
+
+.shift-a {
+  background-color: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+.shift-a:hover {
+  background-color: #fde68a;
+}
+
+.shift-n {
+  background-color: #ede9fe;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+}
+.shift-n:hover {
+  background-color: #ddd6fe;
+}
+
+/* Vacancy Badges */
+.vacant-badge {
+  background-color: #ffe4e6;
+  color: #e11d48;
+  border: 1px dashed #f43f5e;
+  font-size: 10px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+/* Round Indicator Pills */
+.round-pill-1 {
+  background-color: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+}
+.round-pill-2 {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+.round-pill-opt {
+  background-color: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+/* Pulse animation for vacant shifts in Round 2 */
+@keyframes soft-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.pulse-vacant {
+  animation: soft-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Print Optimization for Landscape A4 */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 6mm;
+  }
+  
+  body {
+    background: white !important;
+    padding: 0 !important;
+    font-size: 10px !important;
+  }
+  
+  header, .no-print, #cellEditModal, #bookingModal, #optimizeModal, #loginScreen, .toolbar-actions {
+    display: none !important;
+  }
+  
+  .print-header {
+    display: block !important;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  
+  .print-header h2 {
+    font-size: 16px;
+    font-weight: bold;
+    color: #000;
+  }
+  
+  .sticky-col-1, .sticky-col-2, .sticky-col-3 {
+    position: static !important;
+  }
+  
+  table {
+    width: 100% !important;
+    border: 1px solid #999 !important;
+  }
+  
+  th, td {
+    border: 1px solid #ccc !important;
+    padding: 2px !important;
+    font-size: 9px !important;
+  }
+  
+  .shift-tag {
+    border: none !important;
+    padding: 1px 2px !important;
+    font-size: 8.5px !important;
+  }
+}
