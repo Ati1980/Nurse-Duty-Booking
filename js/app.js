@@ -1,8 +1,8 @@
 /**
  * Nurse Duty Booking & Roster System
  * Modern Blue Glassmorphism Theme
- * Multi-Role Auth, Live Vacancy Dashboard, True 7-Column Calendar Grid, 
- * 2-Round Booking & Shift Optimizer
+ * Multi-Role Auth, Main Monthly Calendar with All Shifts, 
+ * Shift Selection by Actual Nurse Count, User-Specific View & Shift Optimizer
  */
 
 // 1. Data Definitions
@@ -12,26 +12,26 @@ const ADMIN_CREDENTIALS = {
 };
 
 const NURSES = [
-  { id: "6100001", name: "น.ส.ภิญญดา คำผาเชื้อ", pin: "0001", order: 1 },
-  { id: "6100002", name: "น.ส.จำปา สิมมา", pin: "0002", order: 2 },
-  { id: "6100005", name: "น.ส.ระวิวรรณ รัตนปัญญา", pin: "0005", order: 3 },
-  { id: "6100013", name: "น.ส.หิรัญญา แสนสุข", pin: "0013", order: 4 },
-  { id: "6100015", name: "น.ส.วชิราพรรณ อานุพินิจ", pin: "0015", order: 5 },
-  { id: "6100021", name: "น.ส.ประทุมวัน ชัยยันต์", pin: "0021", order: 6 },
-  { id: "6100057", name: "น.ส.วิชชุดา ศรีหลง", pin: "0057", order: 7 },
-  { id: "6100063", name: "น.ส.อังสุมาลี เพียอามาตย์", pin: "0063", order: 8 },
-  { id: "6100067", name: "น.ส.สุชาวดี คำอู", pin: "0067", order: 9 },
-  { id: "6100068", name: "น.ส.ภัทราภรณ์ หล้าหนองเรือ", pin: "0068", order: 10 },
-  { id: "6100070", name: "น.ส.ปวีณ์ริศา อินทรพิมพ์", pin: "0070", order: 11 },
-  { id: "6100074", name: "น.ส.วริศรา ศรีใส", pin: "0074", order: 12 },
-  { id: "6100076", name: "น.ส.วิไลจิตร กุลทวง", pin: "0076", order: 13 },
-  { id: "6100075", name: "น.ส.สิริณญา วิเศษวุธ", pin: "0075", order: 14 }
+  { id: "6100001", num: 1, name: "น.ส.ภิญญดา คำผาเชื้อ", pin: "0001", order: 1, color: "#e11d48", textColor: "#ffffff", bgSoft: "#ffe4e6", border: "#fda4af" },
+  { id: "6100002", num: 2, name: "น.ส.จำปา สิมมา", pin: "0002", order: 2, color: "#dc2626", textColor: "#ffffff", bgSoft: "#fee2e2", border: "#fca5a5" },
+  { id: "6100005", num: 3, name: "น.ส.ระวิวรรณ รัตนปัญญา", pin: "0005", order: 3, color: "#0284c7", textColor: "#ffffff", bgSoft: "#e0f2fe", border: "#7dd3fc" },
+  { id: "6100013", num: 4, name: "น.ส.หิรัญญา แสนสุข", pin: "0013", order: 4, color: "#f43f5e", textColor: "#ffffff", bgSoft: "#fff1f2", border: "#fecdd3" },
+  { id: "6100015", num: 5, name: "น.ส.วชิราพรรณ อานุพินิจ", pin: "0015", order: 5, color: "#ea580c", textColor: "#ffffff", bgSoft: "#ffedd5", border: "#fdba74" },
+  { id: "6100021", num: 6, name: "น.ส.ประทุมวัน ชัยยันต์", pin: "0021", order: 6, color: "#2563eb", textColor: "#ffffff", bgSoft: "#dbeafe", border: "#93c5fd" },
+  { id: "6100057", num: 7, name: "น.ส.วิชชุดา ศรีหลง", pin: "0057", order: 7, color: "#eab308", textColor: "#713f12", bgSoft: "#fef9c3", border: "#fde047" },
+  { id: "6100063", num: 8, name: "น.ส.อังสุมาลี เพียอามาตย์", pin: "0063", order: 8, color: "#1e3a8a", textColor: "#ffffff", bgSoft: "#e0e7ff", border: "#a5b4fc" },
+  { id: "6100067", num: 10, name: "น.ส.สุชาวดี คำอู", pin: "0067", order: 9, color: "#06b6d4", textColor: "#ffffff", bgSoft: "#cffafe", border: "#67e8f9" },
+  { id: "6100068", num: 11, name: "น.ส.ภัทราภรณ์ หล้าหนองเรือ", pin: "0068", order: 10, color: "#f97316", textColor: "#ffffff", bgSoft: "#ffedd5", border: "#fdba74" },
+  { id: "6100070", num: 12, name: "น.ส.ปวีณ์ริศา อินทรพิมพ์", pin: "0070", order: 11, color: "#d97706", textColor: "#ffffff", bgSoft: "#fef3c7", border: "#fcd34d" },
+  { id: "6100074", num: 13, name: "น.ส.วริศรา ศรีใส", pin: "0074", order: 12, color: "#8b5cf6", textColor: "#ffffff", bgSoft: "#ede9fe", border: "#c4b5fd" },
+  { id: "6100076", num: 14, name: "น.ส.วิไลจิตร กุลทวง", pin: "0076", order: 13, color: "#15803d", textColor: "#ffffff", bgSoft: "#dcfce7", border: "#86efac" },
+  { id: "6100075", num: 15, name: "น.ส.สิริณญา วิเศษวุธ", pin: "0075", order: 14, color: "#84cc16", textColor: "#1f2937", bgSoft: "#ecfccb", border: "#bef264" }
 ];
 
 const SHIFTS = {
-  M: { id: 'M', code: 'ช', name: 'เวรเช้า', time: '08:30 - 16:30 น.', hours: 8, badge: 'shift-m', icon: '☀️', defaultReq: 2 },
-  A: { id: 'A', code: 'บ', name: 'เวรบ่าย', time: '16:30 - 00:30 น.', hours: 8, badge: 'shift-a', icon: '⛅', defaultReq: 2 },
-  N: { id: 'N', code: 'ด', name: 'เวรดึก', time: '00:30 - 08:30 น.', hours: 8, badge: 'shift-n', icon: '🌙', defaultReq: 1 }
+  M: { id: 'M', code: 'ช', name: 'เวรเช้า', time: '08:30 - 16:30 น.', hours: 8, badge: 'shift-m', icon: '☀️' },
+  A: { id: 'A', code: 'บ', name: 'เวรบ่าย', time: '16:30 - 00:30 น.', hours: 8, badge: 'shift-a', icon: '⛅' },
+  N: { id: 'N', code: 'ด', name: 'เวรดึก', time: '00:30 - 08:30 น.', hours: 8, badge: 'shift-n', icon: '🌙' }
 };
 
 const THAI_MONTHS = [
@@ -50,16 +50,22 @@ const CALENDAR_HEADERS = [
   { th: "เสาร์", short: "ส.", en: "Sat", isWeekend: true, headerClass: "bg-amber-100/90 text-amber-800 border-amber-300" }
 ];
 
-// 2. Application State
+// 2. Application State & Dynamic Start Month (เดือนเริ่มต้น = เดือนปัจจุบัน + 1 เช่น ตุลาคม -> พฤศจิกายน)
+const now = new Date();
+let defaultMonth = now.getMonth() + 1; // เดือนปัจจุบัน + 1
+let defaultYear = now.getFullYear();
+if (defaultMonth > 11) {
+  defaultMonth = 0;
+  defaultYear++;
+}
+
 let currentUser = null;
-let currentYear = 2026;
-let currentMonth = 8; // กันยายน (0-indexed: 8)
+let currentYear = defaultYear;
+let currentMonth = defaultMonth;
 let activeView = 'dashboard'; // 'dashboard', 'personal', 'admin'
 let adminActiveSubView = 'matrix'; // 'matrix', 'daily', 'summary', 'vacancies'
-let dashboardShiftFilter = 'ALL'; // 'ALL', 'M', 'A', 'N', 'WEEKEND'
+let dashboardShiftFilter = 'ALL'; // 'ALL', 'UNASSIGNED', 'M', 'A', 'N'
 let searchQuery = '';
-
-let shiftQuota = { M: 2, A: 2, N: 1 };
 
 let monthState = {
   round: 1,
@@ -70,6 +76,12 @@ let monthState = {
 
 let activeEditNurseId = null;
 let activeEditDay = null;
+
+// Context for shift clicked before login
+let pendingShiftSelection = null;
+
+// Context for shift quick action modal
+let activeModalShiftContext = null;
 
 // 3. Helper Functions
 function getDaysCount(year, month) {
@@ -127,39 +139,6 @@ function generateSampleRound1() {
   return sample;
 }
 
-function calculateVacancies() {
-  const days = getDaysCount(currentYear, currentMonth);
-  const vacancies = [];
-
-  for (let d = 1; d <= days; d++) {
-    ['M', 'A', 'N'].forEach(s => {
-      const req = shiftQuota[s];
-      let assigned = [];
-
-      NURSES.forEach(n => {
-        const shifts = (monthState.roster[n.id] && monthState.roster[n.id][d]) || [];
-        if (shifts.includes(s)) assigned.push(n);
-      });
-
-      if (assigned.length < req) {
-        vacancies.push({
-          day: d,
-          shift: s,
-          shiftName: SHIFTS[s].name,
-          time: SHIFTS[s].time,
-          icon: SHIFTS[s].icon,
-          required: req,
-          currentCount: assigned.length,
-          missing: req - assigned.length,
-          assigned: assigned
-        });
-      }
-    });
-  }
-
-  return vacancies;
-}
-
 // 4. Authentication Logic & Password Toggle
 window.togglePasswordVisibility = function(inputId, iconId) {
   const input = document.getElementById(inputId);
@@ -175,18 +154,30 @@ window.togglePasswordVisibility = function(inputId, iconId) {
   }
 };
 
-window.openNurseLoginModal = function() {
+window.openNurseLoginModal = function(optionalContext) {
   const modal = document.getElementById('nurseLoginModal');
   const sel = document.getElementById('modalLoginNurseIdSelect');
   const pinInput = document.getElementById('modalLoginNursePin');
+  const banner = document.getElementById('nurseLoginTargetBanner');
   
   sel.innerHTML = NURSES.map(n => `<option value="${n.id}">[${n.id}] ${n.name}</option>`).join('');
   if (pinInput) pinInput.value = '';
+
+  if (optionalContext && optionalContext.day && optionalContext.shift) {
+    pendingShiftSelection = optionalContext;
+    banner.classList.remove('hidden');
+    banner.innerHTML = `📌 คุณกำลังจะเลือก: <b>วันที่ ${optionalContext.day} ${SHIFTS[optionalContext.shift].name} (${SHIFTS[optionalContext.shift].time.split(' ')[0]})</b><br>กรุณาเลือกรหัสพยาบาลและกรอก PIN เพื่อยืนยันการจองเวรนี้`;
+  } else {
+    pendingShiftSelection = null;
+    banner.classList.add('hidden');
+  }
+
   modal.classList.remove('hidden');
 };
 
 window.closeNurseLoginModal = function() {
   document.getElementById('nurseLoginModal').classList.add('hidden');
+  pendingShiftSelection = null;
 };
 
 window.openAdminLoginModal = function() {
@@ -233,6 +224,21 @@ function loginAsNurse(nurseId, enteredPin) {
   localStorage.setItem('nurse_current_user', JSON.stringify(currentUser));
   closeNurseLoginModal();
   updateAuthUI();
+
+  // If there was a pending shift selected before login
+  if (pendingShiftSelection) {
+    const { day, shift } = pendingShiftSelection;
+    if (!monthState.roster[nurse.id]) monthState.roster[nurse.id] = {};
+    if (!monthState.roster[nurse.id][day]) monthState.roster[nurse.id][day] = [];
+    if (!monthState.roster[nurse.id][day].includes(shift)) {
+      monthState.roster[nurse.id][day].push(shift);
+      saveMonthState();
+    }
+    alert(`✓ บันทึกการเลือก ${SHIFTS[shift].name} วันที่ ${day} สำหรับ ${nurse.name} เรียบร้อยแล้ว`);
+    pendingShiftSelection = null;
+  }
+
+  renderPublicDashboard();
   switchView('personal');
   return true;
 }
@@ -268,8 +274,6 @@ function updateAuthUI() {
   const unauthButtons = document.getElementById('unauthButtons');
   const authControls = document.getElementById('authControls');
   const userProfileBadge = document.getElementById('userProfileBadge');
-  const navMyScheduleBtn = document.getElementById('navMyScheduleBtn');
-  const navAdminPortalBtn = document.getElementById('navAdminPortalBtn');
 
   if (!currentUser) {
     if (unauthButtons) unauthButtons.classList.remove('hidden');
@@ -280,30 +284,78 @@ function updateAuthUI() {
 
     if (currentUser.role === 'admin') {
       userProfileBadge.innerHTML = `
-        <div class="flex items-center gap-2 bg-indigo-900/60 border border-indigo-400/40 px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
+        <div class="flex items-center gap-2 bg-indigo-900/60 border border-white/30 px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
           <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/40 animate-pulse"></span>
           <span class="font-bold text-white">👑 ผู้ดูแลระบบ (Admin)</span>
         </div>
       `;
-      if (navMyScheduleBtn) navMyScheduleBtn.classList.add('hidden');
-      if (navAdminPortalBtn) navAdminPortalBtn.classList.remove('hidden');
     } else {
       userProfileBadge.innerHTML = `
-        <div class="flex items-center gap-2 bg-sky-900/60 border border-sky-400/40 px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
-          <span class="w-2.5 h-2.5 rounded-full bg-sky-300 ring-2 ring-sky-300/40"></span>
+        <div class="flex items-center gap-2 bg-white/20 border border-white/30 px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-300 ring-2 ring-emerald-300/40"></span>
           <span class="font-bold text-white">👩‍⚕️ ${currentUser.name}</span>
-          <span class="font-mono text-sky-200">(${currentUser.nurseId})</span>
+          <span class="font-mono text-blue-100">(${currentUser.nurseId})</span>
         </div>
       `;
-      if (navMyScheduleBtn) navMyScheduleBtn.classList.remove('hidden');
-      if (navAdminPortalBtn) navAdminPortalBtn.classList.add('hidden');
     }
+    updateNavSwitcher(activeView);
   }
+}
+
+// Update Active/Inactive Switcher Buttons in Top Navigation Header
+function updateNavSwitcher(viewName) {
+  const dashBtn = document.getElementById('navDashboardBtn');
+  const personalBtn = document.getElementById('navMyScheduleBtn');
+  const adminBtn = document.getElementById('navAdminPortalBtn');
+
+  const configs = [
+    { el: dashBtn, target: 'dashboard', label: 'ปฏิทินหลัก', icon: '📊', isAllowed: true },
+    { el: personalBtn, target: 'personal', label: 'ตารางเวรของฉัน', icon: '📅', isAllowed: !!(currentUser && currentUser.role === 'nurse') },
+    { el: adminBtn, target: 'admin', label: 'ตารางรวม 14 ท่าน', icon: '📋', isAllowed: !!(currentUser && currentUser.role === 'admin') }
+  ];
+
+  configs.forEach(({ el, target, label, icon, isAllowed }) => {
+    if (!el) return;
+    if (!isAllowed) {
+      el.className = 'nav-tab-btn hidden';
+      return;
+    }
+
+    const isActive = (viewName === target);
+    if (isActive) {
+      el.className = 'nav-tab-btn nav-tab-btn-active';
+      el.innerHTML = `
+        <span class="text-base sm:text-lg">${icon}</span>
+        <span>${label}</span>
+        <span class="nav-active-badge">
+          <span class="nav-active-dot"></span>
+          <span>เปิดอยู่</span>
+        </span>
+      `;
+    } else {
+      el.className = 'nav-tab-btn nav-tab-btn-inactive';
+      el.innerHTML = `
+        <span class="text-base sm:text-lg">${icon}</span>
+        <span>${label}</span>
+      `;
+    }
+  });
 }
 
 // 5. Global View Switching
 window.switchView = function(viewName) {
+  // Permission checks
+  if (viewName === 'personal' && (!currentUser || currentUser.role !== 'nurse')) {
+    openNurseLoginModal();
+    return;
+  }
+  if (viewName === 'admin' && (!currentUser || currentUser.role !== 'admin')) {
+    openAdminLoginModal();
+    return;
+  }
+
   activeView = viewName;
+  updateNavSwitcher(viewName);
 
   const publicDashSection = document.getElementById('publicDashboardSection');
   const nurseSection = document.getElementById('nursePersonalSection');
@@ -318,26 +370,18 @@ window.switchView = function(viewName) {
     publicDashSection.classList.remove('hidden');
     renderPublicDashboard();
   } else if (viewName === 'personal') {
-    if (!currentUser || currentUser.role !== 'nurse') {
-      openNurseLoginModal();
-      return;
-    }
     nurseSection.classList.remove('hidden');
     renderNurseCalendar();
   } else if (viewName === 'admin') {
-    if (!currentUser || currentUser.role !== 'admin') {
-      openAdminLoginModal();
-      return;
-    }
     adminSection.classList.remove('hidden');
     renderAdminView();
   }
 };
 
-// 6. MAIN LIVE VACANCY DASHBOARD (แสดงเฉพาะเวรที่ว่าง วันที่/เวรที่เลือกแล้วให้ซ่อนไว้)
+// 6. MAIN MONTHLY CALENDAR DASHBOARD (แสดงทุกวัน ทุกเวร เลือกได้ทุกเวร แสดงจำนวนคนเลือก และเวรที่ไม่มีคนเลือกเด่นชัด ไม่แสดงชื่อในช่อง)
 window.setDashboardFilter = function(filter) {
   dashboardShiftFilter = filter;
-  ['ALL', 'M', 'A', 'N', 'WEEKEND'].forEach(f => {
+  ['ALL', 'UNASSIGNED', 'M', 'A', 'N'].forEach(f => {
     const btn = document.getElementById(`filterBtn${f}`);
     if (btn) {
       if (f === filter) {
@@ -352,216 +396,322 @@ window.setDashboardFilter = function(filter) {
 
 function renderPublicDashboard() {
   const daysCount = getDaysCount(currentYear, currentMonth);
-  const container = document.getElementById('dashboardVacanciesContainer');
-  const statTotal = document.getElementById('dashStatTotal');
-  const statM = document.getElementById('dashStatM');
-  const statA = document.getElementById('dashStatA');
-  const statN = document.getElementById('dashStatN');
+  const firstDayIndex = getFirstDayIndex(currentYear, currentMonth);
 
-  const allVacancies = calculateVacancies();
-  
-  let countM = 0, countA = 0, countN = 0;
-  allVacancies.forEach(v => {
-    if (v.shift === 'M') countM += v.missing;
-    if (v.shift === 'A') countA += v.missing;
-    if (v.shift === 'N') countN += v.missing;
+  // Render 7-Day Header
+  const calHeader = document.getElementById('mainCalendarHeader');
+  let hHtml = '';
+  CALENDAR_HEADERS.forEach(ch => {
+    hHtml += `
+      <div class="p-3 md:p-3.5 text-center rounded-2xl border ${ch.headerClass} shadow-xs bg-white/95 backdrop-blur-sm">
+        <div class="text-base md:text-lg font-black tracking-wide">${ch.th}</div>
+        <div class="text-xs md:text-sm font-bold opacity-75 font-mono">${ch.en}</div>
+      </div>
+    `;
   });
+  calHeader.innerHTML = hHtml;
 
-  const totalMissing = countM + countA + countN;
-  statTotal.innerText = `${totalMissing} เวร`;
-  statM.innerText = `${countM} ที่`;
-  statA.innerText = `${countA} ที่`;
-  statN.innerText = `${countN} ที่`;
+  // Stat Counters (เปลี่ยนเป็นคำว่า เวร)
+  let totalShiftsCount = daysCount * 3;
+  let unassignedShiftsCount = 0;
+  let assignedShiftsCount = 0;
+  let totalBookingsCount = 0;
 
-  // Render day cards: ONLY show days with vacant shifts, HIDE days/shifts that are completely filled!
-  let cardsHtml = '';
-  let visibleDaysCount = 0;
+  // Render 7-Day Grid Body
+  const calGrid = document.getElementById('mainCalendarGrid');
+  let calHtml = '';
 
+  // 1. Pad beginning of month
+  for (let pad = 0; pad < firstDayIndex; pad++) {
+    calHtml += `
+      <div class="main-cal-empty-cell p-3 flex items-start justify-end text-slate-300 select-none">
+        <span class="opacity-30 font-mono text-sm">•</span>
+      </div>
+    `;
+  }
+
+  // 2. Render all days 1..daysCount
   for (let d = 1; d <= daysCount; d++) {
     const dt = new Date(currentYear, currentMonth, d);
     const dayOfWeek = dt.getDay(); // 0 = Sun .. 6 = Sat
     const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
 
-    // Apply Weekend filter if selected
-    if (dashboardShiftFilter === 'WEEKEND' && !isWeekend) {
-      continue;
-    }
+    let dayHasUnassigned = false;
+    let shiftRowsHtml = '';
 
-    // Find vacant shifts for this specific day
-    const dayVacancies = allVacancies.filter(v => v.day === d);
-    
-    // Filter by specific shift if selected
-    const filteredDayVacancies = dayVacancies.filter(v => {
-      if (dashboardShiftFilter === 'ALL' || dashboardShiftFilter === 'WEEKEND') return true;
-      return v.shift === dashboardShiftFilter;
-    });
+    // Loop through all 3 shifts (M, A, N)
+    ['M', 'A', 'N'].forEach(s => {
+      const shiftObj = SHIFTS[s];
+      const assigned = [];
 
-    // "วันที่/เวรที่ถูกเลือกให้ซ่อนไว้":
-    // If NO vacant shifts on this day (or filtered out) -> DO NOT RENDER THIS DAY!
-    if (filteredDayVacancies.length === 0) {
-      continue;
-    }
+      NURSES.forEach(n => {
+        const shifts = (monthState.roster[n.id] && monthState.roster[n.id][d]) || [];
+        if (shifts.includes(s)) assigned.push(n);
+      });
 
-    visibleDaysCount++;
-    const dayName = CALENDAR_HEADERS[dayOfWeek].th;
-    const dayEn = CALENDAR_HEADERS[dayOfWeek].en;
+      const count = assigned.length;
+      totalBookingsCount += count;
+      const isUnassigned = (count === 0);
 
-    const weekendBadge = isWeekend 
-      ? `<span class="px-2 py-0.5 rounded-lg text-xs font-black bg-rose-500 text-white shadow-xs">วันหยุด</span>`
-      : `<span class="px-2 py-0.5 rounded-lg text-xs font-bold bg-slate-200 text-slate-700">วันธรรมดา</span>`;
+      if (isUnassigned) {
+        unassignedShiftsCount++;
+        dayHasUnassigned = true;
+      } else {
+        assignedShiftsCount++;
+      }
 
-    // Render vacant shift items inside this day card (FILLED SHIFTS ARE NOT INCLUDED!)
-    let shiftItemsHtml = '';
-    filteredDayVacancies.forEach(v => {
-      let shiftColor = '';
-      if (v.shift === 'M') shiftColor = 'bg-sky-50 border-sky-300 text-sky-950';
-      if (v.shift === 'A') shiftColor = 'bg-amber-50 border-amber-300 text-amber-950';
-      if (v.shift === 'N') shiftColor = 'bg-purple-50 border-purple-300 text-purple-950';
+      // Check Filter
+      let isVisible = true;
+      if (dashboardShiftFilter === 'UNASSIGNED' && !isUnassigned) isVisible = false;
+      if (dashboardShiftFilter === 'M' && s !== 'M') isVisible = false;
+      if (dashboardShiftFilter === 'A' && s !== 'A') isVisible = false;
+      if (dashboardShiftFilter === 'N' && s !== 'N') isVisible = false;
 
-      shiftItemsHtml += `
-        <div class="p-3 rounded-2xl border ${shiftColor} flex items-center justify-between gap-2 shadow-xs">
-          <div class="flex items-center gap-2.5">
-            <span class="text-2xl">${v.icon}</span>
-            <div>
-              <div class="font-black text-xs md:text-sm">${v.shiftName} (${v.time.split(' ')[0]})</div>
-              <div class="text-[11px] font-semibold text-rose-700">ต้องการอีก <b>${v.missing} คน</b> (มีแล้ว ${v.currentCount}/${v.required})</div>
+      // Styling: [โควตาที่ต้องการ: 2 คน] เปลี่ยนเป็นแสดงตามจำนวนพยาบาลที่เลือก
+      // และ "ในปฏิทิน ไม่ต้องระบุชื่อ (ระบุเฉพาะใน popup)"
+      let rowClass = 'cal-shift-row';
+      let statusBadge = '';
+      let subText = '';
+
+      if (isUnassigned) {
+        // ส่วนเวรใหนที่ยังไม่มีคนเลือกให้แสดงเด่นชัด
+        rowClass += ' cal-shift-unassigned';
+        statusBadge = `<span class="bg-rose-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black shadow-xs">🚨 ยังไม่มีคนเลือก (0 คน)</span>`;
+        subText = `<div class="text-[10px] text-rose-800 font-bold mt-0.5 flex items-center justify-between"><span>⚠️ ยังไม่มีคนเลือก</span><span class="underline">คลิกเพื่อเลือกเวรนี้ ➔</span></div>`;
+      } else {
+        // แสดงตามจำนวนพยาบาลที่เลือก
+        rowClass += ' cal-shift-assigned';
+        statusBadge = `<span class="bg-sky-100 text-sky-900 border border-sky-300 text-[10px] px-2 py-0.5 rounded-full font-black">👤 มี ${count} คน</span>`;
+        subText = `<div class="text-[10px] text-sky-800 font-medium mt-0.5 flex items-center justify-between"><span>เลือกแล้ว ${count} คน</span><span class="underline text-sky-700">ดูรายชื่อ/เลือกเวร ➔</span></div>`;
+      }
+
+      const opacityClass = isVisible ? 'opacity-100' : 'opacity-25 grayscale pointer-events-none';
+
+      shiftRowsHtml += `
+        <div class="${rowClass} ${opacityClass}" onclick="handleShiftClick(${d}, '${s}')" title="คลิกเพื่อดูรายชื่อหรือเลือกเวรนี้">
+          <div class="flex items-center justify-between gap-1">
+            <div class="flex items-center gap-1.5 font-black text-xs text-slate-800">
+              <span class="text-base">${shiftObj.icon}</span>
+              <span>${shiftObj.name}</span>
             </div>
+            ${statusBadge}
           </div>
-          <button onclick="handleQuickBookShift(${v.day}, '${v.shift}')" 
-                  class="px-3 py-1.5 bg-blue-700 hover:bg-blue-800 active:bg-blue-900 text-white rounded-xl text-xs font-bold shadow-xs transition transform hover:scale-105 cursor-pointer whitespace-nowrap">
-            จองเวรนี้ ➔
-          </button>
+          ${subText}
         </div>
       `;
     });
 
-    cardsHtml += `
-      <div class="glass-card rounded-3xl p-5 border border-slate-200/90 shadow-sm flex flex-col justify-between hover:border-blue-400 transition transform hover:-translate-y-1">
+    const weekendCardStyle = isWeekend 
+      ? 'bg-rose-50/70 border-rose-200/90 hover:border-rose-400' 
+      : 'glass-card hover:border-blue-400';
+
+    calHtml += `
+      <div class="main-cal-day-cell p-3.5 border ${weekendCardStyle} shadow-xs">
         <div>
           <!-- Day Header: Big Date Number & Big Day Name -->
-          <div class="flex items-start justify-between pb-3 border-b border-slate-200/80 mb-3">
-            <div>
-              <div class="flex items-baseline gap-2">
-                <span class="text-3xl md:text-4xl font-black ${isWeekend ? 'text-rose-600' : 'text-slate-900'}">${d}</span>
-                <span class="text-base md:text-lg font-black text-slate-800">วัน${dayName}</span>
-              </div>
-              <div class="text-xs text-slate-500 font-mono">${d} ${THAI_MONTHS[currentMonth]} ${currentYear + 543} (${dayEn})</div>
+          <div class="flex items-center justify-between pb-2 border-b border-slate-200/80 mb-2">
+            <div class="flex items-baseline gap-1.5">
+              <span class="text-2xl md:text-3xl font-black ${isWeekend ? 'text-rose-600' : 'text-slate-900'}">${d}</span>
+              <span class="text-xs md:text-sm font-extrabold px-1.5 py-0.5 rounded ${isWeekend ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700'}">
+                ${CALENDAR_HEADERS[dayOfWeek].short}
+              </span>
             </div>
             <div>
-              ${weekendBadge}
+              ${dayHasUnassigned ? '<span class="text-[10px] font-black bg-rose-500 text-white px-1.5 py-0.5 rounded-full animate-pulse">🚨 มีเวรว่าง</span>' : '<span class="text-[10px] font-bold text-slate-400 font-mono">' + d + '/' + (currentMonth+1) + '</span>'}
             </div>
           </div>
 
-          <!-- List of Only Vacant Shifts -->
-          <div class="space-y-2.5">
-            ${shiftItemsHtml}
+          <!-- All 3 Shifts in this day -->
+          <div class="space-y-1.5">
+            ${shiftRowsHtml}
           </div>
         </div>
 
-        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-          <span>เวรที่ถูกจองเต็มแล้วถูกซ่อนไว้</span>
-          <span class="text-blue-700 font-bold">ว่าง ${filteredDayVacancies.length} กะ</span>
+        <div class="mt-2 pt-1 border-t border-slate-100/80 text-[10px] text-slate-400 text-center flex items-center justify-center gap-1">
+          <span>👆 คลิกเลือกได้ทุกเวร</span>
         </div>
       </div>
     `;
   }
 
-  if (visibleDaysCount === 0) {
-    if (totalMissing === 0) {
-      container.innerHTML = `
-        <div class="col-span-full p-12 text-center glass-card rounded-3xl border border-emerald-300 bg-emerald-50/80">
-          <div class="text-5xl mb-3">🎉</div>
-          <h3 class="text-xl font-black text-emerald-900 mb-1 font-heading">เวรประจำเดือนนี้จัดครบถ้วนสมบูรณ์ 100%!</h3>
-          <p class="text-sm text-emerald-700">ไม่มีเวรว่างค้างในแผนกแล้ว ทุกกะมีพยาบาลเข้าเวรครบตามเกณฑ์มาตรฐาน</p>
+  calGrid.innerHTML = calHtml;
+
+  // Update Stat Cards in Header (เปลี่ยนเป็นคำว่า เวร)
+  document.getElementById('dashStatTotal').innerText = `${totalShiftsCount} เวร`;
+  document.getElementById('dashStatUnassigned').innerText = `${unassignedShiftsCount} เวร`;
+  document.getElementById('dashStatAssigned').innerText = `${assignedShiftsCount} เวร`;
+  document.getElementById('dashStatBookings').innerText = `${totalBookingsCount} ครั้ง`;
+}
+
+// 7. SHIFT CLICK & POPUP MODAL (ระบุรายชื่อพยาบาลเฉพาะใน popup และแสดงตามจำนวนพยาบาล)
+window.handleShiftClick = function(day, shift) {
+  const shiftObj = SHIFTS[shift];
+  const dt = new Date(currentYear, currentMonth, day);
+  const dayName = CALENDAR_HEADERS[dt.getDay()].th;
+
+  // Check currently assigned nurses
+  const assigned = [];
+  NURSES.forEach(n => {
+    const shifts = (monthState.roster[n.id] && monthState.roster[n.id][day]) || [];
+    if (shifts.includes(shift)) assigned.push(n);
+  });
+
+  // If user is NOT logged in: Prompt Nurse login modal with this shift pre-selected
+  if (!currentUser) {
+    openNurseLoginModal({ day, shift });
+    return;
+  }
+
+  // If logged in as Nurse
+  if (currentUser.role === 'nurse') {
+    const nurseId = currentUser.nurseId;
+    const nurseName = currentUser.name;
+    const userCurrentShifts = (monthState.roster[nurseId] && monthState.roster[nurseId][day]) || [];
+    const isAlreadyBooked = userCurrentShifts.includes(shift);
+
+    activeModalShiftContext = { day, shift, nurseId, nurseName, isAlreadyBooked };
+
+    document.getElementById('shiftModalIcon').innerText = shiftObj.icon;
+    document.getElementById('shiftModalTitle').innerText = `${shiftObj.name} (${shiftObj.time})`;
+    document.getElementById('shiftModalDate').innerText = `วัน${dayName}ที่ ${day} ${THAI_MONTHS[currentMonth]} ${currentYear + 543}`;
+
+    // List of nurses in popup
+    let nursesListHtml = '';
+    if (assigned.length > 0) {
+      nursesListHtml = `
+        <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+          ${assigned.map((n, idx) => `
+            <div class="flex items-center justify-between py-1.5 px-3 rounded-xl bg-white border border-slate-200 shadow-xs">
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center">${idx + 1}</span>
+                <span class="font-bold text-slate-800 text-xs">${n.name}</span>
+                ${n.id === nurseId ? '<span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-bold">คุณ</span>' : ''}
+              </div>
+              <span class="font-mono text-slate-400 text-[11px]">${n.id}</span>
+            </div>
+          `).join('')}
         </div>
       `;
     } else {
-      container.innerHTML = `
-        <div class="col-span-full p-10 text-center glass-card rounded-3xl border border-slate-200">
-          <div class="text-4xl mb-2">🔍</div>
-          <p class="text-slate-600 font-bold text-sm">ไม่พบเวรที่ว่างตรงตามเงื่อนไขที่เลือก</p>
+      nursesListHtml = `
+        <div class="p-3 text-center bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs rounded-xl">
+          🚨 ยังไม่มีพยาบาลเลือกเวรนี้
         </div>
       `;
     }
-  } else {
-    container.innerHTML = cardsHtml;
-  }
-}
 
-window.handleQuickBookShift = function(day, shift) {
-  if (!currentUser) {
-    // Open nurse login first
-    openNurseLoginModal();
+    const bodyEl = document.getElementById('shiftModalBody');
+    bodyEl.innerHTML = `
+      <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+        <div class="flex justify-between items-center pb-1.5 border-b border-slate-200">
+          <span class="text-slate-600 font-medium">จำนวนพยาบาลที่เลือกเวรนี้:</span>
+          <span class="font-black text-sm ${assigned.length === 0 ? 'text-rose-600' : 'text-blue-900'}">${assigned.length} ท่าน</span>
+        </div>
+        <div>
+          <span class="text-slate-600 font-bold block mb-1.5">รายชื่อพยาบาลที่เลือกเวรนี้:</span>
+          ${nursesListHtml}
+        </div>
+      </div>
+
+      <div class="p-3 rounded-2xl ${isAlreadyBooked ? 'bg-emerald-50 border border-emerald-200 text-emerald-900' : 'bg-blue-50 border border-blue-200 text-blue-900'} text-xs">
+        ${isAlreadyBooked ? `
+          <div class="font-bold flex items-center gap-1.5">
+            <span>✓ คุณ (${nurseName}) ได้เลือกจองเวรนี้ไว้แล้ว</span>
+          </div>
+          <div class="text-[11px] mt-1 text-slate-600">คุณสามารถกดยกเลิกเวรนี้ได้หากต้องการเปลี่ยนเวร</div>
+        ` : `
+          <div class="font-bold">ต้องการเลือกจอง ${shiftObj.name} ในวันนี้หรือไม่?</div>
+          <div class="text-[11px] mt-1 text-slate-600">กดยืนยันเพื่อบันทึกการเข้าเวรของคุณเข้าสู่ระบบทันที</div>
+        `}
+      </div>
+    `;
+
+    const footerEl = document.getElementById('shiftModalFooter');
+    if (isAlreadyBooked) {
+      footerEl.innerHTML = `
+        <button onclick="closeShiftActionModal()" class="flex-1 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-semibold">
+          ปิด
+        </button>
+        <button onclick="confirmToggleShiftBooking(false)" class="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow transition">
+          🗑️ ยกเลิกการเลือกเวรนี้
+        </button>
+      `;
+    } else {
+      footerEl.innerHTML = `
+        <button onclick="closeShiftActionModal()" class="flex-1 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-semibold">
+          ยกเลิก
+        </button>
+        <button onclick="confirmToggleShiftBooking(true)" class="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow transition">
+          ✓ ยืนยันการเลือกเวรนี้
+        </button>
+      `;
+    }
+
+    document.getElementById('shiftActionModal').classList.remove('hidden');
     return;
   }
-  if (currentUser.role === 'nurse') {
-    populateBookingModal(currentUser.nurseId);
-    // Pre-check shift and date
-    const shiftRadios = document.getElementsByName('modalShift');
-    shiftRadios.forEach(r => { if (r.value === shift) r.checked = true; });
-    
-    // Check specific date checkbox
-    setTimeout(() => {
-      const dateCheckboxes = document.getElementsByName('bookingDates');
-      dateCheckboxes.forEach(cb => { cb.checked = (parseInt(cb.value) === day); });
-      document.getElementById('bookingModal').classList.remove('hidden');
-    }, 50);
-  } else if (currentUser.role === 'admin') {
-    openBookingModal();
-    const shiftRadios = document.getElementsByName('modalShift');
-    shiftRadios.forEach(r => { if (r.value === shift) r.checked = true; });
-    setTimeout(() => {
-      const dateCheckboxes = document.getElementsByName('bookingDates');
-      dateCheckboxes.forEach(cb => { cb.checked = (parseInt(cb.value) === day); });
-    }, 50);
+
+  // If logged in as Admin: Open booking for vacancy or cell editor
+  if (currentUser.role === 'admin') {
+    openBookingForVacancy(day, shift);
   }
 };
 
-// 7. NURSE PERSONAL CALENDAR VIEW (ตัวเลขวันที่ใหญ่ขึ้น, วัน ใหญ่ขึ้น, Emojis ขนาดใหญ่)
+window.closeShiftActionModal = function() {
+  document.getElementById('shiftActionModal').classList.add('hidden');
+  activeModalShiftContext = null;
+};
+
+window.confirmToggleShiftBooking = function(addShift) {
+  if (!activeModalShiftContext) return;
+  const { day, shift, nurseId } = activeModalShiftContext;
+
+  if (!monthState.roster[nurseId]) monthState.roster[nurseId] = {};
+  if (!monthState.roster[nurseId][day]) monthState.roster[nurseId][day] = [];
+
+  if (addShift) {
+    if (!monthState.roster[nurseId][day].includes(shift)) {
+      monthState.roster[nurseId][day].push(shift);
+    }
+  } else {
+    monthState.roster[nurseId][day] = monthState.roster[nurseId][day].filter(s => s !== shift);
+  }
+
+  saveMonthState();
+  closeShiftActionModal();
+  renderPublicDashboard();
+  if (activeView === 'personal') renderNurseCalendar();
+  if (activeView === 'admin') renderAdminView();
+};
+
+// 8. NURSE PERSONAL CALENDAR VIEW (PAGE หน้า USER จะมองเห็นเฉพาะ USER เลือก)
 function renderNurseCalendar() {
   if (!currentUser || currentUser.role !== 'nurse') return;
 
   const nurseId = currentUser.nurseId;
+  const nurseName = currentUser.name;
   const daysCount = getDaysCount(currentYear, currentMonth);
   const firstDayIndex = getFirstDayIndex(currentYear, currentMonth);
 
-  // Status Banner
-  const statusBanner = document.getElementById('nurseRoundStatusBanner');
-  let roundText = '';
-  let roundColor = '';
-
-  if (monthState.round === 1) {
-    roundText = `
-      <div class="flex items-center justify-between flex-wrap gap-3">
-        <div class="flex items-center gap-2.5">
-          <span class="px-3.5 py-1.5 rounded-xl font-black text-xs bg-blue-700 text-white shadow-xs">รอบที่ 1: เปิดจองทั่วไป</span>
-          <span class="text-xs text-blue-950 font-medium">คุณสามารถเลือกจองเวรเช้า บ่าย ดึก ในวันที่ต้องการได้อย่างอิสระ</span>
-        </div>
-        <button onclick="openPersonalBookingModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow transition">
-          + จองเวรของฉัน
-        </button>
-      </div>`;
-    roundColor = 'bg-blue-50/90 border-blue-200';
-  } else if (monthState.round === 2) {
-    const vacancies = calculateVacancies();
-    roundText = `
-      <div class="flex items-center justify-between flex-wrap gap-3">
-        <div class="flex items-center gap-2.5">
-          <span class="px-3.5 py-1.5 rounded-xl font-black text-xs bg-amber-500 text-white shadow-xs">รอบที่ 2: เปิดให้เลือกเวรที่ว่าง</span>
-          <span class="text-xs text-amber-950 font-medium">มีเวรที่ยังขาดคนจากรอบแรก <b>${vacancies.length} กะ</b> คุณสามารถเลือกช่วยรับเวรเพิ่มได้</span>
-        </div>
-      </div>`;
-    roundColor = 'bg-amber-50/90 border-amber-200';
-  } else {
-    roundText = `
-      <div class="flex items-center gap-2.5">
-        <span class="px-3.5 py-1.5 rounded-xl font-black text-xs bg-emerald-600 text-white shadow-xs">ตารางเวรเสร็จสมบูรณ์</span>
-        <span class="text-xs text-emerald-950 font-medium">ระบบได้ทำการ Optimize จัดตารางเวรและตรวจสอบความปลอดภัยเรียบร้อยแล้ว</span>
-      </div>`;
-    roundColor = 'bg-emerald-50/90 border-emerald-200';
+  // Update Section Title with Nurse Name
+  const secTitle = document.getElementById('nurseCalendarSectionTitle');
+  if (secTitle) {
+    secTitle.innerText = `ตารางเวรประจำเดือนของฉัน (${nurseName})`;
   }
 
-  statusBanner.className = `p-4 rounded-2xl border ${roundColor} mb-6 transition shadow-xs`;
+  // Status Banner
+  const statusBanner = document.getElementById('nurseRoundStatusBanner');
+  let roundText = `
+    <div class="flex items-center justify-between flex-wrap gap-3">
+      <div class="flex items-center gap-2.5">
+        <span class="px-3.5 py-1.5 rounded-xl font-black text-xs bg-blue-700 text-white shadow-xs">ตารางเวรส่วนบุคคล</span>
+        <span class="text-xs text-blue-950 font-medium">แสดงเฉพาะเวรที่คุณเลือก (คุณสามารถคลิกที่ช่องวันที่เพื่อเพิ่มหรือยกเลิกเวรของคุณได้)</span>
+      </div>
+      <button onclick="openPersonalBookingModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow transition">
+        + จองเวรของฉัน
+      </button>
+    </div>`;
+  statusBanner.className = `p-4 rounded-2xl border bg-blue-50/90 border-blue-200 mb-6 transition shadow-xs`;
   statusBanner.innerHTML = roundText;
 
   // Personal Shift Counts
@@ -594,7 +744,7 @@ function renderNurseCalendar() {
   });
   calHeader.innerHTML = hHtml;
 
-  // Render 7-Day Monthly Calendar Grid Body: ตัวเลขวันที่ใหญ่ขึ้น (text-2xl md:text-3xl)
+  // Render 7-Day Monthly Calendar Grid Body: มองเห็นเฉพาะเวรที่ User เลือก
   const calGrid = document.getElementById('nurseCalendarGrid');
   let calHtml = '';
 
@@ -607,7 +757,7 @@ function renderNurseCalendar() {
     `;
   }
 
-  // Days 1..daysCount
+  // Days 1..daysCount: Only showing nurse's OWN selected shifts!
   for (let d = 1; d <= daysCount; d++) {
     const dt = new Date(currentYear, currentMonth, d);
     const dayOfWeek = dt.getDay();
@@ -616,20 +766,17 @@ function renderNurseCalendar() {
 
     let shiftBadges = '';
     dayShifts.forEach(s => {
-      if (s === 'M') shiftBadges += `<span class="shift-tag shift-m w-full text-center text-xs md:text-sm py-1 font-bold flex items-center justify-center gap-1"><span>☀️</span> เช้า (08:30-16:30)</span>`;
-      if (s === 'A') shiftBadges += `<span class="shift-tag shift-a w-full text-center text-xs md:text-sm py-1 font-bold flex items-center justify-center gap-1"><span>⛅</span> บ่าย (16:30-00:30)</span>`;
-      if (s === 'N') shiftBadges += `<span class="shift-tag shift-n w-full text-center text-xs md:text-sm py-1 font-bold flex items-center justify-center gap-1"><span>🌙</span> ดึก (00:30-08:30)</span>`;
+      if (s === 'M') shiftBadges += `<span class="shift-tag shift-m w-full text-center text-xs md:text-sm py-1 font-bold flex items-center justify-center gap-1 shadow-xs"><span>☀️</span> เช้า (08:30-16:30)</span>`;
+      if (s === 'A') shiftBadges += `<span class="shift-tag shift-a w-full text-center text-xs md:text-sm py-1 font-bold flex items-center justify-center gap-1 shadow-xs"><span>⛅</span> บ่าย (16:30-00:30)</span>`;
+      if (s === 'N') shiftBadges += `<span class="shift-tag shift-n w-full text-center text-xs md:text-sm py-1 font-bold flex items-center justify-center gap-1 shadow-xs"><span>🌙</span> ดึก (00:30-08:30)</span>`;
     });
-
-    const isEditable = (monthState.round === 1 || monthState.round === 2);
-    const clickAttr = isEditable ? `onclick="openCellEditor('${nurseId}', ${d})"` : '';
 
     const weekendCardStyle = isWeekend 
       ? 'bg-rose-50/70 border-rose-200/90 hover:border-rose-400' 
       : 'glass-card hover:border-blue-400';
 
     calHtml += `
-      <div class="calendar-day-cell rounded-2xl border p-3 md:p-3.5 flex flex-col justify-between shadow-xs transition ${weekendCardStyle} ${isEditable ? 'cursor-pointer' : ''}" ${clickAttr}>
+      <div class="calendar-day-cell rounded-2xl border p-3 md:p-3.5 flex flex-col justify-between shadow-xs transition ${weekendCardStyle} cursor-pointer" onclick="openCellEditor('${nurseId}', ${d})">
         <div class="flex items-center justify-between pb-2 border-b border-slate-100">
           <span class="text-2xl md:text-3xl font-black ${isWeekend ? 'text-rose-600' : 'text-slate-900'}">${d}</span>
           <span class="text-xs md:text-sm font-extrabold px-2 py-0.5 rounded-lg ${isWeekend ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700'}">
@@ -637,117 +784,27 @@ function renderNurseCalendar() {
           </span>
         </div>
         <div class="mt-2 space-y-1.5">
-          ${shiftBadges || `<span class="text-xs text-slate-400 font-medium italic block text-center py-2">${isEditable ? '+ แตะเลือกเวร' : 'ว่าง'}</span>`}
+          ${shiftBadges || `<span class="text-xs text-slate-400 font-medium italic block text-center py-2 hover:text-blue-600">+ แตะเลือกเวร</span>`}
         </div>
       </div>
     `;
   }
 
   calGrid.innerHTML = calHtml;
-
-  // Round 2 Vacancies Section
-  const round2Container = document.getElementById('nurseRound2VacanciesSection');
-  if (monthState.round === 2) {
-    round2Container.classList.remove('hidden');
-    renderNurseRound2Vacancies();
-  } else {
-    round2Container.classList.add('hidden');
-  }
 }
 
-function renderNurseRound2Vacancies() {
-  const container = document.getElementById('nurseRound2List');
-  const vacancies = calculateVacancies();
-
-  if (vacancies.length === 0) {
-    container.innerHTML = `
-      <div class="p-6 text-center text-slate-500 bg-emerald-50 border border-emerald-200 rounded-2xl">
-        <span class="text-emerald-700 font-bold">🎉 เวรเต็มหมดแล้ว! ไม่มีเวรที่ยังขาดคนในรอบนี้</span>
-      </div>`;
-    return;
-  }
-
-  let html = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">`;
-  vacancies.forEach(v => {
-    const dt = new Date(currentYear, currentMonth, v.day);
-    const dayOfWeek = dt.getDay();
-    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-
-    const nurseId = currentUser.nurseId;
-    const currentShifts = (monthState.roster[nurseId] && monthState.roster[nurseId][v.day]) || [];
-    const alreadyBooked = currentShifts.includes(v.shift);
-
-    html += `
-      <div class="p-3.5 rounded-2xl border bg-white shadow-xs flex items-center justify-between gap-3 ${alreadyBooked ? 'border-emerald-300 bg-emerald-50/40' : 'border-amber-200'}">
-        <div>
-          <div class="flex items-center gap-1.5 mb-1">
-            <span class="font-black text-slate-900 text-sm">วันที่ ${v.day} (${CALENDAR_HEADERS[dayOfWeek].short})</span>
-            ${isWeekend ? '<span class="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.2 rounded font-bold">ส-อา</span>' : ''}
-          </div>
-          <div class="flex items-center gap-1 text-xs">
-            <span class="text-base">${v.icon}</span>
-            <span class="font-bold text-slate-800">${v.shiftName}</span>
-            <span class="text-slate-500 font-mono text-[11px]">${v.time.split(' ')[0]}</span>
-          </div>
-          <div class="text-[11px] text-rose-700 mt-1 font-semibold">
-            ยังขาด ${v.missing} คน (มีแล้ว ${v.currentCount}/${v.required})
-          </div>
-        </div>
-
-        <div>
-          ${alreadyBooked ? `
-            <span class="px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-1">
-              ✓ จองแล้ว
-            </span>
-          ` : `
-            <button onclick="nurseClaimRound2Shift(${v.day}, '${v.shift}')" class="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-xs font-bold shadow-xs transition transform hover:scale-105">
-              + รับเวรนี้
-            </button>
-          `}
-        </div>
-      </div>
-    `;
-  });
-  html += `</div>`;
-  container.innerHTML = html;
-}
-
-window.nurseClaimRound2Shift = function(day, shift) {
-  if (!currentUser || currentUser.role !== 'nurse') return;
-  const nurseId = currentUser.nurseId;
-  if (!monthState.roster[nurseId]) monthState.roster[nurseId] = {};
-  if (!monthState.roster[nurseId][day]) monthState.roster[nurseId][day] = [];
-
-  if (!monthState.roster[nurseId][day].includes(shift)) {
-    monthState.roster[nurseId][day].push(shift);
-    if (!monthState.round2[nurseId]) monthState.round2[nurseId] = {};
-    if (!monthState.round2[nurseId][day]) monthState.round2[nurseId][day] = [];
-    monthState.round2[nurseId][day].push(shift);
-
-    saveMonthState();
-    renderNurseCalendar();
-  }
-};
-
-// 8. ADMIN MASTER MATRIX & CONTROLS
+// 9. ADMIN MASTER MATRIX & CONTROLS
 function renderAdminView() {
   renderAdminControls();
   renderAdminSubView();
 }
 
 function renderAdminControls() {
-  const r1Btn = document.getElementById('adminRound1Btn');
-  const r2Btn = document.getElementById('adminRound2Btn');
-  const rFinalBtn = document.getElementById('adminRoundFinalBtn');
-
-  const baseClass = "px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border";
-  r1Btn.className = `${baseClass} ${monthState.round === 1 ? 'bg-blue-700 text-white border-blue-700 shadow-sm' : 'bg-white text-slate-700 border-slate-300'}`;
-  r2Btn.className = `${baseClass} ${monthState.round === 2 ? 'bg-amber-500 text-white border-amber-500 shadow-sm' : 'bg-white text-slate-700 border-slate-300'}`;
-  rFinalBtn.className = `${baseClass} ${monthState.round === 3 ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-white text-slate-700 border-slate-300'}`;
+  // Round status pills removed per user request
 }
 
 function renderAdminSubView() {
-  const views = ['matrix', 'daily', 'summary', 'vacancies'];
+  const views = ['matrix', 'excel', 'daily', 'summary', 'vacancies'];
   views.forEach(v => {
     const sec = document.getElementById(`${v}ViewSection`);
     if (sec) sec.classList.add('hidden');
@@ -765,6 +822,7 @@ function renderAdminSubView() {
   if (activeSec) activeSec.classList.remove('hidden');
 
   if (adminActiveSubView === 'matrix') renderMatrix();
+  if (adminActiveSubView === 'excel') renderExcelView();
   if (adminActiveSubView === 'daily') renderDailyView();
   if (adminActiveSubView === 'summary') renderSummaryView();
   if (adminActiveSubView === 'vacancies') renderAdminVacanciesView();
@@ -818,9 +876,13 @@ function renderMatrix() {
     const stickyBg = 'matrix-sticky-cell font-medium';
 
     b += `<tr class="${rowClass} transition border-b border-slate-200">
-      <td class="sticky-col-1 ${stickyBg} py-2.5 px-2 text-center text-slate-500 border-r border-slate-200">${idx + 1}</td>
+      <td class="sticky-col-1 ${stickyBg} py-2 px-2 text-center border-r border-slate-200">
+        <span class="nurse-num-badge w-6 h-6 text-xs font-black" style="background-color: ${nurse.color}; color: ${nurse.textColor};" title="หมายเลข ${nurse.num}">
+          ${nurse.num}
+        </span>
+      </td>
       <td class="sticky-col-2 ${stickyBg} py-2.5 px-3 font-mono font-bold text-blue-900 border-r border-slate-200">${nurse.id}</td>
-      <td class="sticky-col-3 ${stickyBg} py-2.5 px-3 text-slate-800 border-r-2 border-slate-300 whitespace-nowrap font-medium">${nurse.name}</td>`;
+      <td class="sticky-col-3 ${stickyBg} py-2.5 px-3 text-slate-800 border-r-2 border-slate-300 whitespace-nowrap font-bold">${nurse.name}</td>`;
 
     for (let d = 1; d <= daysCount; d++) {
       const dt = new Date(currentYear, currentMonth, d);
@@ -861,7 +923,7 @@ function renderMatrix() {
   // Footer Row
   let f = `<tr>
     <td colspan="3" class="sticky-col-1 bg-slate-100 py-2.5 px-3 font-bold text-slate-800 text-right border-r-2 border-slate-300">
-      เวรที่ขาด (ต่อวัน):
+      จำนวนเวรรวมต่อวัน:
     </td>`;
 
   for (let d = 1; d <= daysCount; d++) {
@@ -873,13 +935,10 @@ function renderMatrix() {
       if (shifts.includes('N')) dayN++;
     });
 
-    const isDeficit = (dayM < shiftQuota.M || dayA < shiftQuota.A || dayN < shiftQuota.N);
-    const bgClass = isDeficit ? 'bg-rose-50 text-rose-700' : 'bg-slate-50 text-slate-600';
-
-    f += `<td class="p-1 text-center border-r border-slate-200 text-[10px] leading-tight ${bgClass}">
-      <div>${dayM}/${shiftQuota.M}</div>
-      <div>${dayA}/${shiftQuota.A}</div>
-      <div>${dayN}/${shiftQuota.N}</div>
+    f += `<td class="p-1 text-center border-r border-slate-200 text-[10px] leading-tight bg-slate-50 text-slate-700">
+      <div>ช: ${dayM}</div>
+      <div>บ: ${dayA}</div>
+      <div>ด: ${dayN}</div>
     </td>`;
   }
 
@@ -889,6 +948,219 @@ function renderMatrix() {
     </td>
   </tr>`;
   tfoot.innerHTML = f;
+}
+
+// Render 14 Nurse Legend Cards with Vibrant Colors and Shift Counts (ตามแบบ Screenshot 2026-10-08 005135)
+function renderNurseCardsModern(containerId = 'summaryNurseCardsContainer') {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const daysCount = getDaysCount(currentYear, currentMonth);
+
+  // Compute shift counts for each nurse
+  const nurseShiftCounts = {};
+  NURSES.forEach(n => {
+    let count = 0;
+    const sObj = (monthState.roster && monthState.roster[n.id]) || {};
+    for (let d = 1; d <= daysCount; d++) {
+      count += (sObj[d] || []).length;
+    }
+    nurseShiftCounts[n.id] = count;
+  });
+
+  // Split into 2 columns: column 1 (numbers 1..7) & column 2 (numbers 8..15) as in screenshot
+  const col1 = NURSES.slice(0, 7);
+  const col2 = NURSES.slice(7);
+
+  const renderCol = (list) => {
+    return list.map(n => `
+      <div class="nurse-card-modern flex items-center justify-between gap-3 p-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <span class="font-mono text-slate-500 font-bold text-xs w-16 shrink-0">${n.id}</span>
+          <span class="nurse-num-badge w-8 h-8 rounded-xl text-sm font-black shrink-0" 
+                style="background-color: ${n.color}; color: ${n.textColor};"
+                title="หมายเลข ${n.num}: ${n.name}">
+            ${n.num}
+          </span>
+          <span class="font-bold text-slate-800 text-xs sm:text-sm truncate">${n.name}</span>
+        </div>
+        <div class="shrink-0">
+          <span class="px-3 py-1 rounded-xl text-xs font-black shadow-xs" 
+                style="background-color: ${n.bgSoft}; color: ${n.color}; border: 1px solid ${n.border};">
+            ${nurseShiftCounts[n.id]}
+          </span>
+        </div>
+      </div>
+    `).join('');
+  };
+
+  container.innerHTML = `
+    <div class="glass-card rounded-3xl p-5 md:p-6 border border-white/80 shadow-md">
+      <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-200 flex-wrap gap-2">
+        <div class="flex items-center gap-3">
+          <div class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-900 to-indigo-900 text-white font-black text-xs shadow-sm flex items-center gap-1.5">
+            <span>🎴</span>
+            <span>หมายเลข และ รายชื่อพยาบาล</span>
+          </div>
+          <p class="text-xs text-slate-500 font-medium">ปุ่มสีประจำตัวพนักงาน สดใส สาย Modern (ตามแบบแผนก)</p>
+        </div>
+        <span class="text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 px-3 py-1 rounded-xl">
+          พยาบาลวิชาชีพ 14 ท่าน
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="space-y-2.5">
+          ${renderCol(col1)}
+        </div>
+        <div class="space-y-2.5">
+          ${renderCol(col2)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Render Monthly Excel View with Nurse Number Badges and Notes (ตามแบบ Screenshot 2026-10-08 005135)
+function renderExcelView() {
+  const container = document.getElementById('excelRosterContainer');
+  if (!container) return;
+
+  const daysCount = getDaysCount(currentYear, currentMonth);
+  const monthTitle = `ตารางเวรพยาบาล ประจำเดือน ${THAI_MONTHS[currentMonth]} ${currentYear + 543}`;
+
+  // Days Header
+  let thDaysHtml = '';
+  for (let d = 1; d <= daysCount; d++) {
+    const dt = new Date(currentYear, currentMonth, d);
+    const dayOfWeek = dt.getDay();
+    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+    thDaysHtml += `
+      <th class="p-1.5 text-center min-w-[42px] border border-slate-300 font-black text-xs ${isWeekend ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-800'}">
+        <div class="text-xs md:text-sm">${d}</div>
+        <div class="text-[9px] font-bold opacity-75">${CALENDAR_HEADERS[dayOfWeek].short}</div>
+      </th>
+    `;
+  }
+
+  // Shifts definition matching Excel table: เช้า (08.30-16.30), บ่าย (16.30-00.30), ดึก (00.30-08.30)
+  const shiftDefs = [
+    { key: 'M', name: 'เช้า', time: '08.30-16.30', icon: '☀️', rowBg: 'bg-white' },
+    { key: 'A', name: 'บ่าย', time: '16.30-00.30', icon: '⛅', rowBg: 'bg-slate-50/40' },
+    { key: 'N', name: 'ดึก', time: '00.30-08.30', icon: '🌙', rowBg: 'bg-white' }
+  ];
+
+  let tbodyRowsHtml = '';
+  shiftDefs.forEach(sDef => {
+    let dayTds = '';
+    for (let d = 1; d <= daysCount; d++) {
+      const assignedNurses = [];
+      NURSES.forEach(n => {
+        const shifts = (monthState.roster[n.id] && monthState.roster[n.id][d]) || [];
+        if (shifts.includes(sDef.key)) assignedNurses.push(n);
+      });
+
+      let cellContent = '';
+      if (assignedNurses.length > 0) {
+        cellContent = `
+          <div class="flex flex-wrap items-center justify-center gap-1 min-h-[30px]">
+            ${assignedNurses.map(n => `
+              <span class="nurse-num-badge w-7 h-7 text-xs font-black cursor-pointer shadow-xs" 
+                    style="background-color: ${n.color}; color: ${n.textColor};"
+                    onclick="handleShiftClick(${d}, '${sDef.key}')"
+                    title="${n.name} (${n.id})">
+                ${n.num}
+              </span>
+            `).join('')}
+          </div>
+        `;
+      } else {
+        cellContent = `
+          <div class="min-h-[30px] flex items-center justify-center">
+            <span class="text-[10px] font-bold text-rose-500 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded cursor-pointer hover:bg-rose-100"
+                  onclick="handleShiftClick(${d}, '${sDef.key}')"
+                  title="คลิกเพื่อเลือกเวร">
+              ว่าง
+            </span>
+          </div>
+        `;
+      }
+
+      dayTds += `
+        <td class="p-1 text-center border border-slate-300 align-middle">
+          ${cellContent}
+        </td>
+      `;
+    }
+
+    tbodyRowsHtml += `
+      <tr class="${sDef.rowBg} hover:bg-blue-50/50 transition">
+        <td class="py-2.5 px-3 font-black text-slate-800 text-xs border border-slate-300 bg-slate-50 sticky left-0 z-10 whitespace-nowrap">
+          <span class="mr-1">${sDef.icon}</span>${sDef.name}
+        </td>
+        <td class="py-2.5 px-3 font-mono text-xs text-slate-600 border border-slate-300 bg-slate-50 whitespace-nowrap font-medium">
+          ${sDef.time}
+        </td>
+        ${dayTds}
+      </tr>
+    `;
+  });
+
+  let html = `
+    <!-- Excel View Card -->
+    <div class="glass-card rounded-3xl p-5 md:p-6 border border-white/80 shadow-md">
+      
+      <!-- Top Title Bar -->
+      <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 flex-wrap gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-emerald-700 text-white flex items-center justify-center font-bold text-2xl shadow-md">
+            📑
+          </div>
+          <div>
+            <h3 class="text-lg font-black text-slate-900 font-heading">${monthTitle}</h3>
+            <p class="text-xs text-slate-500">ตารางเวรแสดงปุ่มหมายเลขและสีประจำตัวพนักงานตามแบบฟอร์มแผนก</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="exportRoster()" class="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-xl text-xs font-bold shadow-xs transition">
+            📊 ส่งออก Excel
+          </button>
+          <button onclick="window.print()" class="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-xl text-xs font-bold shadow-xs transition">
+            🖨️ พิมพ์ A4
+          </button>
+        </div>
+      </div>
+
+      <!-- Schedule Table with Nurse Number Badges -->
+      <div class="overflow-x-auto rounded-2xl border border-slate-300 shadow-xs mb-4">
+        <table class="min-w-full text-xs text-left border-collapse bg-white">
+          <thead class="bg-slate-100 text-slate-800 uppercase font-black border-b border-slate-300">
+            <tr>
+              <th class="py-2.5 px-3 text-left w-20 border border-slate-300 bg-slate-100 sticky left-0 z-20">เวร</th>
+              <th class="py-2.5 px-3 text-left w-32 border border-slate-300 bg-slate-100">เวลา / วันที่</th>
+              ${thDaysHtml}
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200">
+            ${tbodyRowsHtml}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Department Note from Excel Screenshot -->
+      <div class="p-3.5 bg-amber-50/90 border border-amber-300 rounded-2xl text-amber-900 text-xs font-black flex items-center gap-2">
+        <span class="text-base">📌</span>
+        <span>***หมายเหตุ วันที่ 1 และ 15 ส่งรายการ Stock ยา และสั่งซื้อยา</span>
+      </div>
+
+    </div>
+
+    <!-- Nurse Legend Cards Container -->
+    <div id="excelViewNurseCardsContainer"></div>
+  `;
+
+  container.innerHTML = html;
+  renderNurseCardsModern('excelViewNurseCardsContainer');
 }
 
 function renderDailyView() {
@@ -910,41 +1182,39 @@ function renderDailyView() {
       if (shifts.includes('N')) nNurses.push(n.name);
     });
 
-    const isDeficit = (mNurses.length < shiftQuota.M || aNurses.length < shiftQuota.A || nNurses.length < shiftQuota.N);
-
     html += `
-      <div class="glass-card rounded-2xl p-4 border ${isDeficit ? 'border-rose-300' : 'border-slate-200'}">
+      <div class="glass-card rounded-2xl p-4 border border-slate-200">
         <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
           <div>
             <span class="text-xl font-black ${isWeekend ? 'text-rose-600' : 'text-slate-900'}">${d}</span>
             <span class="text-xs font-bold text-slate-700 ml-1">วัน${dayName}</span>
           </div>
-          ${isDeficit ? '<span class="text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full">ยังไม่ครบ</span>' : '<span class="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">ครบถ้วน</span>'}
+          <span class="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">รวม ${mNurses.length + aNurses.length + nNurses.length} คน</span>
         </div>
 
         <div class="space-y-2 text-xs">
           <div class="p-2 rounded-xl bg-sky-50 border border-sky-200">
             <div class="font-bold text-sky-900 flex justify-between">
               <span>☀️ เช้า (08:30-16:30)</span>
-              <span class="font-mono">${mNurses.length}/${shiftQuota.M}</span>
+              <span class="font-mono">${mNurses.length} คน</span>
             </div>
-            <div class="text-[11px] text-sky-800 mt-1">${mNurses.join(', ') || '<span class="text-rose-500 font-semibold italic">ขาดคน</span>'}</div>
+            <div class="text-[11px] text-sky-800 mt-1">${mNurses.join(', ') || '<span class="text-slate-400 italic">ไม่มีผู้เลือก</span>'}</div>
           </div>
 
           <div class="p-2 rounded-xl bg-amber-50 border border-amber-200">
             <div class="font-bold text-amber-900 flex justify-between">
               <span>⛅ บ่าย (16:30-00:30)</span>
-              <span class="font-mono">${aNurses.length}/${shiftQuota.A}</span>
+              <span class="font-mono">${aNurses.length} คน</span>
             </div>
-            <div class="text-[11px] text-amber-800 mt-1">${aNurses.join(', ') || '<span class="text-rose-500 font-semibold italic">ขาดคน</span>'}</div>
+            <div class="text-[11px] text-amber-800 mt-1">${aNurses.join(', ') || '<span class="text-slate-400 italic">ไม่มีผู้เลือก</span>'}</div>
           </div>
 
           <div class="p-2 rounded-xl bg-purple-50 border border-purple-200">
             <div class="font-bold text-purple-900 flex justify-between">
               <span>🌙 ดึก (00:30-08:30)</span>
-              <span class="font-mono">${nNurses.length}/${shiftQuota.N}</span>
+              <span class="font-mono">${nNurses.length} คน</span>
             </div>
-            <div class="text-[11px] text-purple-800 mt-1">${nNurses.join(', ') || '<span class="text-rose-500 font-semibold italic">ขาดคน</span>'}</div>
+            <div class="text-[11px] text-purple-800 mt-1">${nNurses.join(', ') || '<span class="text-slate-400 italic">ไม่มีผู้เลือก</span>'}</div>
           </div>
         </div>
       </div>
@@ -954,6 +1224,8 @@ function renderDailyView() {
 }
 
 function renderSummaryView() {
+  renderNurseCardsModern('summaryNurseCardsContainer');
+
   const tbody = document.getElementById('summaryTableBody');
   const daysCount = getDaysCount(currentYear, currentMonth);
   let html = '';
@@ -976,9 +1248,13 @@ function renderSummaryView() {
 
     html += `
       <tr class="${rowBg} transition border-b border-slate-200">
-        <td class="py-2.5 px-4 font-medium text-slate-500">${index + 1}</td>
+        <td class="py-2 px-4 text-center">
+          <span class="nurse-num-badge w-7 h-7 text-xs font-black shadow-xs" style="background-color: ${nurse.color}; color: ${nurse.textColor};" title="หมายเลข ${nurse.num}">
+            ${nurse.num}
+          </span>
+        </td>
         <td class="py-2.5 px-4 font-mono font-bold text-blue-900">${nurse.id}</td>
-        <td class="py-2.5 px-4 font-semibold text-slate-800">${nurse.name}</td>
+        <td class="py-2.5 px-4 font-bold text-slate-800">${nurse.name}</td>
         <td class="py-2.5 px-4 text-center text-sky-800 font-bold bg-sky-50/40">${m}</td>
         <td class="py-2.5 px-4 text-center text-amber-800 font-bold bg-amber-50/40">${a}</td>
         <td class="py-2.5 px-4 text-center text-purple-800 font-bold bg-purple-50/40">${n}</td>
@@ -1003,27 +1279,41 @@ function renderSummaryView() {
 
 function renderAdminVacanciesView() {
   const container = document.getElementById('adminVacanciesList');
-  const vacancies = calculateVacancies();
+  const daysCount = getDaysCount(currentYear, currentMonth);
+  const unassignedList = [];
 
-  if (vacancies.length === 0) {
+  for (let d = 1; d <= daysCount; d++) {
+    ['M', 'A', 'N'].forEach(s => {
+      const assigned = [];
+      NURSES.forEach(n => {
+        const shifts = (monthState.roster[n.id] && monthState.roster[n.id][d]) || [];
+        if (shifts.includes(s)) assigned.push(n);
+      });
+      if (assigned.length === 0) {
+        unassignedList.push({ day: d, shift: s });
+      }
+    });
+  }
+
+  if (unassignedList.length === 0) {
     container.innerHTML = `
       <div class="p-8 text-center text-slate-600 bg-emerald-50 border border-emerald-200 rounded-2xl">
-        <h4 class="text-lg font-bold text-emerald-800 mb-1">🎉 ตารางเวรมีพยาบาลครบถ้วน 100%!</h4>
-        <p class="text-sm text-emerald-600">ไม่มีเวรที่ขาดคน สามารถปิดรอบและส่งออกตารางเป็นไฟล์ Excel ได้ทันที</p>
+        <h4 class="text-lg font-bold text-emerald-800 mb-1">🎉 ทุกเวรมีพยาบาลเลือกเข้าเวรครบถ้วน!</h4>
+        <p class="text-sm text-emerald-600">ไม่มีเวรที่ยังไม่มีคนเลือก สามารถตรวจสอบและส่งออกตารางเป็นไฟล์ Excel ได้ทันที</p>
       </div>`;
     return;
   }
 
   let html = `
     <div class="mb-4 flex items-center justify-between">
-      <div class="text-sm text-slate-600">เวรที่ยังขาดคนทั้งหมด: <b class="text-rose-600 font-bold">${vacancies.length} กะ</b></div>
+      <div class="text-sm text-slate-600">เวรที่ยังไม่มีคนเลือกเลย: <b class="text-rose-600 font-bold">${unassignedList.length} เวร</b></div>
       <button onclick="runOptimization()" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center gap-1.5">
         ⚡ รัน Optimize เกลี่ยเวรและเติมเต็มอัตโนมัติ
       </button>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">`;
 
-  vacancies.forEach(v => {
+  unassignedList.forEach(v => {
     const dt = new Date(currentYear, currentMonth, v.day);
     const dayOfWeek = dt.getDay();
     const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
@@ -1034,8 +1324,8 @@ function renderAdminVacanciesView() {
           <span class="font-bold text-slate-800 text-sm">วันที่ ${v.day} (${CALENDAR_HEADERS[dayOfWeek].short})</span>
           ${isWeekend ? '<span class="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold">วันหยุด</span>' : ''}
         </div>
-        <div class="text-xs font-semibold text-blue-900 mb-1">${v.shiftName} (${v.time.split(' ')[0]})</div>
-        <div class="text-xs text-rose-600 font-bold mb-2">ขาดอีก ${v.missing} คน (มีแล้ว ${v.currentCount}/${v.required})</div>
+        <div class="text-xs font-semibold text-blue-900 mb-1">${SHIFTS[v.shift].name} (${SHIFTS[v.shift].time.split(' ')[0]})</div>
+        <div class="text-xs text-rose-600 font-bold mb-2">🚨 ยังไม่มีคนเลือก (0 คน)</div>
         <button onclick="openBookingForVacancy(${v.day}, '${v.shift}')" class="w-full py-1.5 bg-slate-100 hover:bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold border border-slate-200">
           + เลือกพยาบาลเข้าเวรนี้
         </button>
@@ -1056,7 +1346,7 @@ window.openBookingForVacancy = function(day, shift) {
   }, 50);
 };
 
-// 9. CELL EDIT MODAL LOGIC
+// 10. CELL EDIT MODAL LOGIC (ADMIN MATRIX)
 window.openCellEditor = function(nurseId, day) {
   activeEditNurseId = nurseId;
   activeEditDay = day;
@@ -1107,9 +1397,9 @@ function saveCellEditor() {
 
   saveMonthState();
   closeCellEditor();
+  renderPublicDashboard();
   if (activeView === 'personal') renderNurseCalendar();
   if (activeView === 'admin') renderAdminSubView();
-  if (activeView === 'dashboard') renderPublicDashboard();
 }
 
 function clearCellShifts() {
@@ -1119,12 +1409,12 @@ function clearCellShifts() {
   }
   saveMonthState();
   closeCellEditor();
+  renderPublicDashboard();
   if (activeView === 'personal') renderNurseCalendar();
   if (activeView === 'admin') renderAdminSubView();
-  if (activeView === 'dashboard') renderPublicDashboard();
 }
 
-// 10. QUICK BOOKING MODAL (WITH ENLARGED DATES)
+// 11. QUICK BOOKING MODAL (WITH ENLARGED DATES)
 function openBookingModal() {
   populateBookingModal();
   document.getElementById('bookingModal').classList.remove('hidden');
@@ -1163,21 +1453,74 @@ function populateBookingModal(nurseIdToLock) {
     html += `<div class="p-1 rounded-lg border border-transparent opacity-0 select-none">•</div>`;
   }
 
-  // 3. Render actual dates with enlarged numbers
+  // 3. Render actual dates with interactive toggle buttons
   for (let d = 1; d <= daysCount; d++) {
     const dt = new Date(currentYear, currentMonth, d);
     const dayOfWeek = dt.getDay();
     const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
 
     html += `
-      <label class="p-2 border rounded-xl flex flex-col items-center justify-center cursor-pointer transition select-none ${isWeekend ? 'bg-rose-50/70 border-rose-200 text-rose-900' : 'bg-white border-slate-200'} has-checked:bg-blue-600 has-checked:border-blue-600 has-checked:text-white hover:border-blue-400">
-        <input type="checkbox" name="bookingDates" value="${d}" class="hidden">
-        <span class="text-sm font-black">${d}</span>
-      </label>
+      <div class="booking-date-btn ${isWeekend ? 'is-weekend' : ''}" 
+           id="dateBtn_${d}" 
+           onclick="toggleDateSelection(this, ${d})"
+           title="วันที่ ${d}">
+        <input type="checkbox" name="bookingDates" value="${d}" class="sr-only">
+        <span class="text-sm md:text-base font-black">${d}</span>
+        <span class="date-check-badge">✓</span>
+      </div>
     `;
   }
   dateCont.innerHTML = html;
+
+  const selectAllBtn = document.getElementById('selectAllDatesBtn');
+  if (selectAllBtn) {
+    selectAllBtn.innerText = 'เลือกทั้งหมด';
+  }
 }
+
+window.toggleDateSelection = function(el, day) {
+  const cb = el.querySelector('input[type="checkbox"]');
+  if (!cb) return;
+  cb.checked = !cb.checked;
+  if (cb.checked) {
+    el.classList.add('selected');
+  } else {
+    el.classList.remove('selected');
+  }
+
+  // Update select all button text dynamically
+  const container = document.getElementById('modalDateSelector');
+  if (container) {
+    const allBtns = container.querySelectorAll('.booking-date-btn');
+    const allSelected = Array.from(allBtns).every(b => b.classList.contains('selected'));
+    const selectAllBtn = document.getElementById('selectAllDatesBtn');
+    if (selectAllBtn) {
+      selectAllBtn.innerText = allSelected ? 'ยกเลิกการเลือกทั้งหมด' : 'เลือกทั้งหมด';
+    }
+  }
+};
+
+window.toggleSelectAllDates = function() {
+  const container = document.getElementById('modalDateSelector');
+  if (!container) return;
+  const cards = container.querySelectorAll('.booking-date-btn');
+  const allSelected = Array.from(cards).every(c => c.classList.contains('selected'));
+
+  cards.forEach(c => {
+    const cb = c.querySelector('input[type="checkbox"]');
+    if (cb) cb.checked = !allSelected;
+    if (!allSelected) {
+      c.classList.add('selected');
+    } else {
+      c.classList.remove('selected');
+    }
+  });
+
+  const selectAllBtn = document.getElementById('selectAllDatesBtn');
+  if (selectAllBtn) {
+    selectAllBtn.innerText = allSelected ? 'เลือกทั้งหมด' : 'ยกเลิกการเลือกทั้งหมด';
+  }
+};
 
 window.openPersonalBookingModal = function() {
   if (!currentUser) {
@@ -1221,15 +1564,14 @@ function handleQuickBookingSubmit(e) {
 
   saveMonthState();
   closeBookingModal();
+  renderPublicDashboard();
   if (activeView === 'personal') renderNurseCalendar();
   if (activeView === 'admin') renderAdminSubView();
-  if (activeView === 'dashboard') renderPublicDashboard();
 }
 
-// 11. AUTOMATED SHIFT OPTIMIZER ALGORITHM
+// 12. AUTOMATED SHIFT OPTIMIZER ALGORITHM
 function runOptimization() {
   const daysCount = getDaysCount(currentYear, currentMonth);
-  const beforeVacancies = calculateVacancies();
 
   const optimizedRoster = JSON.parse(JSON.stringify(monthState.roster));
   const assignedLog = [];
@@ -1244,9 +1586,9 @@ function runOptimization() {
     nurseDutyCounts[n.id] = c;
   });
 
+  // Balance out any unassigned shift
   for (let d = 1; d <= daysCount; d++) {
     ['N', 'A', 'M'].forEach(s => {
-      const req = shiftQuota[s];
       let assignedNurses = [];
       NURSES.forEach(n => {
         if (optimizedRoster[n.id] && optimizedRoster[n.id][d] && optimizedRoster[n.id][d].includes(s)) {
@@ -1254,36 +1596,35 @@ function runOptimization() {
         }
       });
 
-      let deficit = req - assignedNurses.length;
-      if (deficit <= 0) return;
+      // Target at least 1 nurse if unassigned
+      if (assignedNurses.length === 0) {
+        const candidates = NURSES.filter(n => {
+          const todayShifts = (optimizedRoster[n.id] && optimizedRoster[n.id][d]) || [];
+          if (todayShifts.length > 0) return false;
 
-      const candidates = NURSES.filter(n => {
-        const todayShifts = (optimizedRoster[n.id] && optimizedRoster[n.id][d]) || [];
-        if (todayShifts.length > 0) return false;
-
-        // Rest rules: If shift is M, check yesterday night
-        if (s === 'M' && d > 1) {
-          const yShifts = (optimizedRoster[n.id] && optimizedRoster[n.id][d - 1]) || [];
-          if (yShifts.includes('N')) return false;
-        }
-        return true;
-      });
-
-      candidates.sort((a, b) => nurseDutyCounts[a.id] - nurseDutyCounts[b.id]);
-
-      for (let i = 0; i < deficit && i < candidates.length; i++) {
-        const picked = candidates[i];
-        if (!optimizedRoster[picked.id]) optimizedRoster[picked.id] = {};
-        if (!optimizedRoster[picked.id][d]) optimizedRoster[picked.id][d] = [];
-        optimizedRoster[picked.id][d].push(s);
-        nurseDutyCounts[picked.id]++;
-
-        assignedLog.push({
-          day: d,
-          shift: s,
-          shiftName: SHIFTS[s].name,
-          nurse: picked
+          if (s === 'M' && d > 1) {
+            const yShifts = (optimizedRoster[n.id] && optimizedRoster[n.id][d - 1]) || [];
+            if (yShifts.includes('N')) return false;
+          }
+          return true;
         });
+
+        candidates.sort((a, b) => nurseDutyCounts[a.id] - nurseDutyCounts[b.id]);
+
+        if (candidates.length > 0) {
+          const picked = candidates[0];
+          if (!optimizedRoster[picked.id]) optimizedRoster[picked.id] = {};
+          if (!optimizedRoster[picked.id][d]) optimizedRoster[picked.id][d] = [];
+          optimizedRoster[picked.id][d].push(s);
+          nurseDutyCounts[picked.id]++;
+
+          assignedLog.push({
+            day: d,
+            shift: s,
+            shiftName: SHIFTS[s].name,
+            nurse: picked
+          });
+        }
       }
     });
   }
@@ -1294,14 +1635,14 @@ function runOptimization() {
   if (assignedLog.length === 0) {
     modalBody.innerHTML = `
       <div class="p-6 text-center bg-emerald-50 border border-emerald-200 rounded-2xl">
-        <h4 class="font-bold text-emerald-800 text-sm mb-1">🎉 ตารางเวรมีพยาบาลครบถ้วนอยู่แล้ว</h4>
-        <p class="text-xs text-emerald-600">ไม่ต้องเติมเวรเพิ่มเติม ระบบจัดสมดุลได้ 100%</p>
+        <h4 class="font-bold text-emerald-800 text-sm mb-1">🎉 ตารางเวรมีพยาบาลเลือกเข้าเวรครบถ้วนทุกเวรแล้ว</h4>
+        <p class="text-xs text-emerald-600">ไม่มีเวรที่ว่างค้าง ระบบมีความสมดุลเรียบร้อย</p>
       </div>`;
   } else {
     let logHtml = `
       <div class="p-4 bg-blue-50 border border-blue-200 rounded-2xl mb-4 text-xs text-blue-900">
         <div class="font-bold mb-1">ผลการประมวลผล:</div>
-        <div>ระบบได้จัดพยาบาลเติมเต็มเวรที่ยังขาดไปทั้งหมด <b>${assignedLog.length} ตำแหน่ง</b> โดยกระจายเวรให้พยาบาลที่มีชั่วโมงเวรน้อยที่สุดอย่างเป็นธรรม</div>
+        <div>ระบบได้จัดพยาบาลเติมเต็มเวรที่ยังไม่มีคนเลือกไปทั้งหมด <b>${assignedLog.length} ตำแหน่ง</b> โดยกระจายเวรให้พยาบาลที่มีชั่วโมงเวรน้อยที่สุดอย่างเป็นธรรม</div>
       </div>
       <div class="max-h-60 overflow-y-auto space-y-2 pr-1">`;
 
@@ -1370,12 +1711,12 @@ function exportRoster() {
   link.click();
 }
 
-// 12. EVENT LISTENERS INITIALIZATION
+// 13. EVENT LISTENERS INITIALIZATION
 document.addEventListener('DOMContentLoaded', () => {
   loadMonthState();
   initAuth();
 
-  // Month navigation
+  // Month navigation: Initialized to defaultMonth (current month + 1)
   const monthSel = document.getElementById('monthSelect');
   const yearSel = document.getElementById('yearSelect');
   if (monthSel) {
@@ -1445,26 +1786,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Admin Subview Switcher Buttons
   document.getElementById('viewMatrixBtn')?.addEventListener('click', () => { adminActiveSubView = 'matrix'; renderAdminSubView(); });
+  document.getElementById('viewExcelBtn')?.addEventListener('click', () => { adminActiveSubView = 'excel'; renderAdminSubView(); });
   document.getElementById('viewDailyBtn')?.addEventListener('click', () => { adminActiveSubView = 'daily'; renderAdminSubView(); });
   document.getElementById('viewSummaryBtn')?.addEventListener('click', () => { adminActiveSubView = 'summary'; renderAdminSubView(); });
   document.getElementById('viewVacanciesBtn')?.addEventListener('click', () => { adminActiveSubView = 'vacancies'; renderAdminSubView(); });
-
-  // Admin Round Control Buttons
-  document.getElementById('adminRound1Btn')?.addEventListener('click', () => {
-    monthState.round = 1;
-    saveMonthState();
-    renderAdminControls();
-  });
-  document.getElementById('adminRound2Btn')?.addEventListener('click', () => {
-    monthState.round = 2;
-    saveMonthState();
-    renderAdminControls();
-  });
-  document.getElementById('adminRoundFinalBtn')?.addEventListener('click', () => {
-    monthState.round = 3;
-    saveMonthState();
-    renderAdminControls();
-  });
 
   // Action Buttons
   document.getElementById('adminOptimizeBtn')?.addEventListener('click', runOptimization);
@@ -1494,11 +1819,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('closeBookingModalBtn')?.addEventListener('click', closeBookingModal);
   document.getElementById('cancelBookingBtn')?.addEventListener('click', closeBookingModal);
   document.getElementById('quickBookingForm')?.addEventListener('submit', handleQuickBookingSubmit);
-  document.getElementById('selectAllDatesBtn')?.addEventListener('click', () => {
-    const cbs = document.getElementsByName('bookingDates');
-    const allChecked = Array.from(cbs).every(c => c.checked);
-    cbs.forEach(c => c.checked = !allChecked);
-  });
 
   document.getElementById('closeOptimizeModalBtn')?.addEventListener('click', () => {
     document.getElementById('optimizeModal').classList.add('hidden');
@@ -1508,11 +1828,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('confirmOptimizeBtn')?.addEventListener('click', confirmOptimization);
 
-  // Initial View
-  if (currentUser) {
-    if (currentUser.role === 'nurse') switchView('personal');
-    else if (currentUser.role === 'admin') switchView('admin');
-  } else {
-    switchView('dashboard');
-  }
+  // Initial View: Always start with the Main Monthly Calendar Dashboard
+  switchView('dashboard');
 });

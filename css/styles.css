@@ -1,13 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=Prompt:wght@400;500;600;700;800;900&display=swap');
 
 :root {
-  --primary-blue: #1d4ed8;
+  --primary-blue: #2563eb;
   --primary-glow: rgba(59, 130, 246, 0.45);
 }
 
 body {
   font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: radial-gradient(circle at 10% 10%, #0f2744 0%, #08162b 45%, #040c17 100%);
+  background: radial-gradient(circle at 10% 10%, #17386d 0%, #0c234b 45%, #06152e 100%);
   min-height: 100vh;
   color: #0f172a;
   position: relative;
@@ -21,11 +21,11 @@ h1, h2, h3, h4, .font-heading {
 /* ================= Ambient Glow Effects ================= */
 .ambient-glow-1 {
   position: fixed;
-  top: -120px;
+  top: -100px;
   left: 15%;
-  width: 580px;
-  height: 580px;
-  background: radial-gradient(circle, rgba(14, 165, 233, 0.28) 0%, rgba(37, 99, 235, 0.12) 50%, transparent 75%);
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.32) 0%, rgba(37, 99, 235, 0.15) 50%, transparent 75%);
   filter: blur(90px);
   pointer-events: none;
   z-index: 0;
@@ -34,11 +34,11 @@ h1, h2, h3, h4, .font-heading {
 
 .ambient-glow-2 {
   position: fixed;
-  bottom: -150px;
+  bottom: -120px;
   right: 10%;
-  width: 550px;
-  height: 550px;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, rgba(59, 130, 246, 0.12) 50%, transparent 75%);
+  width: 580px;
+  height: 580px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.25) 0%, rgba(59, 130, 246, 0.15) 50%, transparent 75%);
   filter: blur(90px);
   pointer-events: none;
   z-index: 0;
@@ -47,11 +47,11 @@ h1, h2, h3, h4, .font-heading {
 
 .ambient-glow-3 {
   position: fixed;
-  top: 40%;
-  right: 45%;
-  width: 420px;
-  height: 420px;
-  background: radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, transparent 70%);
+  top: 35%;
+  right: 40%;
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.2) 0%, transparent 70%);
   filter: blur(100px);
   pointer-events: none;
   z-index: 0;
@@ -65,39 +65,101 @@ h1, h2, h3, h4, .font-heading {
 
 /* ================= Glassmorphism Core Classes ================= */
 .glass-container {
-  background: rgba(255, 255, 255, 0.90);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 25px 60px -15px rgba(2, 6, 23, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 25px 60px -15px rgba(2, 6, 23, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.6);
 }
 
+/* Theme Header อ่อนลง แต่สดใส (Soft Royal Blue & Cyan Luminous Glass) */
 .glass-header {
-  background: linear-gradient(135deg, rgba(13, 31, 68, 0.96) 0%, rgba(18, 52, 115, 0.94) 50%, rgba(11, 35, 80, 0.96) 100%);
+  background: linear-gradient(135deg, rgba(30, 80, 210, 0.88) 0%, rgba(14, 165, 233, 0.82) 50%, rgba(59, 130, 246, 0.88) 100%);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 12px 35px rgba(8, 20, 48, 0.35);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 10px 30px rgba(37, 99, 235, 0.25);
 }
 
+/* ================= View Navigation Switcher Pills (Active vs Inactive) ================= */
+.nav-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.95rem;
+  border-radius: 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.nav-tab-btn-inactive {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.nav-tab-btn-inactive:hover {
+  background: rgba(255, 255, 255, 0.28) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  transform: translateY(-1px);
+}
+
+.nav-tab-btn-active {
+  background: #ffffff !important;
+  color: #0f172a !important; /* deep high-contrast navy */
+  font-weight: 800 !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25), 0 0 0 2px rgba(255, 255, 255, 0.95), 0 0 16px rgba(56, 189, 248, 0.45) !important;
+  transform: translateY(-1px) scale(1.02);
+}
+
+.nav-active-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  background-color: #dbeafe; /* bg-blue-100 */
+  color: #1d4ed8; /* text-blue-700 */
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.nav-active-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 9999px;
+  background-color: #2563eb;
+  box-shadow: 0 0 6px #2563eb;
+  animation: pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+
 .glass-card {
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(219, 234, 254, 0.85);
+  border: 1px solid rgba(219, 234, 254, 0.9);
   box-shadow: 0 8px 24px rgba(30, 58, 138, 0.06);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-card:hover {
-  background: rgba(255, 255, 255, 0.96);
+  background: rgba(255, 255, 255, 0.98);
   border-color: rgba(96, 165, 250, 0.7);
   box-shadow: 0 16px 36px rgba(30, 58, 138, 0.14);
-  transform: translateY(-2px);
 }
 
 .glass-input {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(191, 219, 254, 0.9);
   transition: all 0.2s ease;
@@ -109,7 +171,7 @@ h1, h2, h3, h4, .font-heading {
 }
 
 .glass-modal {
-  background: rgba(255, 255, 255, 0.96);
+  background: rgba(255, 255, 255, 0.97);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
   border: 1px solid rgba(255, 255, 255, 0.9);
@@ -140,6 +202,67 @@ h1, h2, h3, h4, .font-heading {
   min-height: 120px;
   border-radius: 18px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Main Calendar specific day cells (Clean & Multi-shift without names) */
+.main-cal-empty-cell {
+  background: rgba(241, 245, 249, 0.3);
+  border: 1px dashed rgba(203, 213, 225, 0.6);
+  border-radius: 20px;
+  min-height: 175px;
+}
+
+.main-cal-day-cell {
+  min-height: 175px;
+  border-radius: 20px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Interactive shift rows inside main calendar */
+.cal-shift-row {
+  border-radius: 12px;
+  padding: 6px 10px;
+  transition: all 0.18s ease;
+  cursor: pointer;
+  border-width: 1.5px;
+  border-style: solid;
+  position: relative;
+}
+.cal-shift-row:hover {
+  transform: translateY(-1.5px) scale(1.02);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+  filter: brightness(1.03);
+}
+
+/* 1. เด่นชัดเป็นพิเศษ: เวรที่ยังไม่มีคนเลือก (0 คน) */
+.cal-shift-unassigned {
+  background: linear-gradient(135deg, #fff1f2 0%, #fee2e2 100%) !important;
+  border-color: #f43f5e !important;
+  color: #9f1239 !important;
+  box-shadow: 0 0 12px rgba(244, 63, 94, 0.35);
+  animation: unassigned-pulse 2.2s infinite ease-in-out;
+}
+
+@keyframes unassigned-pulse {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(244, 63, 94, 0.3);
+    border-color: #f43f5e;
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(244, 63, 94, 0.65);
+    border-color: #e11d48;
+  }
+}
+
+/* 2. เวรที่มีคนเลือกแล้ว (ตามจำนวนพยาบาล) */
+.cal-shift-assigned {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%) !important;
+  border-color: #7dd3fc !important;
+  color: #0369a1 !important;
+  box-shadow: 0 1px 3px rgba(14, 165, 233, 0.12);
 }
 
 /* Custom scrollbars */
@@ -247,35 +370,88 @@ h1, h2, h3, h4, .font-heading {
   background: #e9d5ff;
 }
 
-/* Large Icon Styles */
-.icon-box-xl {
-  width: 58px;
-  height: 58px;
-  border-radius: 20px;
+/* ================= Interactive Booking Modal Date Selector Buttons ================= */
+.booking-date-btn {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 32px;
-  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.4), 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 0.6rem 0.2rem;
+  border-radius: 0.875rem;
+  font-weight: 800;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1.5px solid #e2e8f0;
+  background-color: #ffffff;
+  color: #1e293b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-/* Vacancy Badges */
-.vacant-badge {
-  background-color: #ffe4e6;
+.booking-date-btn.is-weekend {
+  background-color: #fff1f2;
+  border-color: #fecdd3;
   color: #be123c;
-  border: 1px dashed #f43f5e;
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 8px;
-  font-weight: 700;
 }
 
-@keyframes soft-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(0.98); }
+.booking-date-btn:hover {
+  border-color: #3b82f6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.15);
 }
-.pulse-vacant {
-  animation: soft-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+.booking-date-btn.selected {
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%) !important;
+  color: #ffffff !important;
+  border-color: #1e40af !important;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.45) !important;
+  transform: scale(1.05);
+}
+
+.booking-date-btn .date-check-badge {
+  display: none;
+  font-size: 0.65rem;
+  font-weight: 900;
+  margin-top: 2px;
+}
+
+.booking-date-btn.selected .date-check-badge {
+  display: inline-block;
+}
+
+/* ================= Modern Vibrant Nurse Number Badges & Cards ================= */
+.nurse-num-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  border-radius: 0.65rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.nurse-num-badge:hover {
+  transform: scale(1.12);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.nurse-card-modern {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 1.25rem;
+  padding: 0.85rem 1.15rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.nurse-card-modern:hover {
+  background: #ffffff;
+  border-color: rgba(59, 130, 246, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(30, 58, 138, 0.12);
 }
 
 /* Print Optimization for Landscape A4 */
@@ -291,7 +467,7 @@ h1, h2, h3, h4, .font-heading {
     font-size: 10px !important;
   }
   
-  header, .no-print, #cellEditModal, #bookingModal, #optimizeModal, #nurseLoginModal, #adminLoginModal, .toolbar-actions, .ambient-glow-1, .ambient-glow-2, .ambient-glow-3 {
+  header, .no-print, #cellEditModal, #bookingModal, #optimizeModal, #nurseLoginModal, #adminLoginModal, #shiftActionModal, .toolbar-actions, .ambient-glow-1, .ambient-glow-2, .ambient-glow-3 {
     display: none !important;
   }
   

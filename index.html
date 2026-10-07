@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบตาราง Booking เวรพยาบาล (Modern Blue Glassmorphism)</title>
+  <title>ระบบตาราง Booking เวรพยาบาล</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/styles.css">
@@ -24,90 +24,90 @@
   <!-- Main Application Wrapper -->
   <div class="relative z-10 max-w-[1760px] mx-auto p-2 sm:p-4 md:p-6 min-h-screen flex flex-col">
 
-    <!-- ==================== TOP NAVIGATION HEADER (MODERN BLUE GLASS) ==================== -->
-    <header class="glass-header rounded-3xl p-5 md:p-6 mb-5 text-white shadow-2xl border border-white/20">
+    <!-- ==================== TOP NAVIGATION HEADER (SOFT & VIBRANT BLUE GLASS) ==================== -->
+    <header class="glass-header rounded-3xl p-5 md:p-6 mb-5 text-white shadow-xl border border-white/30">
       <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
         
-        <!-- Left: Hospital Department Branding -->
-        <div class="flex items-center gap-4 cursor-pointer" onclick="switchView('dashboard')">
-          <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-400/30 via-sky-400/20 to-indigo-500/30 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-lg shadow-sky-500/20 text-3xl">
+        <!-- Left: Hospital Department Branding (Cleaned: Live Roster & Optimizer subtext removed) -->
+        <div class="flex items-center gap-3.5 cursor-pointer" onclick="switchView('dashboard')">
+          <div class="w-13 h-13 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-md text-3xl">
             🏥
           </div>
           <div>
-            <div class="flex items-center gap-2">
-              <h1 class="text-xl md:text-2xl font-black tracking-tight font-heading text-white">ระบบจองและจัดตารางเวรพยาบาล</h1>
-              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-400/20 border border-sky-300/40 text-sky-200 tracking-wider uppercase">Live Roster</span>
-            </div>
-            <p class="text-blue-200 text-xs md:text-sm font-light mt-0.5">Nurse Duty Booking & Automated Shift Optimizer (พยาบาลวิชาชีพ 14 ท่าน)</p>
+            <h1 class="text-xl md:text-2xl font-black tracking-tight font-heading text-white">ระบบจองและจัดตารางเวรพยาบาล</h1>
           </div>
         </div>
 
         <!-- Middle: Shift Legend Pills with Enlarged Icons -->
-        <div class="flex flex-wrap items-center gap-2.5 bg-black/35 p-2 rounded-2xl border border-white/15 backdrop-blur-md shadow-inner">
-          <div class="flex items-center gap-2 bg-sky-500/25 border border-sky-300/35 px-3.5 py-1.5 rounded-xl">
+        <div class="flex flex-wrap items-center gap-2.5 bg-white/15 p-2 rounded-2xl border border-white/20 backdrop-blur-md shadow-xs">
+          <div class="flex items-center gap-2 bg-sky-500/25 border border-white/30 px-3.5 py-1.5 rounded-xl">
             <span class="text-xl">☀️</span>
             <div>
-              <div class="font-bold text-sky-200 text-xs">เวรเช้า (M)</div>
-              <div class="text-[10px] text-sky-300/80 font-mono">08:30 - 16:30 น.</div>
+              <div class="font-bold text-white text-xs">เวรเช้า (M)</div>
+              <div class="text-[10px] text-blue-100 font-mono">08:30 - 16:30 น.</div>
             </div>
           </div>
-          <div class="flex items-center gap-2 bg-amber-500/25 border border-amber-300/35 px-3.5 py-1.5 rounded-xl">
+          <div class="flex items-center gap-2 bg-amber-500/25 border border-white/30 px-3.5 py-1.5 rounded-xl">
             <span class="text-xl">⛅</span>
             <div>
-              <div class="font-bold text-amber-200 text-xs">เวรบ่าย (A)</div>
-              <div class="text-[10px] text-amber-300/80 font-mono">16:30 - 00:30 น.</div>
+              <div class="font-bold text-white text-xs">เวรบ่าย (A)</div>
+              <div class="text-[10px] text-amber-100 font-mono">16:30 - 00:30 น.</div>
             </div>
           </div>
-          <div class="flex items-center gap-2 bg-purple-500/25 border border-purple-300/35 px-3.5 py-1.5 rounded-xl">
+          <div class="flex items-center gap-2 bg-purple-500/25 border border-white/30 px-3.5 py-1.5 rounded-xl">
             <span class="text-xl">🌙</span>
             <div>
-              <div class="font-bold text-purple-200 text-xs">เวรดึก (N)</div>
-              <div class="text-[10px] text-purple-300/80 font-mono">00:30 - 08:30 น.</div>
+              <div class="font-bold text-white text-xs">เวรดึก (N)</div>
+              <div class="text-[10px] text-purple-100 font-mono">00:30 - 08:30 น.</div>
             </div>
           </div>
         </div>
 
-        <!-- Right: Actions & Separate Login Buttons -->
+        <!-- Right: Actions & Separate Login Buttons (ตัดคำว่าปุ่มออก) -->
         <div class="flex items-center gap-3 flex-wrap">
           
-          <!-- When Unauthenticated: Separate Nurse & Admin Buttons -->
+          <!-- When Unauthenticated: "จองตารางเวร" & "Admin" Buttons -->
           <div id="unauthButtons" class="flex items-center gap-3">
-            <!-- ปุ่มจองตารางเวร (พยาบาล) -->
+            <!-- จองตารางเวร (พยาบาล) -->
             <button id="btnOpenNurseLogin" onclick="openNurseLoginModal()" 
-                    class="group flex items-center gap-2.5 px-5 py-3 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-blue-600 via-sky-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 border border-sky-300/50 shadow-lg shadow-sky-500/30 transition transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer">
-              <span class="text-2xl group-hover:scale-110 transition transform">👩‍⚕️</span>
-              <span class="tracking-wide">ปุ่มจองตารางเวร</span>
+                    class="group flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-blue-600 via-sky-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 border border-white/40 shadow-md shadow-sky-600/30 transition transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer">
+              <span class="text-xl group-hover:scale-110 transition transform">👩‍⚕️</span>
+              <span class="tracking-wide">จองตารางเวร</span>
             </button>
 
-            <!-- ปุ่ม Admin -->
+            <!-- Admin -->
             <button id="btnOpenAdminLogin" onclick="openAdminLoginModal()" 
-                    class="group flex items-center gap-2.5 px-5 py-3 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-slate-800 via-indigo-950 to-blue-950 hover:from-slate-700 hover:to-indigo-900 border border-indigo-400/50 shadow-lg shadow-indigo-950/40 transition transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer">
-              <span class="text-2xl group-hover:scale-110 transition transform">👑</span>
-              <span class="tracking-wide">ปุ่ม Admin</span>
+                    class="group flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 hover:from-slate-800 hover:to-indigo-900 border border-white/30 shadow-md shadow-indigo-950/40 transition transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer">
+              <span class="text-xl group-hover:scale-110 transition transform">👑</span>
+              <span class="tracking-wide">Admin</span>
             </button>
           </div>
 
           <!-- When Authenticated: Profile Badge & Navigation Switchers -->
           <div id="authControls" class="hidden flex items-center gap-2.5 flex-wrap">
-            <button id="navDashboardBtn" onclick="switchView('dashboard')" 
-                    class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/20 transition backdrop-blur-md shadow-xs">
-              <span class="text-lg">📊</span>
-              <span>แดชบอร์ดเวรว่าง</span>
-            </button>
-            <button id="navMyScheduleBtn" onclick="switchView('personal')" 
-                    class="hidden flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-sky-600/90 hover:bg-sky-500 border border-sky-300/40 transition shadow-md shadow-sky-600/20">
-              <span class="text-lg">📅</span>
-              <span>ตารางเวรของฉัน</span>
-            </button>
-            <button id="navAdminPortalBtn" onclick="switchView('admin')" 
-                    class="hidden flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-700/90 hover:bg-indigo-600 border border-indigo-300/40 transition shadow-md shadow-indigo-700/20">
-              <span class="text-lg">📋</span>
-              <span>ตารางรวม 14 ท่าน</span>
-            </button>
+            
+            <!-- Segmented Pill Group for Views (Active Indicator) -->
+            <div class="flex items-center p-1 bg-black/20 backdrop-blur-md rounded-2xl border border-white/25 gap-1.5 shadow-inner">
+              <button id="navDashboardBtn" onclick="switchView('dashboard')" 
+                      class="nav-tab-btn nav-tab-btn-inactive">
+                <span class="text-base sm:text-lg">📊</span>
+                <span>ปฏิทินหลัก</span>
+              </button>
+              <button id="navMyScheduleBtn" onclick="switchView('personal')" 
+                      class="nav-tab-btn nav-tab-btn-inactive hidden">
+                <span class="text-base sm:text-lg">📅</span>
+                <span>ตารางเวรของฉัน</span>
+              </button>
+              <button id="navAdminPortalBtn" onclick="switchView('admin')" 
+                      class="nav-tab-btn nav-tab-btn-inactive hidden">
+                <span class="text-base sm:text-lg">📋</span>
+                <span>ตารางรวม 14 ท่าน</span>
+              </button>
+            </div>
 
             <div id="userProfileBadge"></div>
 
-            <button onclick="logout()" class="flex items-center gap-1.5 px-3.5 py-2.5 bg-rose-500/20 hover:bg-rose-500/40 border border-rose-300/40 text-rose-200 hover:text-white rounded-xl text-xs font-bold backdrop-blur-md transition shadow-xs" title="ออกจากระบบ">
+            <button onclick="logout()" class="flex items-center gap-1.5 px-3.5 py-2.5 bg-rose-500/20 hover:bg-rose-500/40 border border-rose-300/40 text-rose-100 hover:text-white rounded-xl text-xs font-bold backdrop-blur-md transition shadow-xs" title="ออกจากระบบ">
               <span class="text-base">🚪</span>
               <span>ออกจากระบบ</span>
             </button>
@@ -136,7 +136,7 @@
             <option value="5">มิถุนายน</option>
             <option value="6">กรกฎาคม</option>
             <option value="7">สิงหาคม</option>
-            <option value="8" selected>กันยายน</option>
+            <option value="8">กันยายน</option>
             <option value="9">ตุลาคม</option>
             <option value="10">พฤศจิกายน</option>
             <option value="11">ธันวาคม</option>
@@ -144,7 +144,7 @@
           <span class="text-blue-400 font-black">/</span>
           <select id="yearSelect" class="font-black text-slate-800 bg-transparent border-none outline-none cursor-pointer text-sm md:text-base">
             <option value="2025">2568 (2025)</option>
-            <option value="2026" selected>2569 (2026)</option>
+            <option value="2026">2569 (2026)</option>
             <option value="2027">2570 (2027)</option>
           </select>
         </div>
@@ -156,24 +156,24 @@
 
       <div class="flex items-center gap-3">
         <div id="viewStatusBadge" class="text-xs text-blue-950 bg-blue-100/80 px-3.5 py-1.5 rounded-xl border border-blue-200 font-bold">
-          ⚡ ระบบบันทึกข้อมูลอัตโนมัติ (LocalStorage)
+          ⚡ พยาบาลวิชาชีพ 14 ท่าน | สามารถคลิกเลือกได้ทุกเวร
         </div>
       </div>
     </div>
 
 
-    <!-- ==================== VIEW 1: แดชบอร์ดหลัก (MAIN VACANCY DASHBOARD) ==================== -->
+    <!-- ==================== VIEW 1: หน้า MAIN ในปฏิทิน (แสดงทุกวัน ทุกเวร เลือกได้ทุกเวร) ==================== -->
     <section id="publicDashboardSection" class="glass-container rounded-3xl p-5 md:p-8 shadow-2xl border border-white/60 mb-8 flex-1">
       
-      <!-- Dashboard Title Banner -->
+      <!-- Dashboard Title Banner (เปลี่ยนคำว่า กะ เป็น เวร) -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 mb-6 border-b border-slate-200/80">
         <div>
           <div class="flex items-center gap-3">
-            <span class="text-3xl">📊</span>
-            <h2 class="text-2xl md:text-3xl font-black text-blue-950 font-heading">แดชบอร์ดหลัก: เวรที่ยังว่างของแต่ละวัน</h2>
+            <span class="text-3xl">📅</span>
+            <h2 class="text-2xl md:text-3xl font-black text-blue-950 font-heading">ปฏิทินจองเวรประจำเดือน (Main Duty Calendar)</h2>
           </div>
           <p class="text-slate-600 text-sm mt-1">
-            แสดงเฉพาะวันที่และเวรที่ยังขาดคน โดยวันที่และเวรที่ถูกจองเต็มแล้วจะถูกซ่อนไว้โดยอัตโนมัติ
+            แสดงครบทุกวัน ทุกเวร สามารถคลิกเลือกได้ทุกเวร พร้อมแสดงจำนวนคนที่เลือกต่อเวร (เวรที่ยังไม่มีคนเลือกแสดงเด่นชัดเป็นพิเศษ)
           </p>
         </div>
 
@@ -181,66 +181,71 @@
         <div class="flex items-center gap-2.5">
           <button onclick="openPersonalBookingModal()" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-md transition flex items-center gap-2">
             <span class="text-base">✍️</span>
-            <span>จองเวรด่วน</span>
+            <span>จองหลายวันพร้อมกัน</span>
           </button>
         </div>
       </div>
 
-      <!-- 4 High-Impact Vacancy Stat Cards with Enlarged Icons -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <!-- 4 Stat Cards (เปลี่ยนจาก กะ เป็น เวร) -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         
-        <!-- Total Vacant Shifts -->
-        <div class="glass-card p-4 md:p-5 rounded-2xl border border-rose-200 shadow-sm flex items-center gap-4">
-          <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-rose-100/90 text-rose-700 flex items-center justify-center font-black text-3xl md:text-4xl shadow-inner border border-rose-200">
+        <!-- Total Shifts in Month -->
+        <div class="glass-card p-4 md:p-5 rounded-2xl border border-blue-200 shadow-sm flex items-center gap-4">
+          <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-blue-100/90 text-blue-700 flex items-center justify-center font-black text-3xl md:text-4xl shadow-inner border border-blue-200">
             📋
           </div>
           <div>
-            <div class="text-xs text-slate-500 font-bold uppercase tracking-wider">เวรที่ยังว่างทั้งหมด</div>
-            <div id="dashStatTotal" class="text-2xl md:text-3xl font-black text-rose-600 font-heading">0 เวร</div>
+            <div class="text-xs text-slate-500 font-bold uppercase tracking-wider">เวรทั้งหมดในเดือนนี้</div>
+            <div id="dashStatTotal" class="text-2xl md:text-3xl font-black text-blue-950 font-heading">0 เวร</div>
           </div>
         </div>
 
-        <!-- Morning Vacancies -->
+        <!-- Unassigned Shifts (0 People) - Highlighted Prominently -->
+        <div class="glass-card p-4 md:p-5 rounded-2xl border-2 border-rose-400 bg-rose-50/50 shadow-md flex items-center gap-4">
+          <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-rose-500 text-white flex items-center justify-center font-black text-3xl md:text-4xl shadow-md border border-rose-300 animate-pulse">
+            🚨
+          </div>
+          <div>
+            <div class="text-xs text-rose-800 font-black uppercase tracking-wider">ยังไม่มีคนเลือก (0 คน)</div>
+            <div id="dashStatUnassigned" class="text-2xl md:text-3xl font-black text-rose-600 font-heading">0 เวร</div>
+          </div>
+        </div>
+
+        <!-- Assigned Shifts -->
         <div class="glass-card p-4 md:p-5 rounded-2xl border border-sky-200 shadow-sm flex items-center gap-4">
           <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-sky-100/90 text-sky-700 flex items-center justify-center font-black text-3xl md:text-4xl shadow-inner border border-sky-200">
-            ☀️
+            👥
           </div>
           <div>
-            <div class="text-xs text-slate-500 font-bold uppercase tracking-wider">เวรเช้าที่ยังว่าง</div>
-            <div id="dashStatM" class="text-2xl md:text-3xl font-black text-sky-900 font-heading">0 ที่</div>
+            <div class="text-xs text-slate-500 font-bold uppercase tracking-wider">เวรที่มีคนเลือกแล้ว</div>
+            <div id="dashStatAssigned" class="text-2xl md:text-3xl font-black text-sky-950 font-heading">0 เวร</div>
           </div>
         </div>
 
-        <!-- Afternoon Vacancies -->
-        <div class="glass-card p-4 md:p-5 rounded-2xl border border-amber-200 shadow-sm flex items-center gap-4">
-          <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-amber-100/90 text-amber-700 flex items-center justify-center font-black text-3xl md:text-4xl shadow-inner border border-amber-200">
-            ⛅
+        <!-- Total Nurse Bookings -->
+        <div class="glass-card p-4 md:p-5 rounded-2xl border border-emerald-200 shadow-sm flex items-center gap-4">
+          <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-emerald-100/90 text-emerald-700 flex items-center justify-center font-black text-3xl md:text-4xl shadow-inner border border-emerald-200">
+            👩‍⚕️
           </div>
           <div>
-            <div class="text-xs text-slate-500 font-bold uppercase tracking-wider">เวรบ่ายที่ยังว่าง</div>
-            <div id="dashStatA" class="text-2xl md:text-3xl font-black text-amber-900 font-heading">0 ที่</div>
-          </div>
-        </div>
-
-        <!-- Night Vacancies -->
-        <div class="glass-card p-4 md:p-5 rounded-2xl border border-purple-200 shadow-sm flex items-center gap-4">
-          <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-purple-100/90 text-purple-700 flex items-center justify-center font-black text-3xl md:text-4xl shadow-inner border border-purple-200">
-            🌙
-          </div>
-          <div>
-            <div class="text-xs text-slate-500 font-bold uppercase tracking-wider">เวรดึกที่ยังว่าง</div>
-            <div id="dashStatN" class="text-2xl md:text-3xl font-black text-purple-900 font-heading">0 ที่</div>
+            <div class="text-xs text-slate-500 font-bold uppercase tracking-wider">ยอดการเลือกเวรรวม</div>
+            <div id="dashStatBookings" class="text-2xl md:text-3xl font-black text-emerald-900 font-heading">0 ครั้ง</div>
           </div>
         </div>
 
       </div>
 
-      <!-- Filter Bar for Vacancies -->
+      <!-- Quick Legend & Filter Bar (เปลี่ยนคำว่า กะ เป็น เวร) -->
       <div class="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-slate-100/80 border border-slate-200 mb-6 backdrop-blur-sm">
+        
+        <!-- Filter Tabs -->
         <div class="flex items-center gap-2 flex-wrap" id="dashFilterButtons">
-          <span class="text-xs font-bold text-slate-700 mr-1">กรองเวรที่ว่าง:</span>
+          <span class="text-xs font-bold text-slate-700 mr-1">กรองแสดง:</span>
           <button onclick="setDashboardFilter('ALL')" id="filterBtnALL" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-700 text-white shadow-xs transition">
-            🌟 ทั้งหมดที่ว่าง
+            🌟 ทุกเวร (เช้า/บ่าย/ดึก)
+          </button>
+          <button onclick="setDashboardFilter('UNASSIGNED')" id="filterBtnUNASSIGNED" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-rose-700 border border-rose-300 hover:bg-rose-50 transition flex items-center gap-1">
+            <span>🚨 เฉพาะเวรที่ยังไม่มีคนเลือก</span>
           </button>
           <button onclick="setDashboardFilter('M')" id="filterBtnM" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-sky-800 border border-sky-300 hover:bg-sky-50 transition">
             ☀️ เวรเช้า (M)
@@ -251,25 +256,44 @@
           <button onclick="setDashboardFilter('N')" id="filterBtnN" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-purple-800 border border-purple-300 hover:bg-purple-50 transition">
             🌙 เวรดึก (N)
           </button>
-          <button onclick="setDashboardFilter('WEEKEND')" id="filterBtnWEEKEND" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-rose-800 border border-rose-300 hover:bg-rose-50 transition">
-            🏖️ เสาร์-อาทิตย์
-          </button>
         </div>
 
-        <div class="text-xs text-slate-600 font-medium">
-          💡 โควตาต่อวัน: เช้า 2 คน | บ่าย 2 คน | ดึก 1 คน
+        <!-- Visual Legend -->
+        <div class="flex items-center gap-3 text-xs flex-wrap font-medium">
+          <span class="flex items-center gap-1.5">
+            <span class="w-3.5 h-3.5 rounded-md bg-rose-500 border border-rose-600 inline-block shadow-xs"></span>
+            <span class="text-rose-900 font-bold">ยังไม่มีคนเลือก (0 คน)</span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-3.5 h-3.5 rounded-md bg-sky-400 border border-sky-500 inline-block"></span>
+            <span class="text-sky-900 font-semibold">มีคนเลือกแล้ว</span>
+          </span>
+          <span class="text-blue-700 font-bold">👆 คลิกที่เวรเพื่อดูรายชื่อหรือเลือกจอง</span>
         </div>
+
       </div>
 
-      <!-- Vacant Shifts Days Container (Days/shifts that are filled will be hidden) -->
-      <div id="dashboardVacanciesContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        <!-- Rendered dynamically -->
+      <!-- ==================== MAIN 7-COLUMN MONTHLY CALENDAR GRID ==================== -->
+      <div class="glass-card p-5 md:p-6 rounded-3xl border border-blue-200 shadow-sm overflow-x-auto">
+        <div class="min-w-[1050px]">
+          
+          <!-- 7-Column Day Header (Sun to Sat) with Larger Weekdays -->
+          <div id="mainCalendarHeader" class="calendar-grid-header mb-3">
+            <!-- Dynamically rendered: Sun, Mon, Tue, Wed, Thu, Fri, Sat -->
+          </div>
+
+          <!-- 7-Column Grid Body with All Days & All Shifts (Selectable, without names in cells) -->
+          <div id="mainCalendarGrid" class="calendar-grid-body">
+            <!-- Dynamically rendered days with all 3 shifts and assigned nurse counts -->
+          </div>
+
+        </div>
       </div>
 
     </section>
 
 
-    <!-- ==================== VIEW 2: ตารางเวรของฉัน (NURSE PERSONAL CALENDAR VIEW) ==================== -->
+    <!-- ==================== VIEW 2: ตารางเวรของฉัน (PAGE หน้า USER จะมองเห็นเฉพาะ USER เลือก) ==================== -->
     <section id="nursePersonalSection" class="glass-container rounded-3xl p-5 md:p-8 shadow-2xl border border-white/60 mb-8 hidden flex-1">
       
       <!-- Status Banner -->
@@ -310,42 +334,37 @@
         </div>
       </div>
 
-      <!-- ==================== TRUE CALENDAR GRID SECTION (ENLARGED DATES & DAYS) ==================== -->
-      <div class="glass-card p-5 md:p-6 rounded-3xl border border-blue-200 shadow-sm mb-8">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-100 gap-3">
-          <div>
-            <h3 class="text-xl font-black text-blue-950 font-heading flex items-center gap-2">
-              <span class="text-2xl">📅</span>
-              <span>ตารางเวรประจำเดือนของฉัน (My Duty Calendar)</span>
-            </h3>
-            <p class="text-xs text-slate-500 mt-0.5">รูปแบบปฏิทินมาตรฐาน 7 วัน (อาทิตย์ - เสาร์) คลิกที่ช่องวันที่เพื่อเลือกหรือแก้ไขกะเวรของคุณ</p>
+      <!-- TRUE CALENDAR GRID SECTION (มองเห็นเฉพาะเวรที่ User เลือก) -->
+      <div class="glass-card p-5 md:p-6 rounded-3xl border border-blue-200 shadow-sm mb-8 overflow-x-auto">
+        <div class="min-w-[950px]">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-100 gap-3">
+            <div>
+              <h3 class="text-xl font-black text-blue-950 font-heading flex items-center gap-2">
+                <span class="text-2xl">📅</span>
+                <span id="nurseCalendarSectionTitle">ตารางเวรประจำเดือนของฉัน (My Duty Calendar)</span>
+              </h3>
+              <p class="text-xs text-slate-500 mt-0.5">แสดงเฉพาะเวรที่คุณเลือกเข้าเวร (คลิกที่ช่องวันที่เพื่อเลือกหรือปรับเปลี่ยนเวรของคุณ)</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="switchView('dashboard')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 transition">
+                ดูปฏิทินหลักทั้งแผนก ➔
+              </button>
+              <button onclick="openPersonalBookingModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center gap-1.5">
+                <span>+ จองเวรของฉัน</span>
+              </button>
+            </div>
           </div>
-          <button onclick="openPersonalBookingModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center gap-1.5 self-start">
-            <span>+ จองเวรของฉัน</span>
-          </button>
-        </div>
 
-        <!-- 7-Column Day Header (Sun to Sat) with Larger Weekdays -->
-        <div id="nurseCalendarHeader" class="calendar-grid-header mb-3">
-          <!-- Dynamically rendered: Sun, Mon, Tue, Wed, Thu, Fri, Sat -->
-        </div>
-
-        <!-- 7-Column Grid Body with Larger Date Numbers -->
-        <div id="nurseCalendarGrid" class="calendar-grid-body">
-          <!-- Dynamically rendered cells with correct alignment -->
-        </div>
-      </div>
-
-      <!-- Round 2 Vacant Shifts Section -->
-      <div id="nurseRound2VacanciesSection" class="hidden p-6 bg-gradient-to-br from-amber-50/90 to-orange-50/90 border border-amber-200 rounded-3xl shadow-sm">
-        <div class="mb-4">
-          <div class="flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full bg-amber-500 animate-ping"></span>
-            <h3 class="text-base font-black text-amber-950 font-heading">📋 ตารางเวรที่ยังว่างจากรอบ 1 (เปิดให้จองเพิ่มเติมในรอบ 2)</h3>
+          <!-- 7-Column Day Header (Sun to Sat) with Larger Weekdays -->
+          <div id="nurseCalendarHeader" class="calendar-grid-header mb-3">
+            <!-- Dynamically rendered -->
           </div>
-          <p class="text-xs text-amber-800 mt-0.5">พยาบาลสามารถกดรับเวรที่ยังขาดคนเหล่านี้เพิ่มเติมได้ เพื่อช่วยให้แผนกมีเวรครบตามเกณฑ์</p>
+
+          <!-- 7-Column Grid Body with Larger Date Numbers (Only User's selected shifts) -->
+          <div id="nurseCalendarGrid" class="calendar-grid-body">
+            <!-- Dynamically rendered -->
+          </div>
         </div>
-        <div id="nurseRound2List"></div>
       </div>
 
     </section>
@@ -358,24 +377,13 @@
       <div id="adminControlsSection" class="p-4 md:p-5 bg-slate-100/90 border-b border-slate-200 space-y-4 backdrop-blur-md">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           
-          <!-- Round Switcher Pills -->
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-xs font-bold text-slate-700 mr-1">สถานะรอบการจอง:</span>
-            <button id="adminRound1Btn" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border">
-              1. รอบที่ 1 (จองทั่วไป)
-            </button>
-            <button id="adminRound2Btn" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border">
-              2. รอบที่ 2 (จองเวรที่ว่าง)
-            </button>
-            <button id="adminRoundFinalBtn" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border">
-              3. เสร็จสมบูรณ์ (Finalized)
-            </button>
-          </div>
-
-          <!-- View Tabs for Admin -->
+          <!-- View Tabs for Admin (including new Excel-style Number View) -->
           <div class="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-xs flex-wrap">
             <button id="viewMatrixBtn" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-blue-700 text-white shadow-xs transition">
               ตารางรวม 14 ท่าน (Matrix)
+            </button>
+            <button id="viewExcelBtn" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-blue-700 transition">
+              📋 ตารางตามหมายเลข (Excel View)
             </button>
             <button id="viewDailyBtn" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-blue-700 transition">
               ปฏิทินรายวัน
@@ -414,7 +422,7 @@
           <input type="text" id="searchNurseInput" placeholder="ค้นหาชื่อ หรือ รหัสพยาบาล..." 
                  class="pl-3 pr-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl shadow-xs focus:ring-2 focus:ring-blue-500 outline-none w-60 font-medium">
           <div class="text-slate-600 font-semibold">
-            โควตาขั้นต่ำ: กะเช้า 2 คน | กะบ่าย 2 คน | กะดึก 1 คน (ต่อวัน)
+            ระบบจองเวรอิสระ | พยาบาลสามารถเลือกเวรซ้ำและพร้อมกันได้
           </div>
         </div>
       </div>
@@ -431,31 +439,41 @@
           </table>
         </div>
 
-        <!-- 2. Daily View -->
+        <!-- 2. Excel Style Roster View with Nurse Number Badges and Legend Cards (ตามรูป Screenshot 2026-10-08 005135) -->
+        <div id="excelViewSection" class="hidden p-6 bg-slate-50/50 space-y-6">
+          <div id="excelRosterContainer"></div>
+        </div>
+
+        <!-- 3. Daily View -->
         <div id="dailyViewSection" class="hidden p-6 bg-slate-50/50">
           <h3 class="text-lg font-black text-slate-800 mb-4 font-heading">ตารางพยาบาลเข้าเวรรายวัน (Daily View)</h3>
           <div id="dailyCardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
         </div>
 
-        <!-- 3. Summary View -->
-        <div id="summaryViewSection" class="hidden p-6 bg-slate-50/50">
-          <h3 class="text-lg font-black text-slate-800 mb-4 font-heading">สรุปสถิติจำนวนเวรและชั่วโมงการทำงาน (Summary View)</h3>
-          <div class="overflow-x-auto rounded-2xl border border-slate-200 shadow-xs bg-white">
-            <table class="min-w-full divide-y divide-slate-200 text-sm">
-              <thead class="bg-slate-50 font-semibold text-slate-700">
-                <tr>
-                  <th class="py-3 px-4 text-left">ลำดับ</th>
-                  <th class="py-3 px-4 text-left">รหัส</th>
-                  <th class="py-3 px-4 text-left">ชื่อ - สกุล</th>
-                  <th class="py-3 px-4 text-center bg-sky-50 text-sky-800">เวรเช้า (ครั้ง)</th>
-                  <th class="py-3 px-4 text-center bg-amber-50 text-amber-800">เวรบ่าย (ครั้ง)</th>
-                  <th class="py-3 px-4 text-center bg-purple-50 text-purple-800">เวรดึก (ครั้ง)</th>
-                  <th class="py-3 px-4 text-center bg-blue-50 text-blue-900 font-bold">รวมเวร</th>
-                  <th class="py-3 px-4 text-center bg-emerald-50 text-emerald-900 font-bold">รวมชั่วโมง</th>
-                </tr>
-              </thead>
-              <tbody id="summaryTableBody" class="divide-y divide-slate-200 bg-white"></tbody>
-            </table>
+        <!-- 4. Summary View -->
+        <div id="summaryViewSection" class="hidden p-6 bg-slate-50/50 space-y-6">
+          <!-- Nurse Number Legend Cards (สีตามพนักงาน สดใส สาย modern ตาม Screenshot 2026-10-08 005135) -->
+          <div id="summaryNurseCardsContainer"></div>
+
+          <div>
+            <h3 class="text-lg font-black text-slate-800 mb-4 font-heading">สรุปสถิติจำนวนเวรและชั่วโมงการทำงาน (Summary View)</h3>
+            <div class="overflow-x-auto rounded-2xl border border-slate-200 shadow-xs bg-white">
+              <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <thead class="bg-slate-50 font-semibold text-slate-700">
+                  <tr>
+                    <th class="py-3 px-4 text-center">หมายเลข</th>
+                    <th class="py-3 px-4 text-left">รหัส</th>
+                    <th class="py-3 px-4 text-left">ชื่อ - สกุล</th>
+                    <th class="py-3 px-4 text-center bg-sky-50 text-sky-800">เวรเช้า (ครั้ง)</th>
+                    <th class="py-3 px-4 text-center bg-amber-50 text-amber-800">เวรบ่าย (ครั้ง)</th>
+                    <th class="py-3 px-4 text-center bg-purple-50 text-purple-800">เวรดึก (ครั้ง)</th>
+                    <th class="py-3 px-4 text-center bg-blue-50 text-blue-900 font-bold">รวมเวร</th>
+                    <th class="py-3 px-4 text-center bg-emerald-50 text-emerald-900 font-bold">รวมชั่วโมง</th>
+                  </tr>
+                </thead>
+                <tbody id="summaryTableBody" class="divide-y divide-slate-200 bg-white"></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -474,7 +492,7 @@
 
   <!-- ==================== LOGIN MODALS (SEPARATE BUTTONS & NO ADVICE) ==================== -->
 
-  <!-- 1. NURSE LOGIN MODAL (ปุ่มจองตารางเวร - เอาคำแนะนำออก) -->
+  <!-- 1. NURSE LOGIN MODAL (จองตารางเวร - เอาคำแนะนำออก) -->
   <div id="nurseLoginModal" class="fixed inset-0 bg-slate-950/60 z-50 flex items-center justify-center hidden backdrop-blur-md p-4">
     <div class="glass-modal rounded-3xl max-w-md w-full p-6 md:p-8 border border-white/80 shadow-2xl animate-in fade-in zoom-in duration-150">
       
@@ -492,6 +510,9 @@
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
       </div>
+
+      <!-- Optional Target Shift Context Banner -->
+      <div id="nurseLoginTargetBanner" class="hidden p-3 rounded-2xl bg-blue-50 border border-blue-200 text-xs text-blue-900 mb-4 font-semibold"></div>
 
       <form id="modalNurseLoginForm" class="space-y-4">
         <div>
@@ -529,7 +550,7 @@
   </div>
 
 
-  <!-- 2. ADMIN LOGIN MODAL (ปุ่ม Admin - ให้เลือกแต่ช่องรหัสผ่าน เอาคำแนะนำออก) -->
+  <!-- 2. ADMIN LOGIN MODAL (Admin - ให้เลือกแต่ช่องรหัสผ่าน เอาคำแนะนำออก) -->
   <div id="adminLoginModal" class="fixed inset-0 bg-slate-950/60 z-50 flex items-center justify-center hidden backdrop-blur-md p-4">
     <div class="glass-modal rounded-3xl max-w-sm w-full p-6 md:p-8 border border-white/80 shadow-2xl animate-in fade-in zoom-in duration-150">
       
@@ -578,9 +599,36 @@
   </div>
 
 
+  <!-- ==================== SHIFT QUICK ACTION POPUP MODAL (ระบุรายชื่อพยาบาลเฉพาะใน popup) ==================== -->
+  <div id="shiftActionModal" class="fixed inset-0 bg-slate-950/60 z-50 flex items-center justify-center hidden backdrop-blur-md p-4">
+    <div class="glass-modal rounded-3xl max-w-md w-full p-6 border border-white/80 shadow-2xl animate-in fade-in zoom-in duration-150">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <div class="flex items-center gap-2.5">
+          <span id="shiftModalIcon" class="text-3xl">☀️</span>
+          <div>
+            <h4 id="shiftModalTitle" class="font-black text-slate-900 text-base font-heading">เลือกเวร</h4>
+            <p id="shiftModalDate" class="text-xs text-blue-700 font-bold">วันที่...</p>
+          </div>
+        </div>
+        <button onclick="closeShiftActionModal()" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div id="shiftModalBody" class="space-y-3 mb-5">
+        <!-- Rendered dynamically according to number of nurses -->
+      </div>
+
+      <div id="shiftModalFooter" class="flex items-center gap-2 pt-2 border-t border-slate-100">
+        <!-- Action buttons rendered dynamically -->
+      </div>
+    </div>
+  </div>
+
+
   <!-- ==================== OTHER MODALS ==================== -->
 
-  <!-- 3. Cell Quick Edit Modal -->
+  <!-- 3. Cell Quick Edit Modal (Admin Matrix) -->
   <div id="cellEditModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-md p-4">
     <div class="glass-modal rounded-3xl max-w-sm w-full p-6 border border-white/80 animate-in fade-in zoom-in duration-150">
       <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
@@ -656,7 +704,7 @@
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">เลือกกะเวลา</label>
+          <label class="block text-xs font-bold text-slate-700 mb-1">เลือกเวรเวลา</label>
           <div class="grid grid-cols-3 gap-2">
             <label class="border border-sky-200 bg-sky-50/80 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer has-checked:border-blue-600 has-checked:bg-blue-100">
               <input type="radio" name="modalShift" value="M" checked class="text-blue-600">
@@ -676,7 +724,7 @@
         <div>
           <div class="flex items-center justify-between mb-1.5">
             <label class="text-xs font-bold text-slate-700">เลือกวันที่ (ตารางปฏิทินมาตรฐาน 7 วัน)</label>
-            <button type="button" id="selectAllDatesBtn" class="text-xs text-blue-600 hover:underline font-bold">เลือกทั้งหมด</button>
+            <button type="button" id="selectAllDatesBtn" onclick="toggleSelectAllDates()" class="text-xs text-blue-600 hover:text-blue-800 hover:underline font-bold px-2 py-0.5 rounded-lg bg-blue-50 border border-blue-200 transition">เลือกทั้งหมด</button>
           </div>
           <div id="modalDateSelector" class="grid grid-cols-7 gap-1.5 p-3 border border-slate-200 rounded-2xl max-h-56 overflow-y-auto bg-slate-50/70">
             <!-- Dynamic calendar grid -->
