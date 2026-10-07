@@ -125,6 +125,38 @@ h1, h2, h3, h4, .font-heading {
   z-index: 20;
 }
 
+/* Zebra Striping for Matrix Table (สลับสีแถว/ช่อง) */
+.matrix-row-even td {
+  background-color: #f8fafc; /* นุ่มนวล สบายตา */
+}
+.matrix-row-odd td {
+  background-color: #ffffff;
+}
+
+.matrix-row-even .matrix-sticky-cell {
+  background-color: #f1f5f9 !important;
+}
+.matrix-row-odd .matrix-sticky-cell {
+  background-color: #ffffff !important;
+}
+
+/* Weekend cells inside even/odd rows */
+.matrix-row-even td.weekend-cell {
+  background-color: #fee2e2 !important; /* soft rose tint */
+}
+.matrix-row-odd td.weekend-cell {
+  background-color: #fff1f2 !important;
+}
+
+/* Row Hover Highlight across all 31 days and sticky columns */
+.matrix-row:hover td,
+.matrix-row:hover .matrix-sticky-cell {
+  background-color: #dbeafe !important; /* Luminous soft blue */
+}
+.matrix-row:hover td.weekend-cell {
+  background-color: #bfdbfe !important;
+}
+
 /* Shift Badges */
 .shift-tag {
   font-size: 11px;

@@ -567,16 +567,19 @@ function renderMatrix() {
   filteredNurses.forEach((nurse, idx) => {
     const nurseShifts = monthState.roster[nurse.id] || {};
     let countM = 0, countA = 0, countN = 0;
+    const isEvenRow = (idx % 2 === 1);
+    const rowClass = isEvenRow ? 'matrix-row matrix-row-even' : 'matrix-row matrix-row-odd';
+    const stickyBg = 'matrix-sticky-cell font-medium';
 
-    b += `<tr class="hover:bg-blue-50/50 transition">
-      <td class="sticky-col-1 bg-white py-2.5 px-2 text-center font-medium text-slate-400 border-r border-slate-200">${idx + 1}</td>
-      <td class="sticky-col-2 bg-white py-2.5 px-3 font-mono font-bold text-blue-900 border-r border-slate-200">${nurse.id}</td>
-      <td class="sticky-col-3 bg-white py-2.5 px-3 font-medium text-slate-800 border-r-2 border-slate-300 whitespace-nowrap">${nurse.name}</td>`;
+    b += `<tr class="${rowClass} transition border-b border-slate-200">
+      <td class="sticky-col-1 ${stickyBg} py-2.5 px-2 text-center text-slate-500 border-r border-slate-200">${idx + 1}</td>
+      <td class="sticky-col-2 ${stickyBg} py-2.5 px-3 font-mono font-bold text-blue-900 border-r border-slate-200">${nurse.id}</td>
+      <td class="sticky-col-3 ${stickyBg} py-2.5 px-3 text-slate-800 border-r-2 border-slate-300 whitespace-nowrap font-medium">${nurse.name}</td>`;
 
     for (let d = 1; d <= daysCount; d++) {
       const dt = new Date(currentYear, currentMonth, d);
       const isWeekend = (dt.getDay() === 0 || dt.getDay() === 6);
-      const weekendBg = isWeekend ? 'bg-rose-50/20' : '';
+      const weekendClass = isWeekend ? 'weekend-cell' : '';
       const dayShifts = nurseShifts[d] || [];
 
       let tags = '';
@@ -586,7 +589,7 @@ function renderMatrix() {
         if (s === 'N') { countN++; tags += `<span class="shift-tag shift-n">ด</span>`; }
       });
 
-      b += `<td class="p-1 text-center border-r border-slate-200 cursor-pointer hover:bg-blue-100/60 transition ${weekendBg}"
+      b += `<td class="p-1 text-center border-r border-slate-200 cursor-pointer transition ${weekendClass}"
                onclick="openCellEditor('${nurse.id}', ${d})">
         <div class="min-h-[26px] flex items-center justify-center gap-0.5 flex-wrap">
           ${tags || '<span class="text-slate-300 text-[10px] font-bold hover:text-blue-600">+</span>'}
@@ -595,11 +598,16 @@ function renderMatrix() {
     }
 
     const total = countM + countA + countN;
+    const mBg = isEvenRow ? 'bg-sky-100/70 text-sky-950 font-bold' : 'bg-sky-50/70 text-sky-800 font-bold';
+    const aBg = isEvenRow ? 'bg-amber-100/70 text-amber-950 font-bold' : 'bg-amber-50/70 text-amber-800 font-bold';
+    const nBg = isEvenRow ? 'bg-purple-100/70 text-purple-950 font-bold' : 'bg-purple-50/70 text-purple-800 font-bold';
+    const totBg = isEvenRow ? 'bg-blue-100 text-blue-950 font-black' : 'bg-blue-50 text-blue-900 font-black';
+
     b += `
-      <td class="py-2 px-1 text-center font-bold text-sky-700 bg-sky-50/50 border-l-2 border-slate-300">${countM}</td>
-      <td class="py-2 px-1 text-center font-bold text-amber-700 bg-amber-50/50 border-l border-slate-300">${countA}</td>
-      <td class="py-2 px-1 text-center font-bold text-purple-700 bg-purple-50/50 border-l border-slate-300">${countN}</td>
-      <td class="py-2 px-1 text-center font-black text-blue-900 bg-blue-50 border-l border-slate-300">${total}</td>
+      <td class="py-2 px-1 text-center border-l-2 border-slate-300 ${mBg}">${countM}</td>
+      <td class="py-2 px-1 text-center border-l border-slate-300 ${aBg}">${countA}</td>
+      <td class="py-2 px-1 text-center border-l border-slate-300 ${nBg}">${countN}</td>
+      <td class="py-2 px-1 text-center border-l border-slate-300 ${totBg}">${total}</td>
     </tr>`;
   });
   tbody.innerHTML = b;
@@ -722,14 +730,17 @@ function renderSummaryView() {
     const totalShifts = m + a + n;
     grandM += m; grandA += a; grandN += n; grandTotal += totalShifts;
 
+    const isEven = (index % 2 === 1);
+    const rowBg = isEven ? 'bg-slate-50/80 hover:bg-blue-100/60' : 'bg-white hover:bg-blue-100/60';
+
     html += `
-      <tr class="hover:bg-blue-50/40 transition">
-        <td class="py-2.5 px-4 font-medium text-slate-400">${index + 1}</td>
+      <tr class="${rowBg} transition border-b border-slate-200">
+        <td class="py-2.5 px-4 font-medium text-slate-500">${index + 1}</td>
         <td class="py-2.5 px-4 font-mono font-bold text-blue-900">${nurse.id}</td>
         <td class="py-2.5 px-4 font-semibold text-slate-800">${nurse.name}</td>
-        <td class="py-2.5 px-4 text-center text-sky-700 font-bold bg-sky-50/40">${m}</td>
-        <td class="py-2.5 px-4 text-center text-amber-700 font-bold bg-amber-50/40">${a}</td>
-        <td class="py-2.5 px-4 text-center text-purple-700 font-bold bg-purple-50/40">${n}</td>
+        <td class="py-2.5 px-4 text-center text-sky-800 font-bold bg-sky-50/40">${m}</td>
+        <td class="py-2.5 px-4 text-center text-amber-800 font-bold bg-amber-50/40">${a}</td>
+        <td class="py-2.5 px-4 text-center text-purple-800 font-bold bg-purple-50/40">${n}</td>
         <td class="py-2.5 px-4 text-center font-black text-blue-950 bg-blue-50/60">${totalShifts}</td>
         <td class="py-2.5 px-4 text-center font-black text-emerald-800 bg-emerald-50/60">${totalShifts * 8} ชม.</td>
       </tr>
