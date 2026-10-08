@@ -450,6 +450,11 @@
             <button id="openBookingModalBtn" class="flex items-center gap-1 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition">
               <span>+ จองเวร</span>
             </button>
+            <!-- ปุ่มรีเฟรชข้อมูล Admin (อัปเดตระบบ ไม่ออกจากระบบ) -->
+            <button id="adminRefreshBtn" onclick="handleAdminRefresh()" class="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-blue-50 border border-slate-300 hover:border-blue-300 text-slate-700 hover:text-blue-700 rounded-xl text-xs font-bold shadow-xs transition" title="อัปเดตและรีเฟรชข้อมูลตารางเวรล่าสุด โดยไม่ออกจากระบบ">
+              <span class="text-sm">🔄</span>
+              <span>รีเฟรช</span>
+            </button>
             <button id="exportExcelBtn" class="flex items-center gap-1 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-xl text-xs font-bold shadow-xs transition">
               <span>📊 ส่งออก Excel</span>
             </button>
@@ -792,19 +797,31 @@
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">เลือกเวรเวลา</label>
-          <div id="modalShiftOptionsContainer" class="grid grid-cols-3 gap-2">
-            <label class="border border-sky-200 bg-sky-50/80 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer has-checked:border-blue-600 has-checked:bg-blue-100">
-              <input type="radio" name="modalShift" value="M" checked class="text-blue-600">
-              <span class="text-xs font-bold text-sky-900">☀️ เวรเช้า</span>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="text-xs font-bold text-slate-700">เลือกเวรเวลา (เลือกพร้อมกันได้มากกว่า 1 เวร)</label>
+            <span class="text-[11px] text-blue-600 font-bold">กดเพื่อเลือก / ยกเลิก</span>
+          </div>
+          <div id="modalShiftOptionsContainer" class="grid grid-cols-3 gap-2.5">
+            <label id="shiftBtnContainerM" class="shift-toggle-btn shift-toggle-m">
+              <input type="checkbox" name="modalShift" value="M" checked class="sr-only">
+              <span class="badge-check">✓</span>
+              <span class="text-xl mb-0.5">☀️</span>
+              <span class="text-xs font-black">เวรเช้า</span>
+              <span class="text-[10px] font-semibold opacity-85">08:30 - 16:30</span>
             </label>
-            <label class="border border-amber-200 bg-amber-50/80 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer has-checked:border-amber-600 has-checked:bg-amber-100">
-              <input type="radio" name="modalShift" value="A" class="text-amber-600">
-              <span class="text-xs font-bold text-amber-900">⛅ เวรบ่าย</span>
+            <label id="shiftBtnContainerA" class="shift-toggle-btn shift-toggle-a">
+              <input type="checkbox" name="modalShift" value="A" class="sr-only">
+              <span class="badge-check">✓</span>
+              <span class="text-xl mb-0.5">⛅</span>
+              <span class="text-xs font-black">เวรบ่าย</span>
+              <span class="text-[10px] font-semibold opacity-85">16:30 - 00:30</span>
             </label>
-            <label class="border border-purple-200 bg-purple-50/80 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer has-checked:border-purple-600 has-checked:bg-purple-100">
-              <input type="radio" name="modalShift" value="N" class="text-purple-600">
-              <span class="text-xs font-bold text-purple-900">🌙 เวรดึก</span>
+            <label id="shiftBtnContainerN" class="shift-toggle-btn shift-toggle-n">
+              <input type="checkbox" name="modalShift" value="N" class="sr-only">
+              <span class="badge-check">✓</span>
+              <span class="text-xl mb-0.5">🌙</span>
+              <span class="text-xs font-black">เวรดึก</span>
+              <span class="text-[10px] font-semibold opacity-85">00:30 - 08:30</span>
             </label>
           </div>
         </div>
