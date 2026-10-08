@@ -98,10 +98,15 @@
                 <span class="text-base sm:text-lg">📅</span>
                 <span>ตารางเวรของฉัน</span>
               </button>
-              <button id="navAdminPortalBtn" onclick="switchView('admin')" 
+              <button id="navExcelViewBtn" onclick="switchView('excel')" 
                       class="nav-tab-btn nav-tab-btn-inactive hidden">
                 <span class="text-base sm:text-lg">📋</span>
-                <span>ตารางรวม 14 ท่าน</span>
+                <span>ตารางตามหมายเลข</span>
+              </button>
+              <button id="navAdminPortalBtn" onclick="switchView('admin')" 
+                      class="nav-tab-btn nav-tab-btn-inactive hidden">
+                <span class="text-base sm:text-lg">👑</span>
+                <span>พื้นที่ Admin</span>
               </button>
             </div>
 
@@ -361,10 +366,16 @@
               <button onclick="switchView('dashboard')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 transition">
                 ดูปฏิทินหลักทั้งแผนก ➔
               </button>
-              <button onclick="openPersonalBookingModal()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition flex items-center gap-2 cursor-pointer">
-                <span class="text-base sm:text-lg">✍️</span>
-                <span>จองหลายวันพร้อมกัน</span>
+              <button id="personalExcelShortcutBtn" onclick="switchView('excel')" class="hidden px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center gap-1.5 cursor-pointer">
+                <span>📋</span>
+                <span>ตารางตามหมายเลข (Excel View)</span>
               </button>
+              <div id="personalBookingBtnContainer">
+                <button id="personalBookingBtn" onclick="openPersonalBookingModal()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition flex items-center gap-2 cursor-pointer">
+                  <span class="text-base sm:text-lg">✍️</span>
+                  <span>จองหลายวันพร้อมกัน</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -380,6 +391,51 @@
         </div>
       </div>
 
+    </section>
+
+
+    <!-- ==================== VIEW 4: ตารางตามหมายเลข (EXCEL VIEW สำหรับ USER - เห็นเมื่อยืนยันแล้วเท่านั้น) ==================== -->
+    <section id="userExcelViewSection" class="glass-container rounded-3xl overflow-hidden shadow-2xl border border-white/60 mb-8 hidden flex-1 flex flex-col p-5 md:p-6 space-y-5">
+      <!-- Top Bar with Back buttons and Excel/Print actions -->
+      <div class="flex items-center justify-between pb-3.5 border-b border-slate-200 flex-wrap gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white flex items-center justify-center font-bold text-2xl shadow-md border border-white/20">
+            📑
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-base md:text-lg font-black text-slate-900 font-heading" id="userExcelSectionTitle">ตารางเวรตามหมายเลข (Excel View)</h2>
+              <span class="text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>ประกาศตารางทางการแล้ว</span>
+              </span>
+            </div>
+            <p class="text-xs text-slate-500">แสดงตารางเวรแผนกพร้อมหมายเลขและสีประจำตัวพยาบาลทั้ง 14 ท่าน</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap">
+          <button onclick="switchView('personal')" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 transition flex items-center gap-1.5 cursor-pointer">
+            <span>📅</span>
+            <span>ตารางเวรของฉัน</span>
+          </button>
+          <button onclick="switchView('dashboard')" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 transition flex items-center gap-1.5 cursor-pointer">
+            <span>📊</span>
+            <span>ปฏิทินหลัก</span>
+          </button>
+          <button onclick="exportRoster()" class="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-xl text-xs font-bold shadow-2xs transition flex items-center gap-1 cursor-pointer">
+            <span>📊</span>
+            <span>ส่งออก Excel</span>
+          </button>
+          <button onclick="window.print()" class="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-xl text-xs font-bold shadow-2xs transition flex items-center gap-1 cursor-pointer">
+            <span>🖨️</span>
+            <span>พิมพ์ A4</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Dynamic Excel Table Body -->
+      <div id="userExcelViewContent"></div>
     </section>
 
 
@@ -438,10 +494,16 @@
 
           <!-- Primary Actions -->
           <div class="flex items-center gap-2 flex-wrap">
-            <button id="adminOptimizeBtn" class="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-md transition transform hover:-translate-y-0.5">
-              <span class="text-base">⚡</span>
-              <span>จัดตารางเวรอัตโนมัติ</span>
-            </button>
+            <div id="adminOptimizeControlContainer" class="inline-flex items-center gap-2">
+              <button id="adminOptimizeBtn" onclick="runOptimization()" class="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-md transition transform hover:-translate-y-0.5 cursor-pointer">
+                <span class="text-base">⚡</span>
+                <span>จัดตารางเวรอัตโนมัติ</span>
+              </button>
+              <button id="adminUnconfirmBtn" onclick="handleUnconfirmSchedule()" class="hidden flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-600 via-rose-600 to-red-600 hover:from-amber-700 hover:to-red-700 text-white rounded-xl text-xs font-bold shadow-md transition transform hover:-translate-y-0.5 cursor-pointer" title="ยกเลิกการยืนยันเพื่อเปิดให้จัดตารางใหม่และให้พยาบาลจองได้">
+                <span class="text-base">❌</span>
+                <span>ยกเลิกการยืนยัน (เพื่อจัดใหม่)</span>
+              </button>
+            </div>
             <!-- เปลี่ยนสี ปุ่ม รายชื่อพยาบาล เป็นสีม่วงโมเดิร์นตามความต้องการ -->
             <button onclick="openNurseManageModal()" class="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-purple-600 via-indigo-600 to-violet-700 hover:from-purple-700 hover:to-violet-800 text-white rounded-xl text-xs font-bold shadow-md transition transform hover:-translate-y-0.5">
               <span class="text-base">👩‍⚕️</span>
@@ -868,13 +930,21 @@
 
       <div id="optimizeModalBody" class="mb-6"></div>
 
-      <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-        <button id="cancelOptimizeBtn" class="px-4 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-semibold">
-          ยกเลิก
+      <div class="flex items-center justify-between gap-2 pt-3 border-t border-slate-100 flex-wrap">
+        <button id="cancelOptimizeBtn" onclick="cancelOptimization()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+          <span>↩️</span>
+          <span>ย้อนกลับ (ไม่ใช้ผลนี้)</span>
         </button>
-        <button id="confirmOptimizeBtn" class="px-5 py-2.5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white rounded-xl text-xs font-bold shadow-md transition">
-          ✓ นำตารางนี้ไปใช้งานจริง
-        </button>
+        <div class="flex items-center gap-2">
+          <button id="regenerateOptimizeBtn" onclick="runOptimization()" class="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer" title="สุ่มคำนวณการกระจายเวรรอบใหม่">
+            <span>🔄</span>
+            <span>สุ่มจัดรอบใหม่</span>
+          </button>
+          <button id="confirmOptimizeBtn" onclick="confirmOptimization()" class="px-5 py-2.5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center gap-1.5 cursor-pointer">
+            <span>✓</span>
+            <span>ยืนยันตารางเวรนี้</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>

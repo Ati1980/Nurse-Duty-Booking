@@ -254,7 +254,8 @@ let monthState = {
   round: 1,
   round1: {},
   round2: {},
-  roster: {}
+  roster: {},
+  isConfirmed: false
 };
 
 let activeEditNurseId = null;
@@ -298,6 +299,7 @@ function loadMonthState() {
   if (raw) {
     try {
       monthState = JSON.parse(raw);
+      if (monthState.isConfirmed === undefined) monthState.isConfirmed = false;
     } catch (e) {
       initFreshMonth();
     }
@@ -311,7 +313,8 @@ function initFreshMonth() {
     round: 1,
     round1: {},
     round2: {},
-    roster: {}
+    roster: {},
+    isConfirmed: false
   };
   saveMonthState();
 }
@@ -515,12 +518,18 @@ function updateAuthUI() {
 function updateNavSwitcher(viewName) {
   const dashBtn = document.getElementById('navDashboardBtn');
   const personalBtn = document.getElementById('navMyScheduleBtn');
+  const excelBtn = document.getElementById('navExcelViewBtn');
   const adminBtn = document.getElementById('navAdminPortalBtn');
+
+  const isConfirmed = !!(monthState && monthState.isConfirmed);
+  const isAdmin = !!(currentUser && currentUser.role === 'admin');
+  const isNurse = !!(currentUser && currentUser.role === 'nurse');
 
   const configs = [
     { el: dashBtn, target: 'dashboard', label: 'ปฏิทินหลัก', icon: '📊', isAllowed: true },
-    { el: personalBtn, target: 'personal', label: 'ตารางเวรของฉัน', icon: '📅', isAllowed: !!(currentUser && currentUser.role === 'nurse') },
-    { el: adminBtn, target: 'admin', label: `ตารางรวม ${NURSES.length} ท่าน`, icon: '📋', isAllowed: !!(currentUser && currentUser.role === 'admin') }
+    { el: personalBtn, target: 'personal', label: 'ตารางเวรของฉัน', icon: '📅', isAllowed: isNurse },
+    { el: excelBtn, target: 'excel', label: 'ตารางตามหมายเลข', icon: '📋', isAllowed: isConfirmed || isAdmin },
+    { el: adminBtn, target: 'admin', label: `ตารางรวม ${NURSES.length} ท่าน`, icon: '👑', isAllowed: isAdmin }
   ];
 
   configs.forEach(({ el, target, label, icon, isAllowed }) => {
@@ -562,6 +571,12 @@ window.switchView = function(viewName) {
     openAdminLoginModal();
     return;
   }
+  if (viewName === 'excel') {
+    if (!monthState.isConfirmed && (!currentUser || currentUser.role !== 'admin')) {
+      alert('ตารางตามหมายเลข (Excel View) จะเปิดให้ดูเมื่อผู้ดูแลระบบได้ยืนยันการจัดตารางเวรทางการแล้วเท่านั้น');
+      return;
+    }
+  }
 
   activeView = viewName;
   updateNavSwitcher(viewName);
@@ -569,21 +584,32 @@ window.switchView = function(viewName) {
   const publicDashSection = document.getElementById('publicDashboardSection');
   const nurseSection = document.getElementById('nursePersonalSection');
   const adminSection = document.getElementById('adminSection');
+  const userExcelSection = document.getElementById('userExcelViewSection');
 
   // Hide all sections first
-  publicDashSection.classList.add('hidden');
-  nurseSection.classList.add('hidden');
-  adminSection.classList.add('hidden');
+  if (publicDashSection) publicDashSection.classList.add('hidden');
+  if (nurseSection) nurseSection.classList.add('hidden');
+  if (adminSection) adminSection.classList.add('hidden');
+  if (userExcelSection) userExcelSection.classList.add('hidden');
 
   if (viewName === 'dashboard') {
-    publicDashSection.classList.remove('hidden');
+    if (publicDashSection) publicDashSection.classList.remove('hidden');
     renderPublicDashboard();
   } else if (viewName === 'personal') {
-    nurseSection.classList.remove('hidden');
+    if (nurseSection) nurseSection.classList.remove('hidden');
     renderNurseCalendar();
   } else if (viewName === 'admin') {
-    adminSection.classList.remove('hidden');
+    if (adminSection) adminSection.classList.remove('hidden');
     renderAdminView();
+  } else if (viewName === 'excel') {
+    if (userExcelSection) {
+      userExcelSection.classList.remove('hidden');
+      const uSecTitle = document.getElementById('userExcelSectionTitle');
+      if (uSecTitle) {
+        uSecTitle.innerText = `ตารางเวรตามหมายเลข ประจำเดือน ${THAI_MONTHS[currentMonth]} ${currentYear + 543}`;
+      }
+      renderExcelView('userExcelViewContent');
+    }
   }
 };
 
@@ -785,8 +811,65 @@ window.handleShiftClick = function(day, shift) {
     if (shifts.includes(shift)) assigned.push(n);
   });
 
-  // If user is NOT logged in: Prompt Nurse login modal with this shift pre-selected
+  // If user is NOT logged in: If confirmed, show read-only details; else prompt Nurse login
   if (!currentUser) {
+    if (monthState && monthState.isConfirmed) {
+      document.getElementById('shiftModalIcon').innerText = shiftObj.icon;
+      document.getElementById('shiftModalTitle').innerText = `${shiftObj.name} (${shiftObj.time})`;
+      document.getElementById('shiftModalDate').innerText = `วัน${dayName}ที่ ${day} ${THAI_MONTHS[currentMonth]} ${currentYear + 543}`;
+
+      let nursesListHtml = '';
+      if (assigned.length > 0) {
+        nursesListHtml = `
+          <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            ${assigned.map((n, idx) => `
+              <div class="flex items-center justify-between py-1.5 px-3 rounded-xl bg-white border border-slate-200 shadow-xs">
+                <div class="flex items-center gap-2">
+                  <span class="w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center">${idx + 1}</span>
+                  <span class="font-bold text-slate-800 text-xs">${n.name}</span>
+                </div>
+                <span class="font-mono text-slate-400 text-[11px]">${n.id}</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } else {
+        nursesListHtml = `
+          <div class="p-3 text-center bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs rounded-xl">
+            🚨 ยังไม่มีพยาบาลเลือกเวรนี้
+          </div>
+        `;
+      }
+
+      const bodyEl = document.getElementById('shiftModalBody');
+      bodyEl.innerHTML = `
+        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+          <div class="flex justify-between items-center pb-1.5 border-b border-slate-200">
+            <span class="text-slate-600 font-medium">จำนวนพยาบาลที่เลือกเวรนี้:</span>
+            <span class="font-black text-sm ${assigned.length === 0 ? 'text-rose-600' : 'text-blue-900'}">${assigned.length} ท่าน</span>
+          </div>
+          <div>
+            <span class="text-slate-600 font-bold block mb-1.5">รายชื่อพยาบาลที่เลือกเวรนี้:</span>
+            ${nursesListHtml}
+          </div>
+        </div>
+        <div class="p-3 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold flex items-center gap-2">
+          <span>🔒</span>
+          <span>ตารางเวรประจำเดือนนี้ได้รับการยืนยันและประกาศอย่างเป็นทางการแล้ว (ปิดรับการจองหรือแก้ไข)</span>
+        </div>
+      `;
+
+      const footerEl = document.getElementById('shiftModalFooter');
+      footerEl.innerHTML = `
+        <button onclick="closeShiftActionModal()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition">
+          ปิดหน้าต่าง
+        </button>
+      `;
+
+      document.getElementById('shiftActionModal').classList.remove('hidden');
+      return;
+    }
+
     openNurseLoginModal({ day, shift });
     return;
   }
@@ -797,6 +880,7 @@ window.handleShiftClick = function(day, shift) {
     const nurseName = currentUser.name;
     const userCurrentShifts = (monthState.roster[nurseId] && monthState.roster[nurseId][day]) || [];
     const isAlreadyBooked = userCurrentShifts.includes(shift);
+    const isConfirmed = !!(monthState && monthState.isConfirmed);
 
     activeModalShiftContext = { day, shift, nurseId, nurseName, isAlreadyBooked };
 
@@ -829,6 +913,30 @@ window.handleShiftClick = function(day, shift) {
       `;
     }
 
+    let confirmationNotice = '';
+    if (isConfirmed) {
+      confirmationNotice = `
+        <div class="p-3 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold flex items-center gap-2">
+          <span>🔒</span>
+          <span>ตารางเวรประจำเดือนนี้ได้รับการยืนยันและประกาศอย่างเป็นทางการแล้ว (ปิดรับการจองหรือแก้ไข)</span>
+        </div>
+      `;
+    } else {
+      confirmationNotice = `
+        <div class="p-3 rounded-2xl ${isAlreadyBooked ? 'bg-emerald-50 border border-emerald-200 text-emerald-900' : 'bg-blue-50 border border-blue-200 text-blue-900'} text-xs">
+          ${isAlreadyBooked ? `
+            <div class="font-bold flex items-center gap-1.5">
+              <span>✓ คุณ (${nurseName}) ได้เลือกจองเวรนี้ไว้แล้ว</span>
+            </div>
+            <div class="text-[11px] mt-1 text-slate-600">คุณสามารถกดยกเลิกเวรนี้ได้หากต้องการเปลี่ยนเวร</div>
+          ` : `
+            <div class="font-bold">ต้องการเลือกจอง ${shiftObj.name} ในวันนี้หรือไม่?</div>
+            <div class="text-[11px] mt-1 text-slate-600">กดยืนยันเพื่อบันทึกการเข้าเวรของคุณเข้าสู่ระบบทันที</div>
+          `}
+        </div>
+      `;
+    }
+
     const bodyEl = document.getElementById('shiftModalBody');
     bodyEl.innerHTML = `
       <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
@@ -841,22 +949,17 @@ window.handleShiftClick = function(day, shift) {
           ${nursesListHtml}
         </div>
       </div>
-
-      <div class="p-3 rounded-2xl ${isAlreadyBooked ? 'bg-emerald-50 border border-emerald-200 text-emerald-900' : 'bg-blue-50 border border-blue-200 text-blue-900'} text-xs">
-        ${isAlreadyBooked ? `
-          <div class="font-bold flex items-center gap-1.5">
-            <span>✓ คุณ (${nurseName}) ได้เลือกจองเวรนี้ไว้แล้ว</span>
-          </div>
-          <div class="text-[11px] mt-1 text-slate-600">คุณสามารถกดยกเลิกเวรนี้ได้หากต้องการเปลี่ยนเวร</div>
-        ` : `
-          <div class="font-bold">ต้องการเลือกจอง ${shiftObj.name} ในวันนี้หรือไม่?</div>
-          <div class="text-[11px] mt-1 text-slate-600">กดยืนยันเพื่อบันทึกการเข้าเวรของคุณเข้าสู่ระบบทันที</div>
-        `}
-      </div>
+      ${confirmationNotice}
     `;
 
     const footerEl = document.getElementById('shiftModalFooter');
-    if (isAlreadyBooked) {
+    if (isConfirmed) {
+      footerEl.innerHTML = `
+        <button onclick="closeShiftActionModal()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition">
+          ปิดหน้าต่าง
+        </button>
+      `;
+    } else if (isAlreadyBooked) {
       footerEl.innerHTML = `
         <button onclick="closeShiftActionModal()" class="flex-1 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-semibold">
           ปิด
@@ -880,38 +983,42 @@ window.handleShiftClick = function(day, shift) {
     return;
   }
 
-  // If logged in as Admin: Open booking for vacancy or cell editor
-  if (currentUser.role === 'admin') {
-    openBookingForVacancy(day, shift);
-  }
-};
-
-window.closeShiftActionModal = function() {
-  document.getElementById('shiftActionModal').classList.add('hidden');
-  activeModalShiftContext = null;
-};
-
-window.confirmToggleShiftBooking = function(addShift) {
-  if (!activeModalShiftContext) return;
-  const { day, shift, nurseId } = activeModalShiftContext;
-
-  if (!monthState.roster[nurseId]) monthState.roster[nurseId] = {};
-  if (!monthState.roster[nurseId][day]) monthState.roster[nurseId][day] = [];
-
-  if (addShift) {
-    if (!monthState.roster[nurseId][day].includes(shift)) {
-      monthState.roster[nurseId][day].push(shift);
+    // If logged in as Admin: Open booking for vacancy or cell editor
+    if (currentUser.role === 'admin') {
+      openBookingForVacancy(day, shift);
     }
-  } else {
-    monthState.roster[nurseId][day] = monthState.roster[nurseId][day].filter(s => s !== shift);
-  }
+  };
 
-  saveMonthState();
-  closeShiftActionModal();
-  renderPublicDashboard();
-  if (activeView === 'personal') renderNurseCalendar();
-  if (activeView === 'admin') renderAdminView();
-};
+  window.closeShiftActionModal = function() {
+    document.getElementById('shiftActionModal').classList.add('hidden');
+    activeModalShiftContext = null;
+  };
+
+  window.confirmToggleShiftBooking = function(addShift) {
+    if (monthState.isConfirmed && (!currentUser || currentUser.role !== 'admin')) {
+      alert('🔒 ตารางเวรประจำเดือนนี้ปิดรับการจองแล้ว');
+      return;
+    }
+    if (!activeModalShiftContext) return;
+    const { day, shift, nurseId } = activeModalShiftContext;
+
+    if (!monthState.roster[nurseId]) monthState.roster[nurseId] = {};
+    if (!monthState.roster[nurseId][day]) monthState.roster[nurseId][day] = [];
+
+    if (addShift) {
+      if (!monthState.roster[nurseId][day].includes(shift)) {
+        monthState.roster[nurseId][day].push(shift);
+      }
+    } else {
+      monthState.roster[nurseId][day] = monthState.roster[nurseId][day].filter(s => s !== shift);
+    }
+
+    saveMonthState();
+    closeShiftActionModal();
+    renderPublicDashboard();
+    if (activeView === 'personal') renderNurseCalendar();
+    if (activeView === 'admin') renderAdminView();
+  };
 
 // 8. NURSE PERSONAL CALENDAR VIEW (PAGE หน้า USER จะมองเห็นเฉพาะ USER เลือก)
 function renderNurseCalendar() {
@@ -921,6 +1028,7 @@ function renderNurseCalendar() {
   const nurseName = currentUser.name;
   const daysCount = getDaysCount(currentYear, currentMonth);
   const firstDayIndex = getFirstDayIndex(currentYear, currentMonth);
+  const isConfirmed = !!(monthState && monthState.isConfirmed);
 
   // Update Section Title with Nurse Name
   const secTitle = document.getElementById('nurseCalendarSectionTitle');
@@ -930,13 +1038,61 @@ function renderNurseCalendar() {
 
   // Status Banner
   const statusBanner = document.getElementById('nurseRoundStatusBanner');
-  let roundText = `
-    <div class="flex items-center gap-2.5">
-      <span class="px-3.5 py-1.5 rounded-xl font-black text-xs bg-blue-700 text-white shadow-xs">ตารางเวรส่วนบุคคล</span>
-      <span class="text-xs text-blue-950 font-medium">แสดงเฉพาะเวรที่คุณเลือก (คุณสามารถคลิกที่ช่องวันที่เพื่อเพิ่มหรือยกเลิกเวรของคุณได้)</span>
-    </div>`;
-  statusBanner.className = `p-4 rounded-2xl border bg-blue-50/90 border-blue-200 mb-6 transition shadow-xs`;
-  statusBanner.innerHTML = roundText;
+  if (statusBanner) {
+    if (isConfirmed) {
+      statusBanner.className = `p-4 rounded-2xl border bg-emerald-50/90 border-emerald-300 mb-6 transition shadow-xs`;
+      statusBanner.innerHTML = `
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <div class="flex items-center gap-2.5">
+            <span class="px-3.5 py-1.5 rounded-xl font-black text-xs bg-emerald-700 text-white shadow-xs">🔒 ยืนยันตารางเวรทางการแล้ว</span>
+            <span class="text-xs text-emerald-950 font-bold">ตารางเวรประจำเดือนนี้ได้รับการยืนยันและประกาศอย่างเป็นทางการแล้ว (ปิดรับการจองหรือแก้ไขของเดือนนี้ รอเปิดรอบเดือนถัดไป)</span>
+          </div>
+          <button onclick="switchView('excel')" class="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+            <span>📋</span>
+            <span>ดูตารางตามหมายเลข (Excel View)</span>
+          </button>
+        </div>
+      `;
+    } else {
+      let roundText = `
+        <div class="flex items-center gap-2.5">
+          <span class="px-3.5 py-1.5 rounded-xl font-black text-xs bg-blue-700 text-white shadow-xs">ตารางเวรส่วนบุคคล</span>
+          <span class="text-xs text-blue-950 font-medium">แสดงเฉพาะเวรที่คุณเลือก (คุณสามารถคลิกที่ช่องวันที่เพื่อเพิ่มหรือยกเลิกเวรของคุณได้)</span>
+        </div>`;
+      statusBanner.className = `p-4 rounded-2xl border bg-blue-50/90 border-blue-200 mb-6 transition shadow-xs`;
+      statusBanner.innerHTML = roundText;
+    }
+  }
+
+  // Handle shortcut & personal booking button
+  const personalExcelShortcut = document.getElementById('personalExcelShortcutBtn');
+  const personalBookingBtnCont = document.getElementById('personalBookingBtnContainer');
+
+  if (personalExcelShortcut) {
+    if (isConfirmed) {
+      personalExcelShortcut.classList.remove('hidden');
+    } else {
+      personalExcelShortcut.classList.add('hidden');
+    }
+  }
+
+  if (personalBookingBtnCont) {
+    if (isConfirmed) {
+      personalBookingBtnCont.innerHTML = `
+        <button disabled class="px-4 py-2.5 bg-slate-200 text-slate-500 rounded-2xl text-xs sm:text-sm font-bold cursor-not-allowed flex items-center gap-1.5 opacity-80" title="ตารางเวรได้รับการยืนยันแล้ว ปิดรับการจองเพิ่มของเดือนนี้">
+          <span>🔒</span>
+          <span>ปิดรับการจอง (ยืนยันแล้ว)</span>
+        </button>
+      `;
+    } else {
+      personalBookingBtnCont.innerHTML = `
+        <button id="personalBookingBtn" onclick="openPersonalBookingModal()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition flex items-center gap-2 cursor-pointer">
+          <span class="text-base sm:text-lg">✍️</span>
+          <span>จองหลายวันพร้อมกัน</span>
+        </button>
+      `;
+    }
+  }
 
   // Personal Shift Counts
   const nurseShifts = monthState.roster[nurseId] || {};
@@ -1011,8 +1167,18 @@ function renderNurseCalendar() {
       badgeClass = 'bg-purple-100 text-purple-700';
     }
 
+    let clickAttr = '';
+    let emptySlotText = '';
+    if (isConfirmed) {
+      clickAttr = `onclick="window.showToast('🔒 ตารางเวรประจำเดือนนี้ได้รับการยืนยันทางการแล้ว ปิดรับการแก้ไขหรือจองเพิ่ม')"`;
+      emptySlotText = `<span class="text-xs text-slate-300 font-medium italic block text-center py-2">-</span>`;
+    } else {
+      clickAttr = `onclick="openCellEditor('${nurseId}', ${d})"`;
+      emptySlotText = `<span class="text-xs text-slate-400 font-medium italic block text-center py-2 hover:text-blue-600">+ แตะเลือกเวร</span>`;
+    }
+
     calHtml += `
-      <div class="calendar-day-cell rounded-2xl border p-3 md:p-3.5 flex flex-col justify-between shadow-xs transition ${dayCardStyle} cursor-pointer" onclick="openCellEditor('${nurseId}', ${d})">
+      <div class="calendar-day-cell rounded-2xl border p-3 md:p-3.5 flex flex-col justify-between shadow-xs transition ${dayCardStyle} ${isConfirmed ? 'cursor-default' : 'cursor-pointer'}" ${clickAttr}>
         <div class="flex items-center justify-between pb-2 border-b border-slate-100">
           <span class="text-2xl md:text-3xl font-black ${dateColor}">${d}</span>
           <span class="text-xs md:text-sm font-extrabold px-2 py-0.5 rounded-lg ${badgeClass}">
@@ -1020,7 +1186,7 @@ function renderNurseCalendar() {
           </span>
         </div>
         <div class="mt-2 space-y-1.5">
-          ${shiftBadges || `<span class="text-xs text-slate-400 font-medium italic block text-center py-2 hover:text-blue-600">+ แตะเลือกเวร</span>`}
+          ${shiftBadges || emptySlotText}
         </div>
       </div>
     `;
@@ -1036,8 +1202,33 @@ function renderAdminView() {
 }
 
 function renderAdminControls() {
-  // Round status pills removed per user request
+  const optBtn = document.getElementById('adminOptimizeBtn');
+  const unconfirmBtn = document.getElementById('adminUnconfirmBtn');
+  const isConfirmed = !!(monthState && monthState.isConfirmed);
+
+  if (optBtn && unconfirmBtn) {
+    if (isConfirmed) {
+      optBtn.classList.add('hidden');
+      unconfirmBtn.classList.remove('hidden');
+    } else {
+      optBtn.classList.remove('hidden');
+      unconfirmBtn.classList.add('hidden');
+    }
+  }
 }
+
+window.handleUnconfirmSchedule = function() {
+  const monthName = THAI_MONTHS[currentMonth];
+  const yearBE = currentYear + 543;
+  if (confirm(`คุณต้องการยกเลิกการยืนยันตารางเวรประจำเดือน ${monthName} พ.ศ. ${yearBE} ใช่หรือไม่?\n\n(เมื่อยกเลิกแล้ว ระบบจะอนุญาตให้ผู้ดูแลระบบจัดตารางเวรใหม่ และเปิดให้พยาบาลสามารถจองหรือแก้ไขเวรได้อีกครั้ง)`)) {
+    monthState.isConfirmed = false;
+    saveMonthState();
+    renderAdminView();
+    renderPublicDashboard();
+    updateNavSwitcher(activeView);
+    window.showToast('🔓 ปลดล็อกการยืนยันตารางเวรเรียบร้อยแล้ว สามารถจัดตารางใหม่ได้');
+  }
+};
 
 function renderAdminSubView() {
   const views = ['matrix', 'excel', 'daily', 'summary', 'vacancies'];
@@ -1273,8 +1464,8 @@ function renderNurseCardsModern(containerId = 'summaryNurseCardsContainer') {
 }
 
 // Render Monthly Excel View with Nurse Number Badges and Notes (ตามแบบ Screenshot 2026-10-08 005135)
-function renderExcelView() {
-  const container = document.getElementById('excelRosterContainer');
+function renderExcelView(targetContainerId = 'excelRosterContainer') {
+  const container = document.getElementById(targetContainerId);
   if (!container) return;
 
   const daysCount = getDaysCount(currentYear, currentMonth);
@@ -1317,7 +1508,7 @@ function renderExcelView() {
         cellContent = `
           <div class="flex flex-wrap items-center justify-center gap-1 min-h-[30px]">
             ${assignedNurses.map(n => `
-              <span class="nurse-num-badge w-7 h-7 text-xs font-black cursor-pointer shadow-xs" 
+              <span class="nurse-num-badge w-7 h-7 text-xs font-black cursor-pointer shadow-xs transition hover:scale-110" 
                     style="background-color: ${n.color}; color: ${n.textColor};"
                     onclick="handleShiftClick(${d}, '${sDef.key}')"
                     title="${n.name} (${n.id})">
@@ -1331,7 +1522,7 @@ function renderExcelView() {
           <div class="min-h-[30px] flex items-center justify-center">
             <span class="text-[10px] font-bold text-rose-500 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded cursor-pointer hover:bg-rose-100"
                   onclick="handleShiftClick(${d}, '${sDef.key}')"
-                  title="คลิกเพื่อเลือกเวร">
+                  title="คลิกเพื่อดูรายละเอียด">
               ว่าง
             </span>
           </div>
@@ -1357,6 +1548,8 @@ function renderExcelView() {
       </tr>
     `;
   });
+
+  const cardsContainerId = `${targetContainerId}_cards`;
 
   let html = `
     <!-- Excel View Card -->
@@ -1408,11 +1601,11 @@ function renderExcelView() {
     </div>
 
     <!-- Nurse Legend Cards Container -->
-    <div id="excelViewNurseCardsContainer"></div>
+    <div id="${cardsContainerId}"></div>
   `;
 
   container.innerHTML = html;
-  renderNurseCardsModern('excelViewNurseCardsContainer');
+  renderNurseCardsModern(cardsContainerId);
 }
 
 function renderDailyView() {
@@ -1630,6 +1823,11 @@ window.openBookingForVacancy = function(day, shift) {
 
 // 10. CELL EDIT MODAL LOGIC (ADMIN MATRIX)
 window.openCellEditor = function(nurseId, day) {
+  if (monthState.isConfirmed && (!currentUser || currentUser.role !== 'admin')) {
+    window.showToast('🔒 ตารางเวรประจำเดือนนี้ได้รับการยืนยันทางการแล้ว ปิดรับการแก้ไขหรือจองเพิ่ม');
+    return;
+  }
+
   activeEditNurseId = nurseId;
   activeEditDay = day;
 
@@ -1661,6 +1859,10 @@ function closeCellEditor() {
 
 function saveCellEditor() {
   if (!activeEditNurseId || !activeEditDay) return;
+  if (monthState.isConfirmed && (!currentUser || currentUser.role !== 'admin')) {
+    alert('🔒 ตารางเวรประจำเดือนนี้ได้รับการยืนยันทางการแล้ว ปิดรับการแก้ไข');
+    return;
+  }
 
   const m = document.getElementById('cellShiftM').checked;
   const a = document.getElementById('cellShiftA').checked;
@@ -1690,6 +1892,11 @@ function saveCellEditor() {
 
 function clearCellShifts() {
   if (!activeEditNurseId || !activeEditDay) return;
+  if (monthState.isConfirmed && (!currentUser || currentUser.role !== 'admin')) {
+    alert('🔒 ตารางเวรประจำเดือนนี้ได้รับการยืนยันทางการแล้ว ปิดรับการแก้ไข');
+    return;
+  }
+
   if (monthState.roster[activeEditNurseId]) {
     delete monthState.roster[activeEditNurseId][activeEditDay];
   }
@@ -1836,6 +2043,10 @@ window.toggleSelectAllDates = function() {
 };
 
 window.openPersonalBookingModal = function() {
+  if (monthState.isConfirmed && (!currentUser || currentUser.role !== 'admin')) {
+    alert('🔒 ตารางเวรประจำเดือนนี้ได้รับการยืนยันและประกาศอย่างเป็นทางการแล้ว ปิดรับการจองสำหรับเดือนนี้ (สามารถเปลี่ยนไปดูหรือจองในเดือนถัดไปได้)');
+    return;
+  }
   if (!currentUser) {
     openNurseLoginModal();
     return;
@@ -1850,6 +2061,10 @@ window.openPersonalBookingModal = function() {
 
 function handleQuickBookingSubmit(e) {
   e.preventDefault();
+  if (monthState.isConfirmed && (!currentUser || currentUser.role !== 'admin')) {
+    alert('🔒 ตารางเวรประจำเดือนนี้ได้รับการยืนยันและประกาศอย่างเป็นทางการแล้ว ไม่สามารถบันทึกการจองได้');
+    return;
+  }
   const nurseId = document.getElementById('modalNurseSelect').value;
   const shiftCheckboxes = document.getElementsByName('modalShift');
   const selectedShifts = [];
@@ -1997,11 +2212,16 @@ function runOptimization() {
 
         if (eligible.length > 0) {
           // จัดลำดับความสำคัญตามเงื่อนไข:
-          // 1. พยาบาลที่เลือกมาน้อยกว่าหรือเท่ากับค่าเฉลี่ยได้สิทธิ์ก่อน
-          // 2. ถ้าสถานะเท่ากัน ให้เฉลี่ยโดยดูจากยอดเวรที่ได้จัดไปแล้ว (คนที่ได้น้อยกว่าได้ก่อน)
-          // 3. ดูจากจำนวนที่ขอเริ่มต้น (ขอน้อยกว่าได้ก่อน)
-          // 4. ลำดับพยาบาล (order)
+          // 1. สำคัญที่สุด: ให้พยาบาลที่วันนี้ยังไม่มีเวรเลย (0 เวรวันนี้) ก่อนคนที่มีแล้ว 1 เวร (เพื่อหลีกเลี่ยง 2 เวร/วัน เป็นลำดับสุดท้าย)
+          // 2. พยาบาลที่เลือกมาน้อยกว่าหรือเท่ากับค่าเฉลี่ยได้สิทธิ์ก่อน
+          // 3. ถ้าสถานะเท่ากัน ให้เฉลี่ยโดยดูจากยอดเวรที่ได้จัดไปแล้ว (คนที่ได้น้อยกว่าได้ก่อน)
+          // 4. ดูจากจำนวนที่ขอเริ่มต้น (ขอน้อยกว่าได้ก่อน)
+          // 5. สุ่ม tie-breaker เพื่อให้การกด "สุ่มจัดรอบใหม่" ได้ผลลัพธ์กระจายหลากหลาย
           eligible.sort((a, b) => {
+            const aToday = getDayShifts(a.id, d).length;
+            const bToday = getDayShifts(b.id, d).length;
+            if (aToday !== bToday) return aToday - bToday;
+
             const aBelow = isBelowAvg[a.id];
             const bBelow = isBelowAvg[b.id];
             if (aBelow !== bBelow) return aBelow ? -1 : 1;
@@ -2012,7 +2232,7 @@ function runOptimization() {
             const initDiff = initialRequests[a.id] - initialRequests[b.id];
             if (initDiff !== 0) return initDiff;
 
-            return (a.order || 0) - (b.order || 0);
+            return Math.random() - 0.5;
           });
 
           const winner = eligible[0];
@@ -2058,18 +2278,18 @@ function runOptimization() {
 
         if (available.length > 0) {
           // จัดลำดับความสำคัญเพื่อให้ยอดเวรสมดุลใกล้เคียงค่าเฉลี่ยที่สุด:
-          // 1. พยาบาลที่ยอดเวรรวมน้อยที่สุด
-          // 2. พยาบาลที่วันนี้ยังไม่มีเวรเลย (0 เวรวันนี้) ก่อนคนที่มี 1 เวรแล้ว
-          // 3. ลำดับ order
+          // 1. สำคัญที่สุด: ต้องเลือกพยาบาลที่วันนี้ยังไม่มีเวรเลย (0 เวรวันนี้) ก่อนคนที่มี 1 เวร (2 เวรต่อวัน เป็นลำดับสุดท้าย ถ้าไม่มีตัวเลือก)
+          // 2. พยาบาลที่ยอดเวรรวมสะสมน้อยที่สุด
+          // 3. สุ่ม tie-breaker เพื่อให้การกด "สุ่มจัดรอบใหม่" ได้ผลลัพธ์กระจายหลากหลาย
           available.sort((a, b) => {
-            const countDiff = assignedCounts[a.id] - assignedCounts[b.id];
-            if (countDiff !== 0) return countDiff;
-
             const aToday = getDayShifts(a.id, d).length;
             const bToday = getDayShifts(b.id, d).length;
             if (aToday !== bToday) return aToday - bToday;
 
-            return (a.order || 0) - (b.order || 0);
+            const countDiff = assignedCounts[a.id] - assignedCounts[b.id];
+            if (countDiff !== 0) return countDiff;
+
+            return Math.random() - 0.5;
           });
 
           const picked = available[0];
@@ -2296,15 +2516,27 @@ function confirmOptimization() {
   if (window.pendingOptimizedRoster) {
     monthState.roster = window.pendingOptimizedRoster;
     monthState.round = 3;
+    monthState.isConfirmed = true;
     saveMonthState();
     window.pendingOptimizedRoster = null;
-    window.showToast('✓ นำตารางเวรที่จัดอัตโนมัติไปใช้งานจริงเรียบร้อยแล้ว');
+    window.showToast('✓ ยืนยันตารางเวรและประกาศเป็นทางการเรียบร้อยแล้ว (ล็อกการจองเดือนนี้)');
   }
   document.getElementById('optimizeModal').classList.add('hidden');
   renderAdminView();
   renderPublicDashboard();
+  updateNavSwitcher(activeView);
   if (activeView === 'personal') renderNurseCalendar();
+  if (activeView === 'excel') renderExcelView('userExcelViewContent');
 }
+
+window.cancelOptimization = function() {
+  window.pendingOptimizedRoster = null;
+  document.getElementById('optimizeModal').classList.add('hidden');
+  window.showToast('↩️ ยกเลิกผลการจัดตารางเวร กลับสู่สถานะเดิม');
+};
+
+window.confirmOptimization = confirmOptimization;
+window.runOptimization = runOptimization;
 
 function exportRoster() {
   const daysCount = getDaysCount(currentYear, currentMonth);
@@ -2594,16 +2826,25 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(updateRealTimeClock, 1000);
 
   // Month navigation: Initialized to defaultMonth (current month + 1)
+  function onMonthYearChanged() {
+    loadMonthState();
+    if (activeView === 'excel' && !monthState.isConfirmed && (!currentUser || currentUser.role !== 'admin')) {
+      activeView = 'dashboard';
+    }
+    updateNavSwitcher(activeView);
+    renderPublicDashboard();
+    if (activeView === 'personal') renderNurseCalendar();
+    if (activeView === 'admin') renderAdminView();
+    if (activeView === 'excel') renderExcelView('userExcelViewContent');
+  }
+
   const monthSel = document.getElementById('monthSelect');
   const yearSel = document.getElementById('yearSelect');
   if (monthSel) {
     monthSel.value = currentMonth;
     monthSel.addEventListener('change', (e) => {
       currentMonth = parseInt(e.target.value);
-      loadMonthState();
-      renderPublicDashboard();
-      if (activeView === 'personal') renderNurseCalendar();
-      if (activeView === 'admin') renderAdminView();
+      onMonthYearChanged();
     });
   }
 
@@ -2611,10 +2852,7 @@ document.addEventListener('DOMContentLoaded', () => {
     yearSel.value = currentYear;
     yearSel.addEventListener('change', (e) => {
       currentYear = parseInt(e.target.value);
-      loadMonthState();
-      renderPublicDashboard();
-      if (activeView === 'personal') renderNurseCalendar();
-      if (activeView === 'admin') renderAdminView();
+      onMonthYearChanged();
     });
   }
 
@@ -2624,10 +2862,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (currentYear < 2026) currentYear = 2026;
     if (monthSel) monthSel.value = currentMonth;
     if (yearSel) yearSel.value = currentYear;
-    loadMonthState();
-    renderPublicDashboard();
-    if (activeView === 'personal') renderNurseCalendar();
-    if (activeView === 'admin') renderAdminView();
+    onMonthYearChanged();
   });
 
   document.getElementById('nextMonthBtn').addEventListener('click', () => {
@@ -2636,10 +2871,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (currentYear > 2032) currentYear = 2032;
     if (monthSel) monthSel.value = currentMonth;
     if (yearSel) yearSel.value = currentYear;
-    loadMonthState();
-    renderPublicDashboard();
-    if (activeView === 'personal') renderNurseCalendar();
-    if (activeView === 'admin') renderAdminView();
+    onMonthYearChanged();
   });
 
   // Nurse Modal Login Form Submit
@@ -2703,11 +2935,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('quickBookingForm')?.addEventListener('submit', handleQuickBookingSubmit);
 
   document.getElementById('closeOptimizeModalBtn')?.addEventListener('click', () => {
-    document.getElementById('optimizeModal').classList.add('hidden');
+    cancelOptimization();
   });
-  document.getElementById('cancelOptimizeBtn')?.addEventListener('click', () => {
-    document.getElementById('optimizeModal').classList.add('hidden');
-  });
+  document.getElementById('cancelOptimizeBtn')?.addEventListener('click', cancelOptimization);
+  document.getElementById('regenerateOptimizeBtn')?.addEventListener('click', runOptimization);
   document.getElementById('confirmOptimizeBtn')?.addEventListener('click', confirmOptimization);
 
   // Initial View: Keep current session view if user is logged in, or start at dashboard
