@@ -38,8 +38,8 @@
           </div>
         </div>
 
-        <!-- Middle: Shift Legend Pills with Enlarged Icons -->
-        <div class="flex flex-wrap items-center gap-2.5 bg-white/15 p-2 rounded-2xl border border-white/20 backdrop-blur-md shadow-xs">
+        <!-- Middle: Shift Legend Pills with Enlarged Icons (แสดงตามโหมดเวรที่เลือก) -->
+        <div id="headerShiftPillsContainer" class="flex flex-wrap items-center gap-2.5 bg-white/15 p-2 rounded-2xl border border-white/20 backdrop-blur-md shadow-xs">
           <div class="flex items-center gap-2 bg-sky-500/25 border border-white/30 px-3.5 py-1.5 rounded-xl">
             <span class="text-xl">☀️</span>
             <div>
@@ -54,7 +54,7 @@
               <div class="text-[10px] text-amber-100 font-mono">16:30 - 00:30 น.</div>
             </div>
           </div>
-          <div class="flex items-center gap-2 bg-purple-500/25 border border-white/30 px-3.5 py-1.5 rounded-xl">
+          <div id="headerShiftNPill" class="flex items-center gap-2 bg-purple-500/25 border border-white/30 px-3.5 py-1.5 rounded-xl">
             <span class="text-xl">🌙</span>
             <div>
               <div class="font-bold text-white text-xs">เวรดึก (N)</div>
@@ -83,8 +83,8 @@
             </button>
           </div>
 
-          <!-- When Authenticated: Profile Badge & Navigation Switchers -->
-          <div id="authControls" class="hidden flex items-center gap-2.5 flex-wrap">
+          <!-- When Authenticated: Profile Badge & Navigation Switchers & Pinned Logout Button on Far Right -->
+          <div id="authControls" class="hidden flex items-center gap-3 flex-wrap">
             
             <!-- Segmented Pill Group for Views (Active Indicator) -->
             <div class="flex items-center p-1 bg-black/20 backdrop-blur-md rounded-2xl border border-white/25 gap-1.5 shadow-inner">
@@ -107,9 +107,10 @@
 
             <div id="userProfileBadge"></div>
 
-            <button onclick="logout()" class="flex items-center gap-1.5 px-3.5 py-2.5 bg-rose-500/20 hover:bg-rose-500/40 border border-rose-300/40 text-rose-100 hover:text-white rounded-xl text-xs font-bold backdrop-blur-md transition shadow-xs" title="ออกจากระบบ">
+            <!-- ย้ายปุ่ม ออกจากระบบ ไปขอบขวา ของ header ตามความต้องการ -->
+            <button onclick="handleLogout()" class="ml-2 flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 border border-rose-300/60 text-white rounded-xl text-xs font-black shadow-md shadow-rose-950/30 transition transform hover:scale-105 active:scale-95 cursor-pointer" title="ออกจากระบบ">
               <span class="text-base">🚪</span>
-              <span>ออกจากระบบ</span>
+              <span id="headerLogoutBtnText">ออกจากระบบ</span>
             </button>
           </div>
 
@@ -118,7 +119,7 @@
       </div>
     </header>
 
-    <!-- ==================== MONTH NAVIGATOR BAR ==================== -->
+    <!-- ==================== MONTH NAVIGATOR & REAL-TIME CLOCK BAR ==================== -->
     <div class="glass-card rounded-2xl px-5 py-3.5 mb-5 flex flex-wrap items-center justify-between gap-4 border border-white/60 shadow-md">
       <div class="flex items-center gap-3">
         <button id="prevMonthBtn" class="p-2.5 bg-white hover:bg-blue-50 border border-blue-200 rounded-xl shadow-xs text-blue-900 transition font-black text-sm" title="เดือนก่อนหน้า">
@@ -143,9 +144,13 @@
           </select>
           <span class="text-blue-400 font-black">/</span>
           <select id="yearSelect" class="font-black text-slate-800 bg-transparent border-none outline-none cursor-pointer text-sm md:text-base">
-            <option value="2025">2568 (2025)</option>
             <option value="2026">2569 (2026)</option>
             <option value="2027">2570 (2027)</option>
+            <option value="2028">2571 (2028)</option>
+            <option value="2029">2572 (2029)</option>
+            <option value="2030">2573 (2030)</option>
+            <option value="2031">2574 (2031)</option>
+            <option value="2032">2575 (2032)</option>
           </select>
         </div>
 
@@ -154,9 +159,19 @@
         </button>
       </div>
 
+      <!-- Real-Time Date and Time Display in Center of Bar 2 (แสดงวันที่ เวลา ทุกหน้า ตรงกลาง กรอบที่ 2) -->
+      <div id="realTimeClockContainer" class="flex items-center gap-2.5 bg-white/90 border border-blue-200/90 px-4 py-2 rounded-xl text-xs shadow-xs backdrop-blur-md">
+        <span class="text-base text-blue-600 animate-pulse">🕒</span>
+        <div class="text-center font-mono flex items-center gap-2">
+          <span id="realTimeClockDate" class="font-extrabold text-slate-800 text-xs sm:text-sm">--</span>
+          <span class="text-slate-300 font-bold">|</span>
+          <span id="realTimeClockTime" class="font-black text-blue-900 text-xs sm:text-sm">--:--:-- น.</span>
+        </div>
+      </div>
+
       <div class="flex items-center gap-3">
         <div id="viewStatusBadge" class="text-xs text-blue-950 bg-blue-100/80 px-3.5 py-1.5 rounded-xl border border-blue-200 font-bold">
-          ⚡ พยาบาลวิชาชีพ 14 ท่าน | สามารถคลิกเลือกได้ทุกเวร
+          ⚡ พยาบาลวิชาชีพ | สามารถคลิกเลือกได้ทุกเวร
         </div>
       </div>
     </div>
@@ -172,9 +187,6 @@
             <span class="text-3xl">📅</span>
             <h2 class="text-2xl md:text-3xl font-black text-blue-950 font-heading">ปฏิทินจองเวรประจำเดือน (Main Duty Calendar)</h2>
           </div>
-          <p class="text-slate-600 text-sm mt-1">
-            แสดงครบทุกวัน ทุกเวร สามารถคลิกเลือกได้ทุกเวร พร้อมแสดงจำนวนคนที่เลือกต่อเวร (เวรที่ยังไม่มีคนเลือกแสดงเด่นชัดเป็นพิเศษ)
-          </p>
         </div>
 
         <!-- Quick Action on Dashboard -->
@@ -300,7 +312,7 @@
       <div id="nurseRoundStatusBanner"></div>
 
       <!-- Personal Stat Summary Cards with Enlarged Icons -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div id="nursePersonalStatsContainer" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div class="glass-card p-4 rounded-2xl border border-sky-200 shadow-xs flex items-center gap-3.5">
           <div class="w-14 h-14 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center font-black text-3xl shadow-inner border border-sky-200">☀️</div>
           <div>
@@ -317,7 +329,7 @@
           </div>
         </div>
 
-        <div class="glass-card p-4 rounded-2xl border border-purple-200 shadow-xs flex items-center gap-3.5">
+        <div id="nurseStatNCard" class="glass-card p-4 rounded-2xl border border-purple-200 shadow-xs flex items-center gap-3.5">
           <div class="w-14 h-14 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center font-black text-3xl shadow-inner border border-purple-200">🌙</div>
           <div>
             <div class="text-xs text-slate-500 font-bold">เวรดึกของฉัน</div>
@@ -375,6 +387,33 @@
       
       <!-- Admin Controls Section -->
       <div id="adminControlsSection" class="p-4 md:p-5 bg-slate-100/90 border-b border-slate-200 space-y-4 backdrop-blur-md">
+        
+        <!-- Admin Title Banner & Quick Exit / Logout Buttons -->
+        <div class="flex items-center justify-between pb-3.5 border-b border-slate-200 flex-wrap gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-950 to-blue-900 text-white flex items-center justify-center font-bold text-xl shadow-md border border-white/20">
+              👑
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-base md:text-lg font-black text-slate-900 font-heading">พื้นที่ผู้ดูแลระบบ (Admin Portal)</h2>
+                <span class="text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>กำลังใช้งาน</span>
+                </span>
+              </div>
+              <p class="text-xs text-slate-500">จัดการตารางเวรทั้งแผนก รายชื่อพยาบาล และระบบจัดตารางเวรอัตโนมัติ</p>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-2">
+            <button onclick="switchView('dashboard')" class="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold shadow-2xs transition" title="ดูปฏิทินหลักโดยไม่ล็อกเอาท์">
+              <span>📊</span>
+              <span>ดูปฏิทินหลัก</span>
+            </button>
+          </div>
+        </div>
+
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           
           <!-- View Tabs for Admin (including new Excel-style Number View) -->
@@ -400,7 +439,12 @@
           <div class="flex items-center gap-2 flex-wrap">
             <button id="adminOptimizeBtn" class="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-md transition transform hover:-translate-y-0.5">
               <span class="text-base">⚡</span>
-              <span>Optimize จัดตารางเวรอัตโนมัติ</span>
+              <span>จัดตารางเวรอัตโนมัติ</span>
+            </button>
+            <!-- เปลี่ยนสี ปุ่ม รายชื่อพยาบาล เป็นสีม่วงโมเดิร์นตามความต้องการ -->
+            <button onclick="openNurseManageModal()" class="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-purple-600 via-indigo-600 to-violet-700 hover:from-purple-700 hover:to-violet-800 text-white rounded-xl text-xs font-bold shadow-md transition transform hover:-translate-y-0.5">
+              <span class="text-base">👩‍⚕️</span>
+              <span>รายชื่อพยาบาล</span>
             </button>
             <button id="openBookingModalBtn" class="flex items-center gap-1 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition">
               <span>+ จองเวร</span>
@@ -411,17 +455,30 @@
             <button id="printBtn" class="flex items-center gap-1 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-xl text-xs font-bold shadow-xs transition">
               <span>🖨️ พิมพ์ A4</span>
             </button>
-            <button id="resetMonthBtn" class="text-xs text-slate-500 hover:text-rose-600 underline px-1">
-              ล้างเวร
+            <!-- ล้างเวร ให้สร้างเป็นปุ่ม สีที่เหมือนปุ่มอื่นตามความต้องการ -->
+            <button id="resetMonthBtn" class="flex items-center gap-1 px-3 py-2 bg-white hover:bg-rose-50 border border-rose-300 text-rose-700 rounded-xl text-xs font-bold shadow-xs transition hover:border-rose-400" title="ล้างข้อมูลเวรทั้งหมดในเดือนนี้">
+              <span>🗑️</span>
+              <span>ล้างเวร</span>
             </button>
           </div>
 
         </div>
 
-        <div class="flex items-center justify-between text-xs pt-1 flex-wrap gap-2">
-          <input type="text" id="searchNurseInput" placeholder="ค้นหาชื่อ หรือ รหัสพยาบาล..." 
-                 class="pl-3 pr-3 py-1.5 text-xs bg-white border border-slate-300 rounded-xl shadow-xs focus:ring-2 focus:ring-blue-500 outline-none w-60 font-medium">
-          <div class="text-slate-600 font-semibold">
+        <!-- Shift Mode Switcher Bar -->
+        <div class="flex items-center justify-between text-xs pt-1 flex-wrap gap-3">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs font-bold text-slate-700">⚙️ โหมดจัดเวร:</span>
+            <div class="inline-flex rounded-xl bg-white border border-slate-300 p-0.5 shadow-2xs">
+              <button id="mode2ShiftBtn" onclick="setShiftMode(2)" class="px-3 py-1 rounded-lg text-xs font-bold transition">
+                ☀️⛅ 2 เวร/วัน (เช้า, บ่าย)
+              </button>
+              <button id="mode3ShiftBtn" onclick="setShiftMode(3)" class="px-3 py-1 rounded-lg text-xs font-bold transition">
+                ☀️⛅🌙 3 เวร/วัน (เช้า, บ่าย, ดึก)
+              </button>
+            </div>
+          </div>
+
+          <div class="text-slate-600 font-semibold text-xs">
             ระบบจองเวรอิสระ | พยาบาลสามารถเลือกเวรซ้ำและพร้อมกันได้
           </div>
         </div>
@@ -430,6 +487,36 @@
       <!-- Master Views Section (Admin) -->
       <div id="masterMatrixSection">
         
+        <!-- Horizontal Scroll / Slider Toolbar for Matrix Table (ให้ Slide ซ้าย-ขวา เห็นวันที่ 1 ชัดเจน) -->
+        <div class="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200 text-xs">
+          <div class="flex items-center gap-1.5">
+            <button onclick="scrollMatrixTo('first')" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-blue-50 hover:text-blue-700 font-bold text-slate-700 shadow-2xs transition flex items-center gap-1" title="เลื่อนกลับมาที่วันที่ 1">
+              <span>⏮️</span>
+              <span>วันที่ 1</span>
+            </button>
+            <button onclick="scrollMatrixTo('prev')" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-blue-50 hover:text-blue-700 font-bold text-slate-700 shadow-2xs transition flex items-center gap-1" title="เลื่อนไปทางซ้าย">
+              <span>◀</span>
+              <span>เลื่อนซ้าย</span>
+            </button>
+          </div>
+
+          <div class="flex items-center gap-1.5 text-slate-600 font-bold">
+            <span>↔️</span>
+            <span>เลื่อนสไลด์ ซ้าย - ขวา เพื่อดูช่วงวันที่ 1 ถึงสิ้นเดือน</span>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <button onclick="scrollMatrixTo('next')" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-blue-50 hover:text-blue-700 font-bold text-slate-700 shadow-2xs transition flex items-center gap-1" title="เลื่อนไปทางขวา">
+              <span>เลื่อนขวา</span>
+              <span>▶</span>
+            </button>
+            <button onclick="scrollMatrixTo('last')" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-blue-50 hover:text-blue-700 font-bold text-slate-700 shadow-2xs transition flex items-center gap-1" title="เลื่อนไปวันที่สิ้นเดือน">
+              <span>สิ้นเดือน</span>
+              <span>⏭️</span>
+            </button>
+          </div>
+        </div>
+
         <!-- 1. Matrix View with Zebra Striping and Sticky Columns -->
         <div id="matrixViewSection" class="relative overflow-x-auto border-b border-slate-200">
           <table class="w-full text-xs text-left border-collapse">
@@ -664,7 +751,7 @@
           <span class="text-xs font-bold px-2 py-0.5 rounded bg-amber-200 text-amber-800">บ่าย</span>
         </label>
 
-        <label class="flex items-center justify-between p-3 rounded-2xl border border-purple-200 bg-purple-50/70 hover:bg-purple-50 cursor-pointer transition">
+        <label id="cellShiftNContainer" class="flex items-center justify-between p-3 rounded-2xl border border-purple-200 bg-purple-50/70 hover:bg-purple-50 cursor-pointer transition">
           <div class="flex items-center gap-3">
             <input type="checkbox" id="cellShiftN" class="w-5 h-5 text-purple-600 rounded">
             <div>
@@ -705,7 +792,7 @@
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">เลือกเวรเวลา</label>
-          <div class="grid grid-cols-3 gap-2">
+          <div id="modalShiftOptionsContainer" class="grid grid-cols-3 gap-2">
             <label class="border border-sky-200 bg-sky-50/80 p-2.5 rounded-xl flex items-center justify-center gap-2 cursor-pointer has-checked:border-blue-600 has-checked:bg-blue-100">
               <input type="radio" name="modalShift" value="M" checked class="text-blue-600">
               <span class="text-xs font-bold text-sky-900">☀️ เวรเช้า</span>
@@ -752,8 +839,8 @@
             ⚡
           </div>
           <div>
-            <h3 class="text-base font-bold text-slate-900 font-heading">ผลการประมวลผลจัดตารางเวรอัตโนมัติ (Optimize)</h3>
-            <p class="text-xs text-slate-500">ระบบเกลี่ยเวรและเติมเต็มความต้องการรอบ 1 และรอบ 2</p>
+            <h3 class="text-base font-bold text-slate-900 font-heading">ผลการประมวลผลจัดตารางเวรอัตโนมัติ</h3>
+            <p class="text-xs text-slate-500">ระบบเกลี่ยเวรให้ทุกคนเท่าๆ กัน และจัดไม่เกิน 2 เวรต่อเนื่องต่อวัน</p>
           </div>
         </div>
         <button id="closeOptimizeModalBtn" class="text-slate-400 hover:text-slate-600 p-1">
@@ -768,7 +855,115 @@
           ยกเลิก
         </button>
         <button id="confirmOptimizeBtn" class="px-5 py-2.5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white rounded-xl text-xs font-bold shadow-md transition">
-          ✓ นำตารางนี้ไปใช้งานจริงและปิดรอบ
+          ✓ นำตารางนี้ไปใช้งานจริง
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Nurse Management Modal (เพิ่ม ลบ แก้ไข รายชื่อพยาบาล มีผลทุกหน้าเพจ) -->
+  <div id="nurseManageModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden backdrop-blur-md p-3 sm:p-4">
+    <div class="glass-modal rounded-3xl max-w-2xl w-full p-5 sm:p-6 border border-white/80 max-h-[90vh] flex flex-col shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4 shrink-0">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-bold text-lg shadow-md">
+            👩‍⚕️
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900 font-heading">จัดการรายชื่อพยาบาล</h3>
+            <p class="text-xs text-slate-500">เพิ่ม ลบ หรือแก้ไขข้อมูลพยาบาล (มีผลต่อทุกหน้าในระบบทันที)</p>
+          </div>
+        </div>
+        <button onclick="closeNurseManageModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-xl hover:bg-slate-100 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="overflow-y-auto flex-1 pr-1 space-y-4">
+        <!-- Add / Edit Form Card -->
+        <div class="p-4 bg-slate-50/90 border border-slate-200 rounded-2xl">
+          <h4 id="nurseFormTitle" class="text-xs font-bold text-slate-800 mb-3 flex items-center gap-1.5">
+            <span>➕</span>
+            <span>เพิ่มพยาบาลท่านใหม่</span>
+          </h4>
+          <form id="nurseManageForm" onsubmit="handleSaveNurse(event)" class="space-y-3">
+            <input type="hidden" id="editNurseOriginalId" value="">
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">รหัสพยาบาล (Staff ID) *</label>
+                <input type="text" id="nurseFormId" required placeholder="เช่น 6100088" class="w-full glass-input rounded-xl p-2 text-xs font-bold outline-none">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">หมายเลขประจำตัว (Number) *</label>
+                <input type="number" id="nurseFormNum" required placeholder="เช่น 16" class="w-full glass-input rounded-xl p-2 text-xs font-bold outline-none">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">ชื่อ - สกุล *</label>
+                <input type="text" id="nurseFormName" required placeholder="เช่น น.ส.ชลธิชา สมบูรณ์" class="w-full glass-input rounded-xl p-2 text-xs font-bold outline-none">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">รหัสผ่าน (PIN 4 หลัก) *</label>
+                <input type="text" id="nurseFormPin" required placeholder="เช่น 0088" class="w-full glass-input rounded-xl p-2 text-xs font-mono font-bold outline-none">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-slate-700 mb-1.5">เลือกสีประจำตัวพยาบาล (Color)</label>
+              <div class="flex items-center gap-1.5 flex-wrap mb-2" id="nurseColorPalette">
+                <!-- Color palette buttons will be inserted by JS -->
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="color" id="nurseFormColorPicker" value="#2563eb" class="w-8 h-8 rounded-lg cursor-pointer border border-slate-300" onchange="syncNurseColorInput(this.value)">
+                <input type="text" id="nurseFormColor" value="#2563eb" class="glass-input rounded-xl p-1.5 text-xs font-mono w-28 uppercase" onchange="syncNurseColorPicker(this.value)">
+                <span class="text-[11px] text-slate-400">ตัวอย่าง:</span>
+                <span id="nurseFormPreviewBadge" class="nurse-num-badge w-7 h-7 text-xs font-black" style="background-color: #2563eb; color: #ffffff;">#</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+              <button type="button" id="cancelEditNurseBtn" onclick="resetNurseForm()" class="hidden px-3.5 py-1.5 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-semibold">
+                ยกเลิกการแก้ไข
+              </button>
+              <button type="submit" id="saveNurseBtn" class="px-4 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition">
+                + บันทึกพยาบาล
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Nurses List Table -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-xs font-bold text-slate-800">รายชื่อพยาบาลในระบบ (<span id="nurseCountBadge">14</span> ท่าน)</h4>
+          </div>
+          <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-2xs">
+            <div class="max-h-64 overflow-y-auto">
+              <table class="min-w-full text-xs text-left divide-y divide-slate-200">
+                <thead class="bg-slate-100 text-slate-700 font-bold sticky top-0 z-10">
+                  <tr>
+                    <th class="py-2 px-3 text-center w-12">หมายเลข</th>
+                    <th class="py-2 px-3 text-left w-20">รหัส</th>
+                    <th class="py-2 px-3 text-left">ชื่อ - สกุล</th>
+                    <th class="py-2 px-3 text-center w-16">PIN</th>
+                    <th class="py-2 px-3 text-center w-24">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="nurseManageTableBody" class="divide-y divide-slate-100">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-slate-100 flex items-center justify-end shrink-0">
+        <button onclick="closeNurseManageModal()" class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition">
+          ปิดหน้าต่าง
         </button>
       </div>
     </div>

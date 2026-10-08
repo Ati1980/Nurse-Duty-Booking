@@ -11,9 +11,9 @@ const ADMIN_CREDENTIALS = {
   password: "1234"
 };
 
-const NURSES = [
-  { id: "6100001", num: 1, name: "น.ส.ภิญญดา คำผาเชื้อ", pin: "0001", order: 1, color: "#e11d48", textColor: "#ffffff", bgSoft: "#ffe4e6", border: "#fda4af" },
-  { id: "6100002", num: 2, name: "น.ส.จำปา สิมมา", pin: "0002", order: 2, color: "#dc2626", textColor: "#ffffff", bgSoft: "#fee2e2", border: "#fca5a5" },
+const DEFAULT_NURSES = [
+  { id: "6100001", num: 1, name: "น.ส.ภิญญดา คำผาเชื้อ", pin: "0001", order: 1, color: "#c026d3", textColor: "#ffffff", bgSoft: "#fae8ff", border: "#f0abfc" }, // สีม่วงมาเจนต้า สดใส ชัดเจน
+  { id: "6100002", num: 2, name: "น.ส.จำปา สิมมา", pin: "0002", order: 2, color: "#dc2626", textColor: "#ffffff", bgSoft: "#fee2e2", border: "#fca5a5" }, // สีแดงสดใส แตกต่างจากเลข 1 อย่างชัดเจน
   { id: "6100005", num: 3, name: "น.ส.ระวิวรรณ รัตนปัญญา", pin: "0005", order: 3, color: "#0284c7", textColor: "#ffffff", bgSoft: "#e0f2fe", border: "#7dd3fc" },
   { id: "6100013", num: 4, name: "น.ส.หิรัญญา แสนสุข", pin: "0013", order: 4, color: "#f43f5e", textColor: "#ffffff", bgSoft: "#fff1f2", border: "#fecdd3" },
   { id: "6100015", num: 5, name: "น.ส.วชิราพรรณ อานุพินิจ", pin: "0015", order: 5, color: "#ea580c", textColor: "#ffffff", bgSoft: "#ffedd5", border: "#fdba74" },
@@ -27,6 +27,155 @@ const NURSES = [
   { id: "6100076", num: 14, name: "น.ส.วิไลจิตร กุลทวง", pin: "0076", order: 13, color: "#15803d", textColor: "#ffffff", bgSoft: "#dcfce7", border: "#86efac" },
   { id: "6100075", num: 15, name: "น.ส.สิริณญา วิเศษวุธ", pin: "0075", order: 14, color: "#84cc16", textColor: "#1f2937", bgSoft: "#ecfccb", border: "#bef264" }
 ];
+
+let NURSES = [];
+
+// Helper functions for dynamic nurse colors & contrast
+function getContrastColor(hex) {
+  if (!hex) return '#ffffff';
+  const c = hex.replace('#', '');
+  const r = parseInt(c.substring(0, 2), 16) || 0;
+  const g = parseInt(c.substring(2, 4), 16) || 0;
+  const b = parseInt(c.substring(4, 6), 16) || 0;
+  const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+  return (yiq >= 150) ? '#1f2937' : '#ffffff';
+}
+
+function hexToRgba(hex, alpha) {
+  if (!hex) return `rgba(37, 99, 235, ${alpha})`;
+  const c = hex.replace('#', '');
+  const r = parseInt(c.substring(0, 2), 16) || 0;
+  const g = parseInt(c.substring(2, 4), 16) || 0;
+  const b = parseInt(c.substring(4, 6), 16) || 0;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function loadNurses() {
+  const saved = localStorage.getItem('nurse_master_list');
+  if (saved) {
+    try {
+      NURSES = JSON.parse(saved);
+      // Migrate nurse 1 and 2 colors if they still have old reddish colors
+      if (NURSES.length >= 2) {
+        if (NURSES[0].color === '#e11d48') {
+          NURSES[0].color = '#c026d3';
+          NURSES[0].bgSoft = '#fae8ff';
+          NURSES[0].border = '#f0abfc';
+          NURSES[0].textColor = '#ffffff';
+        }
+        if (NURSES[1].color !== '#dc2626') {
+          NURSES[1].color = '#dc2626';
+          NURSES[1].bgSoft = '#fee2e2';
+          NURSES[1].border = '#fca5a5';
+          NURSES[1].textColor = '#ffffff';
+        }
+      }
+    } catch (e) {
+      NURSES = JSON.parse(JSON.stringify(DEFAULT_NURSES));
+    }
+  } else {
+    NURSES = JSON.parse(JSON.stringify(DEFAULT_NURSES));
+    saveNurses();
+  }
+}
+
+function saveNurses() {
+  localStorage.setItem('nurse_master_list', JSON.stringify(NURSES));
+}
+
+// Initial nurse load
+loadNurses();
+
+// Shift Mode: 2 = 2 เวร/วัน (เช้า, บ่าย), 3 = 3 เวร/วัน (เช้า, บ่าย, ดึก)
+let shiftMode = parseInt(localStorage.getItem('nurse_shift_mode') || '3');
+
+function getActiveShifts() {
+  return shiftMode === 2 ? ['M', 'A'] : ['M', 'A', 'N'];
+}
+
+window.setShiftMode = function(mode) {
+  shiftMode = mode;
+  localStorage.setItem('nurse_shift_mode', mode);
+  updateShiftModeUI();
+  renderPublicDashboard();
+  if (activeView === 'personal') renderNurseCalendar();
+  if (activeView === 'admin') renderAdminView();
+};
+
+function updateShiftModeUI() {
+  const btn2 = document.getElementById('mode2ShiftBtn');
+  const btn3 = document.getElementById('mode3ShiftBtn');
+  if (btn2 && btn3) {
+    if (shiftMode === 2) {
+      btn2.className = "px-3 py-1 rounded-lg text-xs font-black bg-blue-700 text-white shadow-xs transition";
+      btn3.className = "px-3 py-1 rounded-lg text-xs font-semibold text-slate-600 hover:text-blue-700 transition";
+    } else {
+      btn3.className = "px-3 py-1 rounded-lg text-xs font-black bg-blue-700 text-white shadow-xs transition";
+      btn2.className = "px-3 py-1 rounded-lg text-xs font-semibold text-slate-600 hover:text-blue-700 transition";
+    }
+  }
+
+  // Header shift pills reflect active shift mode
+  const headerNPill = document.getElementById('headerShiftNPill');
+  if (headerNPill) {
+    headerNPill.style.display = (shiftMode === 2 ? 'none' : 'inline-block');
+  }
+
+  // Hide or show 'N' (เวรดึก) in quick booking modal
+  const shiftNRules = document.querySelector('input[name="modalShift"][value="N"]')?.closest('label');
+  if (shiftNRules) {
+    shiftNRules.style.display = (shiftMode === 2 ? 'none' : 'flex');
+  }
+
+  // Hide or show 'N' (เวรดึก) in cell edit modal
+  const cellShiftNCont = document.getElementById('cellShiftNContainer');
+  if (cellShiftNCont) {
+    cellShiftNCont.style.display = (shiftMode === 2 ? 'none' : 'flex');
+  }
+
+  // Hide or show 'N' in nurse personal stats cards
+  const nurseStatN = document.getElementById('nurseStatNCard');
+  const nurseStatsGrid = document.getElementById('nursePersonalStatsContainer');
+  if (nurseStatN) {
+    nurseStatN.style.display = (shiftMode === 2 ? 'none' : 'block');
+  }
+  if (nurseStatsGrid) {
+    if (shiftMode === 2) {
+      nurseStatsGrid.className = "grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6";
+    } else {
+      nurseStatsGrid.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6";
+    }
+  }
+
+  // Adjust modal shift options container
+  const modalShiftCont = document.getElementById('modalShiftOptionsContainer');
+  if (modalShiftCont) {
+    modalShiftCont.className = (shiftMode === 2 ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-3 gap-2');
+  }
+}
+
+// แสดงวันที่ เวลา แบบ Real-time ทุกหน้า ตรงกลาง กรอบที่ 2
+function updateRealTimeClock() {
+  const dateEl = document.getElementById('realTimeClockDate');
+  const timeEl = document.getElementById('realTimeClockTime');
+  if (!dateEl || !timeEl) return;
+
+  const now = new Date();
+  const daysOfWeek = ['วันอาทิตย์', 'วันจันทร์', 'วันอังคาร', 'วันพุธ', 'วันพฤหัสบดี', 'วันศุกร์', 'วันเสาร์'];
+  const thaiMonthsShort = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+
+  const dayName = daysOfWeek[now.getDay()];
+  const dayNum = now.getDate();
+  const monthName = thaiMonthsShort[now.getMonth()];
+  const yearBE = now.getFullYear() + 543;
+
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+
+  dateEl.textContent = `${dayName}ที่ ${dayNum} ${monthName} ${yearBE}`;
+  timeEl.textContent = `${hh}:${mm}:${ss} น.`;
+}
 
 const SHIFTS = {
   M: { id: 'M', code: 'ช', name: 'เวรเช้า', time: '08:30 - 16:30 น.', hours: 8, badge: 'shift-m', icon: '☀️' },
@@ -50,7 +199,7 @@ const CALENDAR_HEADERS = [
   { th: "เสาร์", short: "ส.", en: "Sat", isWeekend: true, headerClass: "bg-amber-100/90 text-amber-800 border-amber-300" }
 ];
 
-// 2. Application State & Dynamic Start Month (เดือนเริ่มต้น = เดือนปัจจุบัน + 1 เช่น ตุลาคม -> พฤศจิกายน)
+// 2. Application State & Dynamic Start Month (ปีเริ่มต้น 2569 / 2026 ถึง 2575 / 2032)
 const now = new Date();
 let defaultMonth = now.getMonth() + 1; // เดือนปัจจุบัน + 1
 let defaultYear = now.getFullYear();
@@ -58,6 +207,9 @@ if (defaultMonth > 11) {
   defaultMonth = 0;
   defaultYear++;
 }
+// Clamp defaultYear to range 2026 - 2032 per requirements
+if (defaultYear < 2026) defaultYear = 2026;
+if (defaultYear > 2032) defaultYear = 2032;
 
 let currentUser = null;
 let currentYear = defaultYear;
@@ -101,6 +253,16 @@ function saveMonthState() {
 }
 
 function loadMonthState() {
+  // One-time reset of previous mock data so bookings start completely clean (0 booked)
+  if (!localStorage.getItem('nurse_booking_v4_clean_reset')) {
+    for (let y = 2024; y <= 2035; y++) {
+      for (let m = 0; m <= 11; m++) {
+        localStorage.removeItem(`nurse_system_${y}_${m}`);
+      }
+    }
+    localStorage.setItem('nurse_booking_v4_clean_reset', 'true');
+  }
+
   const raw = localStorage.getItem(getStorageKey());
   if (raw) {
     try {
@@ -116,27 +278,11 @@ function loadMonthState() {
 function initFreshMonth() {
   monthState = {
     round: 1,
-    round1: generateSampleRound1(),
+    round1: {},
     round2: {},
     roster: {}
   };
-  monthState.roster = JSON.parse(JSON.stringify(monthState.round1));
   saveMonthState();
-}
-
-function generateSampleRound1() {
-  const days = getDaysCount(currentYear, currentMonth);
-  const sample = {};
-  NURSES.forEach((nurse, idx) => {
-    sample[nurse.id] = {};
-    for (let d = 1; d <= days; d++) {
-      const hash = (idx * 7 + d * 13) % 15;
-      if (hash === 1) sample[nurse.id][d] = ['M'];
-      else if (hash === 3) sample[nurse.id][d] = ['A'];
-      else if (hash === 5) sample[nurse.id][d] = ['N'];
-    }
-  });
-  return sample;
 }
 
 // 4. Authentication Logic & Password Toggle
@@ -195,10 +341,19 @@ function initAuth() {
   const savedUser = localStorage.getItem('nurse_current_user');
   if (savedUser) {
     try {
-      currentUser = JSON.parse(savedUser);
+      const parsed = JSON.parse(savedUser);
+      // ค่าเริ่มต้น: ให้ออกจากหน้า Admin เสมอ (ไม่จำเซสชัน Admin ค้างไว้)
+      if (parsed && parsed.role === 'admin') {
+        localStorage.removeItem('nurse_current_user');
+        currentUser = null;
+      } else {
+        currentUser = parsed;
+      }
     } catch (e) {
       currentUser = null;
     }
+  } else {
+    currentUser = null;
   }
   updateAuthUI();
 }
@@ -263,17 +418,21 @@ function loginAsAdmin(password) {
   return false;
 }
 
-window.logout = function() {
+window.handleLogout = function() {
   currentUser = null;
   localStorage.removeItem('nurse_current_user');
   updateAuthUI();
   switchView('dashboard');
 };
 
+window.logout = window.handleLogout;
+window.logoutAdmin = window.handleLogout;
+
 function updateAuthUI() {
   const unauthButtons = document.getElementById('unauthButtons');
   const authControls = document.getElementById('authControls');
   const userProfileBadge = document.getElementById('userProfileBadge');
+  const headerLogoutText = document.getElementById('headerLogoutBtnText');
 
   if (!currentUser) {
     if (unauthButtons) unauthButtons.classList.remove('hidden');
@@ -283,6 +442,7 @@ function updateAuthUI() {
     if (authControls) authControls.classList.remove('hidden');
 
     if (currentUser.role === 'admin') {
+      if (headerLogoutText) headerLogoutText.innerText = 'ออกจากหน้า Admin';
       userProfileBadge.innerHTML = `
         <div class="flex items-center gap-2 bg-indigo-900/60 border border-white/30 px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
           <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/40 animate-pulse"></span>
@@ -290,6 +450,7 @@ function updateAuthUI() {
         </div>
       `;
     } else {
+      if (headerLogoutText) headerLogoutText.innerText = 'ออกจากระบบ';
       userProfileBadge.innerHTML = `
         <div class="flex items-center gap-2 bg-white/20 border border-white/30 px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
           <span class="w-2.5 h-2.5 rounded-full bg-emerald-300 ring-2 ring-emerald-300/40"></span>
@@ -311,7 +472,7 @@ function updateNavSwitcher(viewName) {
   const configs = [
     { el: dashBtn, target: 'dashboard', label: 'ปฏิทินหลัก', icon: '📊', isAllowed: true },
     { el: personalBtn, target: 'personal', label: 'ตารางเวรของฉัน', icon: '📅', isAllowed: !!(currentUser && currentUser.role === 'nurse') },
-    { el: adminBtn, target: 'admin', label: 'ตารางรวม 14 ท่าน', icon: '📋', isAllowed: !!(currentUser && currentUser.role === 'admin') }
+    { el: adminBtn, target: 'admin', label: `ตารางรวม ${NURSES.length} ท่าน`, icon: '📋', isAllowed: !!(currentUser && currentUser.role === 'admin') }
   ];
 
   configs.forEach(({ el, target, label, icon, isAllowed }) => {
@@ -397,6 +558,13 @@ window.setDashboardFilter = function(filter) {
 function renderPublicDashboard() {
   const daysCount = getDaysCount(currentYear, currentMonth);
   const firstDayIndex = getFirstDayIndex(currentYear, currentMonth);
+  const activeShifts = getActiveShifts();
+
+  // Hide or show 'N' filter button based on shift mode
+  const nFilterBtn = document.getElementById('filterBtnN');
+  if (nFilterBtn) {
+    nFilterBtn.style.display = (shiftMode === 2 ? 'none' : 'inline-flex');
+  }
 
   // Render 7-Day Header
   const calHeader = document.getElementById('mainCalendarHeader');
@@ -412,7 +580,7 @@ function renderPublicDashboard() {
   calHeader.innerHTML = hHtml;
 
   // Stat Counters (เปลี่ยนเป็นคำว่า เวร)
-  let totalShiftsCount = daysCount * 3;
+  let totalShiftsCount = daysCount * activeShifts.length;
   let unassignedShiftsCount = 0;
   let assignedShiftsCount = 0;
   let totalBookingsCount = 0;
@@ -439,8 +607,8 @@ function renderPublicDashboard() {
     let dayHasUnassigned = false;
     let shiftRowsHtml = '';
 
-    // Loop through all 3 shifts (M, A, N)
-    ['M', 'A', 'N'].forEach(s => {
+    // Loop through active shifts (M, A if mode 2, or M, A, N if mode 3)
+    activeShifts.forEach(s => {
       const shiftObj = SHIFTS[s];
       const assigned = [];
 
@@ -721,14 +889,15 @@ function renderNurseCalendar() {
     const arr = nurseShifts[d] || [];
     if (arr.includes('M')) countM++;
     if (arr.includes('A')) countA++;
-    if (arr.includes('N')) countN++;
+    if (arr.includes('N') && shiftMode === 3) countN++;
   }
-  const totalShifts = countM + countA + countN;
+  const totalShifts = shiftMode === 3 ? (countM + countA + countN) : (countM + countA);
   const totalHours = totalShifts * 8;
 
   document.getElementById('nurseStatM').innerText = `${countM} ครั้ง`;
   document.getElementById('nurseStatA').innerText = `${countA} ครั้ง`;
-  document.getElementById('nurseStatN').innerText = `${countN} ครั้ง`;
+  const statNEl = document.getElementById('nurseStatN');
+  if (statNEl) statNEl.innerText = `${countN} ครั้ง`;
   document.getElementById('nurseStatTotal').innerText = `${totalShifts} เวร (${totalHours} ชม.)`;
 
   // Render 7-Day Monthly Calendar Grid Header: วัน ใหญ่ขึ้น (text-base md:text-lg)
@@ -768,7 +937,7 @@ function renderNurseCalendar() {
     dayShifts.forEach(s => {
       if (s === 'M') shiftBadges += `<span class="shift-tag shift-m w-full text-center text-xs md:text-sm py-1 font-bold flex items-center justify-center gap-1 shadow-xs"><span>☀️</span> เช้า (08:30-16:30)</span>`;
       if (s === 'A') shiftBadges += `<span class="shift-tag shift-a w-full text-center text-xs md:text-sm py-1 font-bold flex items-center justify-center gap-1 shadow-xs"><span>⛅</span> บ่าย (16:30-00:30)</span>`;
-      if (s === 'N') shiftBadges += `<span class="shift-tag shift-n w-full text-center text-xs md:text-sm py-1 font-bold flex items-center justify-center gap-1 shadow-xs"><span>🌙</span> ดึก (00:30-08:30)</span>`;
+      if (s === 'N' && shiftMode === 3) shiftBadges += `<span class="shift-tag shift-n w-full text-center text-xs md:text-sm py-1 font-bold flex items-center justify-center gap-1 shadow-xs"><span>🌙</span> ดึก (00:30-08:30)</span>`;
     });
 
     const weekendCardStyle = isWeekend 
@@ -828,6 +997,20 @@ function renderAdminSubView() {
   if (adminActiveSubView === 'vacancies') renderAdminVacanciesView();
 }
 
+window.scrollMatrixTo = function(direction) {
+  const container = document.getElementById('matrixViewSection');
+  if (!container) return;
+  if (direction === 'first') {
+    container.scrollTo({ left: 0, behavior: 'smooth' });
+  } else if (direction === 'prev') {
+    container.scrollBy({ left: -260, behavior: 'smooth' });
+  } else if (direction === 'next') {
+    container.scrollBy({ left: 260, behavior: 'smooth' });
+  } else if (direction === 'last') {
+    container.scrollTo({ left: container.scrollWidth, behavior: 'smooth' });
+  }
+};
+
 function renderMatrix() {
   const daysCount = getDaysCount(currentYear, currentMonth);
   const thead = document.getElementById('matrixHeader');
@@ -855,20 +1038,14 @@ function renderMatrix() {
   h += `
     <th class="py-3 px-2 text-center bg-sky-100 text-sky-900 border-l-2 border-slate-300 font-bold">ช</th>
     <th class="py-3 px-2 text-center bg-amber-100 text-amber-900 border-l border-slate-300 font-bold">บ</th>
-    <th class="py-3 px-2 text-center bg-purple-100 text-purple-900 border-l border-slate-300 font-bold">ด</th>
+    ${shiftMode === 3 ? '<th class="py-3 px-2 text-center bg-purple-100 text-purple-900 border-l border-slate-300 font-bold">ด</th>' : ''}
     <th class="py-3 px-2 text-center bg-blue-100 text-blue-950 border-l border-slate-300 font-extrabold">รวม</th>
   </tr>`;
   thead.innerHTML = h;
 
-  // Filter nurses by search query
-  const filteredNurses = NURSES.filter(n => {
-    if (!searchQuery) return true;
-    return n.name.includes(searchQuery) || n.id.includes(searchQuery);
-  });
-
   // Body Rows with Zebra Striping and Full-Row Hover
   let b = '';
-  filteredNurses.forEach((nurse, idx) => {
+  NURSES.forEach((nurse, idx) => {
     const nurseShifts = monthState.roster[nurse.id] || {};
     let countM = 0, countA = 0, countN = 0;
     const isEvenRow = (idx % 2 === 1);
@@ -894,7 +1071,7 @@ function renderMatrix() {
       dayShifts.forEach(s => {
         if (s === 'M') { countM++; tags += `<span class="shift-tag shift-m">ช</span>`; }
         if (s === 'A') { countA++; tags += `<span class="shift-tag shift-a">บ</span>`; }
-        if (s === 'N') { countN++; tags += `<span class="shift-tag shift-n">ด</span>`; }
+        if (s === 'N' && shiftMode === 3) { countN++; tags += `<span class="shift-tag shift-n">ด</span>`; }
       });
 
       b += `<td class="p-1 text-center border-r border-slate-200 cursor-pointer transition ${weekendClass}"
@@ -905,7 +1082,7 @@ function renderMatrix() {
       </td>`;
     }
 
-    const total = countM + countA + countN;
+    const total = shiftMode === 3 ? (countM + countA + countN) : (countM + countA);
     const mBg = isEvenRow ? 'bg-sky-100/70 text-sky-950 font-bold' : 'bg-sky-50/70 text-sky-800 font-bold';
     const aBg = isEvenRow ? 'bg-amber-100/70 text-amber-950 font-bold' : 'bg-amber-50/70 text-amber-800 font-bold';
     const nBg = isEvenRow ? 'bg-purple-100/70 text-purple-950 font-bold' : 'bg-purple-50/70 text-purple-800 font-bold';
@@ -914,7 +1091,7 @@ function renderMatrix() {
     b += `
       <td class="py-2 px-1 text-center border-l-2 border-slate-300 ${mBg}">${countM}</td>
       <td class="py-2 px-1 text-center border-l border-slate-300 ${aBg}">${countA}</td>
-      <td class="py-2 px-1 text-center border-l border-slate-300 ${nBg}">${countN}</td>
+      ${shiftMode === 3 ? `<td class="py-2 px-1 text-center border-l border-slate-300 ${nBg}">${countN}</td>` : ''}
       <td class="py-2 px-1 text-center border-l border-slate-300 ${totBg}">${total}</td>
     </tr>`;
   });
@@ -932,18 +1109,18 @@ function renderMatrix() {
       const shifts = (monthState.roster[n.id] && monthState.roster[n.id][d]) || [];
       if (shifts.includes('M')) dayM++;
       if (shifts.includes('A')) dayA++;
-      if (shifts.includes('N')) dayN++;
+      if (shifts.includes('N') && shiftMode === 3) dayN++;
     });
 
     f += `<td class="p-1 text-center border-r border-slate-200 text-[10px] leading-tight bg-slate-50 text-slate-700">
       <div>ช: ${dayM}</div>
       <div>บ: ${dayA}</div>
-      <div>ด: ${dayN}</div>
+      ${shiftMode === 3 ? `<div>ด: ${dayN}</div>` : ''}
     </td>`;
   }
 
   f += `
-    <td colspan="4" class="p-2 text-center text-[10px] text-slate-500 border-l-2 border-slate-300">
+    <td colspan="${shiftMode === 3 ? 4 : 3}" class="p-2 text-center text-[10px] text-slate-500 border-l-2 border-slate-300">
       รวมทั้งแผนก
     </td>
   </tr>`;
@@ -968,9 +1145,10 @@ function renderNurseCardsModern(containerId = 'summaryNurseCardsContainer') {
     nurseShiftCounts[n.id] = count;
   });
 
-  // Split into 2 columns: column 1 (numbers 1..7) & column 2 (numbers 8..15) as in screenshot
-  const col1 = NURSES.slice(0, 7);
-  const col2 = NURSES.slice(7);
+  // Split into 2 balanced columns dynamically
+  const half = Math.ceil(NURSES.length / 2);
+  const col1 = NURSES.slice(0, half);
+  const col2 = NURSES.slice(half);
 
   const renderCol = (list) => {
     return list.map(n => `
@@ -1002,10 +1180,9 @@ function renderNurseCardsModern(containerId = 'summaryNurseCardsContainer') {
             <span>🎴</span>
             <span>หมายเลข และ รายชื่อพยาบาล</span>
           </div>
-          <p class="text-xs text-slate-500 font-medium">ปุ่มสีประจำตัวพนักงาน สดใส สาย Modern (ตามแบบแผนก)</p>
         </div>
         <span class="text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 px-3 py-1 rounded-xl">
-          พยาบาลวิชาชีพ 14 ท่าน
+          พยาบาลวิชาชีพ ${NURSES.length} ท่าน
         </span>
       </div>
 
@@ -1044,11 +1221,12 @@ function renderExcelView() {
   }
 
   // Shifts definition matching Excel table: เช้า (08.30-16.30), บ่าย (16.30-00.30), ดึก (00.30-08.30)
-  const shiftDefs = [
+  const allShiftDefs = [
     { key: 'M', name: 'เช้า', time: '08.30-16.30', icon: '☀️', rowBg: 'bg-white' },
     { key: 'A', name: 'บ่าย', time: '16.30-00.30', icon: '⛅', rowBg: 'bg-slate-50/40' },
     { key: 'N', name: 'ดึก', time: '00.30-08.30', icon: '🌙', rowBg: 'bg-white' }
   ];
+  const shiftDefs = shiftMode === 2 ? allShiftDefs.slice(0, 2) : allShiftDefs;
 
   let tbodyRowsHtml = '';
   shiftDefs.forEach(sDef => {
@@ -1362,7 +1540,11 @@ window.openCellEditor = function(nurseId, day) {
   const currentShifts = (monthState.roster[nurseId] && monthState.roster[nurseId][day]) || [];
   document.getElementById('cellShiftM').checked = currentShifts.includes('M');
   document.getElementById('cellShiftA').checked = currentShifts.includes('A');
-  document.getElementById('cellShiftN').checked = currentShifts.includes('N');
+  const nContainer = document.getElementById('cellShiftNContainer');
+  if (nContainer) {
+    nContainer.style.display = (shiftMode === 2 ? 'none' : 'flex');
+  }
+  document.getElementById('cellShiftN').checked = (shiftMode === 3 && currentShifts.includes('N'));
 
   document.getElementById('cellEditModal').classList.remove('hidden');
 };
@@ -1378,7 +1560,7 @@ function saveCellEditor() {
 
   const m = document.getElementById('cellShiftM').checked;
   const a = document.getElementById('cellShiftA').checked;
-  const n = document.getElementById('cellShiftN').checked;
+  const n = (shiftMode === 3) && document.getElementById('cellShiftN').checked;
 
   const newShifts = [];
   if (m) newShifts.push('M');
@@ -1569,13 +1751,46 @@ function handleQuickBookingSubmit(e) {
   if (activeView === 'admin') renderAdminSubView();
 }
 
-// 12. AUTOMATED SHIFT OPTIMIZER ALGORITHM
+// Helper: Check if adding newShift on today satisfies maximum 2 consecutive shifts rule
+function isValidShiftAddition(todayShifts, newShift, mode) {
+  if (todayShifts.includes(newShift)) return false;
+  if (todayShifts.length >= 2) return false; // Strictly max 2 shifts per day
+  if (todayShifts.length === 0) return true;
+
+  // If already 1 shift, the second shift must be consecutive
+  const existing = todayShifts[0];
+  if (mode === 2) {
+    // Mode 2: M and A are consecutive
+    return (existing === 'M' && newShift === 'A') || (existing === 'A' && newShift === 'M');
+  } else {
+    // Mode 3: M-A or A-N are consecutive. M-N is NOT consecutive.
+    if (existing === 'M') return (newShift === 'A');
+    if (existing === 'A') return (newShift === 'M' || newShift === 'N');
+    if (existing === 'N') return (newShift === 'A');
+  }
+  return false;
+}
+
+function hasRestConflict(nurseId, d, s, roster, daysCount) {
+  if (s === 'M' && d > 1) {
+    const yShifts = (roster[nurseId] && roster[nurseId][d - 1]) || [];
+    if (yShifts.includes('N')) return true; // Just worked night shift yesterday
+  }
+  if (s === 'N' && d < daysCount) {
+    const tShifts = (roster[nurseId] && roster[nurseId][d + 1]) || [];
+    if (tShifts.includes('M')) return true; // Scheduled for morning shift tomorrow
+  }
+  return false;
+}
+
+// 12. AUTOMATED SHIFT OPTIMIZER ALGORITHM (จัดตารางเวรอัตโนมัติ - เกลี่ยเวรเท่าๆ กัน + ต่อเนื่องสูงสุด 2 เวร/วัน)
 function runOptimization() {
   const daysCount = getDaysCount(currentYear, currentMonth);
-
+  const activeShifts = getActiveShifts();
   const optimizedRoster = JSON.parse(JSON.stringify(monthState.roster));
   const assignedLog = [];
 
+  // Track monthly duty counts for each nurse
   const nurseDutyCounts = {};
   NURSES.forEach(n => {
     let c = 0;
@@ -1586,9 +1801,9 @@ function runOptimization() {
     nurseDutyCounts[n.id] = c;
   });
 
-  // Balance out any unassigned shift
+  // Find all shifts across the month that have 0 nurses assigned
   for (let d = 1; d <= daysCount; d++) {
-    ['N', 'A', 'M'].forEach(s => {
+    activeShifts.forEach(s => {
       let assignedNurses = [];
       NURSES.forEach(n => {
         if (optimizedRoster[n.id] && optimizedRoster[n.id][d] && optimizedRoster[n.id][d].includes(s)) {
@@ -1596,20 +1811,27 @@ function runOptimization() {
         }
       });
 
-      // Target at least 1 nurse if unassigned
+      // Target at least 1 nurse if unassigned (0 คน)
       if (assignedNurses.length === 0) {
         const candidates = NURSES.filter(n => {
           const todayShifts = (optimizedRoster[n.id] && optimizedRoster[n.id][d]) || [];
-          if (todayShifts.length > 0) return false;
-
-          if (s === 'M' && d > 1) {
-            const yShifts = (optimizedRoster[n.id] && optimizedRoster[n.id][d - 1]) || [];
-            if (yShifts.includes('N')) return false;
-          }
+          if (!isValidShiftAddition(todayShifts, s, shiftMode)) return false;
+          if (hasRestConflict(n.id, d, s, optimizedRoster, daysCount)) return false;
           return true;
         });
 
-        candidates.sort((a, b) => nurseDutyCounts[a.id] - nurseDutyCounts[b.id]);
+        // Balance criteria:
+        // 1. Nurse with lowest total monthly shifts (equal/near equal)
+        // 2. Prefer nurse with 0 shifts today over 1 shift today
+        // 3. Round-robin tie-breaker
+        candidates.sort((a, b) => {
+          const countDiff = nurseDutyCounts[a.id] - nurseDutyCounts[b.id];
+          if (countDiff !== 0) return countDiff;
+          const aTodayCount = ((optimizedRoster[a.id] && optimizedRoster[a.id][d]) || []).length;
+          const bTodayCount = ((optimizedRoster[b.id] && optimizedRoster[b.id][d]) || []).length;
+          if (aTodayCount !== bTodayCount) return aTodayCount - bTodayCount;
+          return (a.order || 0) - (b.order || 0);
+        });
 
         if (candidates.length > 0) {
           const picked = candidates[0];
@@ -1636,13 +1858,13 @@ function runOptimization() {
     modalBody.innerHTML = `
       <div class="p-6 text-center bg-emerald-50 border border-emerald-200 rounded-2xl">
         <h4 class="font-bold text-emerald-800 text-sm mb-1">🎉 ตารางเวรมีพยาบาลเลือกเข้าเวรครบถ้วนทุกเวรแล้ว</h4>
-        <p class="text-xs text-emerald-600">ไม่มีเวรที่ว่างค้าง ระบบมีความสมดุลเรียบร้อย</p>
+        <p class="text-xs text-emerald-600">ไม่มีเวรที่ว่างค้าง และจำนวนเวรมีความสมดุลเรียบร้อย</p>
       </div>`;
   } else {
     let logHtml = `
       <div class="p-4 bg-blue-50 border border-blue-200 rounded-2xl mb-4 text-xs text-blue-900">
-        <div class="font-bold mb-1">ผลการประมวลผล:</div>
-        <div>ระบบได้จัดพยาบาลเติมเต็มเวรที่ยังไม่มีคนเลือกไปทั้งหมด <b>${assignedLog.length} ตำแหน่ง</b> โดยกระจายเวรให้พยาบาลที่มีชั่วโมงเวรน้อยที่สุดอย่างเป็นธรรม</div>
+        <div class="font-bold mb-1">ผลการจัดตารางเวรอัตโนมัติ:</div>
+        <div>ระบบได้จัดพยาบาลเติมเต็มเวรที่ยังไม่มีคนเลือกทั้งหมด <b>${assignedLog.length} ตำแหน่ง</b> โดยเกลี่ยเวรให้ทุกคนเท่าๆ กันหรือใกล้เคียงที่สุด และจำกัดให้จัดต่อเนื่องได้สูงสุดไม่เกิน 2 เวรต่อวัน</div>
       </div>
       <div class="max-h-60 overflow-y-auto space-y-2 pr-1">`;
 
@@ -1653,8 +1875,12 @@ function runOptimization() {
             <span class="font-bold text-slate-800">วันที่ ${log.day}</span>
             <span class="text-slate-500 ml-1">(${log.shiftName})</span>
           </div>
-          <div class="font-semibold text-blue-800">
-            ${log.nurse.name} <span class="text-slate-400 font-mono text-[11px]">[${log.nurse.id}]</span>
+          <div class="flex items-center gap-2">
+            <span class="nurse-num-badge w-6 h-6 text-xs font-black" style="background-color: ${log.nurse.color}; color: ${log.nurse.textColor};">
+              ${log.nurse.num}
+            </span>
+            <span class="font-semibold text-blue-900">${log.nurse.name}</span>
+            <span class="text-slate-400 font-mono text-[11px]">[${log.nurse.id}]</span>
           </div>
         </div>
       `;
@@ -1696,10 +1922,10 @@ function exportRoster() {
       let shiftText = [];
       if (s.includes('M')) { m++; shiftText.push('ช'); }
       if (s.includes('A')) { a++; shiftText.push('บ'); }
-      if (s.includes('N')) { n++; shiftText.push('ด'); }
+      if (s.includes('N') && shiftMode === 3) { n++; shiftText.push('ด'); }
       row.push(`"${shiftText.join('+')}"`);
     }
-    const tot = m + a + n;
+    const tot = shiftMode === 3 ? (m + a + n) : (m + a);
     row.push(m, a, n, tot, tot * 8);
     csv += row.join(',') + '\r\n';
   });
@@ -1711,10 +1937,259 @@ function exportRoster() {
   link.click();
 }
 
-// 13. EVENT LISTENERS INITIALIZATION
+// 13. NURSE MANAGEMENT CRUD LOGIC (เพิ่ม ลบ แก้ไข รายชื่อพยาบาล มีผลทุกหน้าเพจ)
+const PALETTE_COLORS = [
+  '#c026d3', '#dc2626', '#0284c7', '#f43f5e', '#ea580c',
+  '#2563eb', '#eab308', '#1e3a8a', '#06b6d4', '#f97316',
+  '#d97706', '#8b5cf6', '#15803d', '#84cc16', '#0d9488', '#ec4899'
+];
+
+function initNurseColorPalette() {
+  const cont = document.getElementById('nurseColorPalette');
+  if (!cont) return;
+  cont.innerHTML = PALETTE_COLORS.map(c => `
+    <button type="button" onclick="selectNurseColor('${c}')" class="w-6 h-6 rounded-lg border border-white shadow-2xs hover:scale-110 transition cursor-pointer" style="background-color: ${c};" title="${c}"></button>
+  `).join('');
+}
+
+window.selectNurseColor = function(color) {
+  window.syncNurseColorPicker(color);
+};
+
+window.syncNurseColorPicker = function(color) {
+  const picker = document.getElementById('nurseFormColorPicker');
+  const input = document.getElementById('nurseFormColor');
+  if (picker) picker.value = color;
+  if (input) input.value = color.toUpperCase();
+  updateNursePreviewBadge(color);
+};
+
+window.syncNurseColorInput = function(color) {
+  const input = document.getElementById('nurseFormColor');
+  if (input) input.value = color.toUpperCase();
+  updateNursePreviewBadge(color);
+};
+
+function updateNursePreviewBadge(color) {
+  const badge = document.getElementById('nurseFormPreviewBadge');
+  if (badge) {
+    badge.style.backgroundColor = color;
+    badge.style.color = getContrastColor(color);
+    const numVal = document.getElementById('nurseFormNum')?.value || '#';
+    badge.innerText = numVal;
+  }
+}
+
+window.openNurseManageModal = function() {
+  initNurseColorPalette();
+  resetNurseForm();
+  renderNurseManageList();
+  document.getElementById('nurseManageModal')?.classList.remove('hidden');
+};
+
+window.closeNurseManageModal = function() {
+  document.getElementById('nurseManageModal')?.classList.add('hidden');
+  resetNurseForm();
+};
+
+function renderNurseManageList() {
+  const countBadge = document.getElementById('nurseCountBadge');
+  if (countBadge) countBadge.innerText = NURSES.length;
+
+  const tbody = document.getElementById('nurseManageTableBody');
+  if (!tbody) return;
+
+  let html = '';
+  NURSES.forEach(n => {
+    html += `
+      <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+        <td class="py-2 px-3 text-center">
+          <span class="nurse-num-badge w-6 h-6 text-xs font-black shadow-2xs" style="background-color: ${n.color}; color: ${n.textColor};">
+            ${n.num}
+          </span>
+        </td>
+        <td class="py-2 px-3 font-mono font-bold text-blue-900">${n.id}</td>
+        <td class="py-2 px-3 font-bold text-slate-800">${n.name}</td>
+        <td class="py-2 px-3 text-center font-mono text-slate-500">${n.pin}</td>
+        <td class="py-2 px-3 text-center">
+          <div class="flex items-center justify-center gap-1.5">
+            <button onclick="editNurse('${n.id}')" class="px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-bold transition">
+              ✏️ แก้ไข
+            </button>
+            <button onclick="deleteNurse('${n.id}')" class="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-bold transition">
+              🗑️ ลบ
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  });
+  tbody.innerHTML = html;
+}
+
+window.resetNurseForm = function() {
+  const origId = document.getElementById('editNurseOriginalId');
+  if (origId) origId.value = '';
+  const formId = document.getElementById('nurseFormId');
+  const formNum = document.getElementById('nurseFormNum');
+  const formName = document.getElementById('nurseFormName');
+  const formPin = document.getElementById('nurseFormPin');
+
+  if (formId) formId.value = '';
+  if (formNum) formNum.value = '';
+  if (formName) formName.value = '';
+  if (formPin) formPin.value = '';
+  syncNurseColorPicker('#2563eb');
+
+  const title = document.getElementById('nurseFormTitle');
+  if (title) title.innerHTML = `<span>➕</span><span>เพิ่มพยาบาลท่านใหม่</span>`;
+  const saveBtn = document.getElementById('saveNurseBtn');
+  if (saveBtn) saveBtn.innerHTML = `+ บันทึกพยาบาล`;
+  const cancelBtn = document.getElementById('cancelEditNurseBtn');
+  if (cancelBtn) cancelBtn.classList.add('hidden');
+};
+
+window.editNurse = function(nurseId) {
+  const n = NURSES.find(x => x.id === nurseId);
+  if (!n) return;
+
+  document.getElementById('editNurseOriginalId').value = n.id;
+  document.getElementById('nurseFormId').value = n.id;
+  document.getElementById('nurseFormNum').value = n.num;
+  document.getElementById('nurseFormName').value = n.name;
+  document.getElementById('nurseFormPin').value = n.pin;
+  syncNurseColorPicker(n.color);
+
+  const title = document.getElementById('nurseFormTitle');
+  if (title) title.innerHTML = `<span>✏️</span><span>แก้ไขข้อมูล: ${n.name}</span>`;
+  const saveBtn = document.getElementById('saveNurseBtn');
+  if (saveBtn) saveBtn.innerHTML = `💾 บันทึกการแก้ไข`;
+  const cancelBtn = document.getElementById('cancelEditNurseBtn');
+  if (cancelBtn) cancelBtn.classList.remove('hidden');
+
+  document.getElementById('nurseFormName').focus();
+};
+
+window.deleteNurse = function(nurseId) {
+  const n = NURSES.find(x => x.id === nurseId);
+  if (!n) return;
+
+  if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบ ${n.name} [${n.id}] ออกจากระบบ? ข้อมูลการจัดเวรของพยาบาลท่านนี้จะถูกลบไปด้วย`)) {
+    return;
+  }
+
+  NURSES = NURSES.filter(x => x.id !== nurseId);
+  saveNurses();
+
+  // Remove shifts from current month roster
+  if (monthState.roster && monthState.roster[nurseId]) {
+    delete monthState.roster[nurseId];
+    saveMonthState();
+  }
+
+  // If current logged in user is this nurse, log them out
+  if (currentUser && currentUser.nurseId === nurseId) {
+    logout();
+  }
+
+  renderNurseManageList();
+  renderPublicDashboard();
+  if (activeView === 'personal') renderNurseCalendar();
+  if (activeView === 'admin') renderAdminView();
+  updateAuthUI();
+};
+
+window.handleSaveNurse = function(e) {
+  e.preventDefault();
+  const origId = document.getElementById('editNurseOriginalId').value.trim();
+  const id = document.getElementById('nurseFormId').value.trim();
+  const num = parseInt(document.getElementById('nurseFormNum').value.trim(), 10);
+  const name = document.getElementById('nurseFormName').value.trim();
+  const pin = document.getElementById('nurseFormPin').value.trim();
+  const color = document.getElementById('nurseFormColor').value.trim() || '#2563eb';
+
+  if (!id || !name || !pin || isNaN(num)) {
+    alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+    return;
+  }
+
+  const textColor = getContrastColor(color);
+  const bgSoft = hexToRgba(color, 0.15);
+  const border = hexToRgba(color, 0.35);
+
+  if (origId) {
+    // Updating existing nurse
+    const idx = NURSES.findIndex(x => x.id === origId);
+    if (idx !== -1) {
+      if (id !== origId && NURSES.some(x => x.id === id)) {
+        alert('รหัสพยาบาลนี้มีอยู่ในระบบแล้ว กรุณาใช้รหัสอื่น');
+        return;
+      }
+
+      NURSES[idx] = {
+        ...NURSES[idx],
+        id,
+        num,
+        name,
+        pin,
+        color,
+        textColor,
+        bgSoft,
+        border
+      };
+
+      if (id !== origId && monthState.roster && monthState.roster[origId]) {
+        monthState.roster[id] = monthState.roster[origId];
+        delete monthState.roster[origId];
+        saveMonthState();
+      }
+
+      if (currentUser && currentUser.nurseId === origId) {
+        currentUser.nurseId = id;
+        currentUser.name = name;
+        localStorage.setItem('nurse_current_user', JSON.stringify(currentUser));
+      }
+    }
+  } else {
+    // Adding new nurse
+    if (NURSES.some(x => x.id === id)) {
+      alert('รหัสพยาบาลนี้มีอยู่ในระบบแล้ว กรุณาใช้รหัสอื่น');
+      return;
+    }
+
+    const newNurse = {
+      id,
+      num,
+      name,
+      pin,
+      order: NURSES.length + 1,
+      color,
+      textColor,
+      bgSoft,
+      border
+    };
+    NURSES.push(newNurse);
+  }
+
+  // Sort nurses by num
+  NURSES.sort((a, b) => a.num - b.num);
+  saveNurses();
+
+  resetNurseForm();
+  renderNurseManageList();
+  renderPublicDashboard();
+  if (activeView === 'personal') renderNurseCalendar();
+  if (activeView === 'admin') renderAdminView();
+  updateAuthUI();
+};
+
+// 14. EVENT LISTENERS INITIALIZATION
 document.addEventListener('DOMContentLoaded', () => {
   loadMonthState();
   initAuth();
+  updateShiftModeUI();
+  updateRealTimeClock();
+  setInterval(updateRealTimeClock, 1000);
 
   // Month navigation: Initialized to defaultMonth (current month + 1)
   const monthSel = document.getElementById('monthSelect');
@@ -1744,8 +2219,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('prevMonthBtn').addEventListener('click', () => {
     if (currentMonth === 0) { currentMonth = 11; currentYear--; }
     else { currentMonth--; }
-    monthSel.value = currentMonth;
-    yearSel.value = currentYear;
+    if (currentYear < 2026) currentYear = 2026;
+    if (monthSel) monthSel.value = currentMonth;
+    if (yearSel) yearSel.value = currentYear;
     loadMonthState();
     renderPublicDashboard();
     if (activeView === 'personal') renderNurseCalendar();
@@ -1755,8 +2231,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('nextMonthBtn').addEventListener('click', () => {
     if (currentMonth === 11) { currentMonth = 0; currentYear++; }
     else { currentMonth++; }
-    monthSel.value = currentMonth;
-    yearSel.value = currentYear;
+    if (currentYear > 2032) currentYear = 2032;
+    if (monthSel) monthSel.value = currentMonth;
+    if (yearSel) yearSel.value = currentYear;
     loadMonthState();
     renderPublicDashboard();
     if (activeView === 'personal') renderNurseCalendar();
@@ -1797,18 +2274,21 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('exportExcelBtn')?.addEventListener('click', exportRoster);
   document.getElementById('printBtn')?.addEventListener('click', () => window.print());
   document.getElementById('resetMonthBtn')?.addEventListener('click', () => {
-    if (confirm('คุณแน่ใจหรือไม่ว่าต้องการล้างข้อมูลเวรทั้งหมดในเดือนนี้?')) {
+    const monthName = THAI_MONTHS[currentMonth];
+    const yearBE = currentYear + 543;
+    if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการล้างข้อมูลเวรทั้งหมดประจำเดือน ${monthName} พ.ศ. ${yearBE}?`)) {
       monthState.roster = {};
       saveMonthState();
       renderAdminView();
       renderPublicDashboard();
+      alert(`✓ ล้างข้อมูลเวรประจำเดือน ${monthName} พ.ศ. ${yearBE} เรียบร้อยแล้ว`);
     }
   });
 
-  // Search Nurse Input
-  document.getElementById('searchNurseInput')?.addEventListener('input', (e) => {
-    searchQuery = e.target.value.trim();
-    if (adminActiveSubView === 'matrix') renderMatrix();
+  // Nurse Form Num badge sync
+  document.getElementById('nurseFormNum')?.addEventListener('input', () => {
+    const color = document.getElementById('nurseFormColor')?.value || '#2563eb';
+    updateNursePreviewBadge(color);
   });
 
   // Modals Event Listeners
@@ -1828,6 +2308,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('confirmOptimizeBtn')?.addEventListener('click', confirmOptimization);
 
-  // Initial View: Always start with the Main Monthly Calendar Dashboard
+  // Initial View: Always start with the Main Monthly Calendar Dashboard, logged out of Admin
+  if (currentUser && currentUser.role === 'admin') {
+    currentUser = null;
+    localStorage.removeItem('nurse_current_user');
+    updateAuthUI();
+  }
   switchView('dashboard');
 });
