@@ -161,7 +161,7 @@
 
       <!-- Real-Time Date and Time Display in Center of Bar 2 (แสดงวันที่ เวลา ทุกหน้า ตรงกลาง กรอบที่ 2) -->
       <div id="realTimeClockContainer" class="flex items-center gap-2.5 bg-white/90 border border-blue-200/90 px-4 py-2 rounded-xl text-xs shadow-xs backdrop-blur-md">
-        <span class="text-base text-blue-600 animate-pulse">🕒</span>
+        <span class="text-base text-blue-600">🕒</span>
         <div class="text-center font-mono flex items-center gap-2">
           <span id="realTimeClockDate" class="font-extrabold text-slate-800 text-xs sm:text-sm">--</span>
           <span class="text-slate-300 font-bold">|</span>
@@ -214,7 +214,7 @@
 
         <!-- Unassigned Shifts (0 People) - Highlighted Prominently -->
         <div class="glass-card p-4 md:p-5 rounded-2xl border-2 border-rose-400 bg-rose-50/50 shadow-md flex items-center gap-4">
-          <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-rose-500 text-white flex items-center justify-center font-black text-3xl md:text-4xl shadow-md border border-rose-300 animate-pulse">
+          <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-rose-500 text-white flex items-center justify-center font-black text-3xl md:text-4xl shadow-md border border-rose-300">
             🚨
           </div>
           <div>
@@ -361,8 +361,9 @@
               <button onclick="switchView('dashboard')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 transition">
                 ดูปฏิทินหลักทั้งแผนก ➔
               </button>
-              <button onclick="openPersonalBookingModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center gap-1.5">
-                <span>+ จองเวรของฉัน</span>
+              <button onclick="openPersonalBookingModal()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition flex items-center gap-2 cursor-pointer">
+                <span class="text-base sm:text-lg">✍️</span>
+                <span>จองหลายวันพร้อมกัน</span>
               </button>
             </div>
           </div>
@@ -553,7 +554,7 @@
                     <th class="py-3 px-4 text-left">ชื่อ - สกุล</th>
                     <th class="py-3 px-4 text-center bg-sky-50 text-sky-800">เวรเช้า (ครั้ง)</th>
                     <th class="py-3 px-4 text-center bg-amber-50 text-amber-800">เวรบ่าย (ครั้ง)</th>
-                    <th class="py-3 px-4 text-center bg-purple-50 text-purple-800">เวรดึก (ครั้ง)</th>
+                    <th id="summaryColNHead" class="py-3 px-4 text-center bg-purple-50 text-purple-800">เวรดึก (ครั้ง)</th>
                     <th class="py-3 px-4 text-center bg-blue-50 text-blue-900 font-bold">รวมเวร</th>
                     <th class="py-3 px-4 text-center bg-emerald-50 text-emerald-900 font-bold">รวมชั่วโมง</th>
                   </tr>

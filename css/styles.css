@@ -242,19 +242,7 @@ h1, h2, h3, h4, .font-heading {
   background: linear-gradient(135deg, #fff1f2 0%, #fee2e2 100%) !important;
   border-color: #f43f5e !important;
   color: #9f1239 !important;
-  box-shadow: 0 0 12px rgba(244, 63, 94, 0.35);
-  animation: unassigned-pulse 2.2s infinite ease-in-out;
-}
-
-@keyframes unassigned-pulse {
-  0%, 100% {
-    box-shadow: 0 0 4px rgba(244, 63, 94, 0.3);
-    border-color: #f43f5e;
-  }
-  50% {
-    box-shadow: 0 0 16px rgba(244, 63, 94, 0.65);
-    border-color: #e11d48;
-  }
+  box-shadow: 0 2px 8px rgba(244, 63, 94, 0.25);
 }
 
 /* 2. เวรที่มีคนเลือกแล้ว (ตามจำนวนพยาบาล) */
@@ -396,10 +384,17 @@ h1, h2, h3, h4, .font-heading {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.booking-date-btn.is-weekend {
+.booking-date-btn.is-weekend,
+.booking-date-btn.is-sunday {
   background-color: #fff1f2;
   border-color: #fecdd3;
   color: #be123c;
+}
+
+.booking-date-btn.is-saturday {
+  background-color: #faf5ff;
+  border-color: #e9d5ff;
+  color: #7e22ce;
 }
 
 .booking-date-btn:hover {
@@ -460,6 +455,22 @@ h1, h2, h3, h4, .font-heading {
   border-color: rgba(59, 130, 246, 0.5);
   transform: translateY(-2px);
   box-shadow: 0 10px 25px -5px rgba(30, 58, 138, 0.12);
+}
+
+/* ================= Mobile & Tablet Anti-Flicker & Performance Optimization ================= */
+@media (max-width: 1024px) {
+  .ambient-glow-1,
+  .ambient-glow-2,
+  .ambient-glow-3 {
+    display: none !important;
+  }
+
+  .glass-container,
+  .glass-card,
+  .glass-header {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
 }
 
 /* ================= Mobile & Responsive Design Enhancements ================= */

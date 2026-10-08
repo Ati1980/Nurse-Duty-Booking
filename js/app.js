@@ -196,7 +196,7 @@ const CALENDAR_HEADERS = [
   { th: "พุธ", short: "พ.", en: "Wed", isWeekend: false, headerClass: "bg-blue-50/90 text-slate-800 border-slate-200" },
   { th: "พฤหัสบดี", short: "พฤ.", en: "Thu", isWeekend: false, headerClass: "bg-blue-50/90 text-slate-800 border-slate-200" },
   { th: "ศุกร์", short: "ศ.", en: "Fri", isWeekend: false, headerClass: "bg-blue-50/90 text-slate-800 border-slate-200" },
-  { th: "เสาร์", short: "ส.", en: "Sat", isWeekend: true, headerClass: "bg-amber-100/90 text-amber-800 border-amber-300" }
+  { th: "เสาร์", short: "ส.", en: "Sat", isWeekend: true, headerClass: "bg-purple-100/90 text-purple-800 border-purple-300" }
 ];
 
 // 2. Application State & Dynamic Start Month (ปีเริ่มต้น 2569 / 2026 ถึง 2575 / 2032)
@@ -445,7 +445,7 @@ function updateAuthUI() {
       if (headerLogoutText) headerLogoutText.innerText = 'ออกจากหน้า Admin';
       userProfileBadge.innerHTML = `
         <div class="flex items-center gap-2 bg-indigo-900/60 border border-white/30 px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
-          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/40 animate-pulse"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/40"></span>
           <span class="font-bold text-white">👑 ผู้ดูแลระบบ (Admin)</span>
         </div>
       `;
@@ -669,23 +669,36 @@ function renderPublicDashboard() {
       `;
     });
 
-    const weekendCardStyle = isWeekend 
-      ? 'bg-rose-50/70 border-rose-200/90 hover:border-rose-400' 
-      : 'glass-card hover:border-blue-400';
+    const isSunday = (dayOfWeek === 0);
+    const isSaturday = (dayOfWeek === 6);
+
+    let dayCardStyle = 'glass-card hover:border-blue-400';
+    let dateNumColor = 'text-slate-900';
+    let dayBadgeClass = 'bg-slate-100 text-slate-700';
+
+    if (isSunday) {
+      dayCardStyle = 'bg-rose-50/70 border-rose-200/90 hover:border-rose-400';
+      dateNumColor = 'text-rose-600';
+      dayBadgeClass = 'bg-rose-100 text-rose-700';
+    } else if (isSaturday) {
+      dayCardStyle = 'bg-purple-50/75 border-purple-200/90 hover:border-purple-400';
+      dateNumColor = 'text-purple-700';
+      dayBadgeClass = 'bg-purple-100 text-purple-700';
+    }
 
     calHtml += `
-      <div class="main-cal-day-cell p-3.5 border ${weekendCardStyle} shadow-xs">
+      <div class="main-cal-day-cell p-3.5 border ${dayCardStyle} shadow-xs">
         <div>
           <!-- Day Header: Big Date Number & Big Day Name -->
           <div class="flex items-center justify-between pb-2 border-b border-slate-200/80 mb-2">
             <div class="flex items-baseline gap-1.5">
-              <span class="text-2xl md:text-3xl font-black ${isWeekend ? 'text-rose-600' : 'text-slate-900'}">${d}</span>
-              <span class="text-xs md:text-sm font-extrabold px-1.5 py-0.5 rounded ${isWeekend ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700'}">
+              <span class="text-2xl md:text-3xl font-black ${dateNumColor}">${d}</span>
+              <span class="text-xs md:text-sm font-extrabold px-1.5 py-0.5 rounded ${dayBadgeClass}">
                 ${CALENDAR_HEADERS[dayOfWeek].short}
               </span>
             </div>
             <div>
-              ${dayHasUnassigned ? '<span class="text-[10px] font-black bg-rose-500 text-white px-1.5 py-0.5 rounded-full animate-pulse">🚨 มีเวรว่าง</span>' : '<span class="text-[10px] font-bold text-slate-400 font-mono">' + d + '/' + (currentMonth+1) + '</span>'}
+              ${dayHasUnassigned ? '<span class="text-[10px] font-black bg-rose-500 text-white px-1.5 py-0.5 rounded-full shadow-xs">🚨 มีเวรว่าง</span>' : '<span class="text-[10px] font-bold text-slate-400 font-mono">' + d + '/' + (currentMonth+1) + '</span>'}
             </div>
           </div>
 
@@ -875,8 +888,9 @@ function renderNurseCalendar() {
         <span class="px-3.5 py-1.5 rounded-xl font-black text-xs bg-blue-700 text-white shadow-xs">ตารางเวรส่วนบุคคล</span>
         <span class="text-xs text-blue-950 font-medium">แสดงเฉพาะเวรที่คุณเลือก (คุณสามารถคลิกที่ช่องวันที่เพื่อเพิ่มหรือยกเลิกเวรของคุณได้)</span>
       </div>
-      <button onclick="openPersonalBookingModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow transition">
-        + จองเวรของฉัน
+      <button onclick="openPersonalBookingModal()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition flex items-center gap-2 cursor-pointer">
+        <span class="text-base sm:text-lg">✍️</span>
+        <span>จองหลายวันพร้อมกัน</span>
       </button>
     </div>`;
   statusBanner.className = `p-4 rounded-2xl border bg-blue-50/90 border-blue-200 mb-6 transition shadow-xs`;
@@ -930,7 +944,8 @@ function renderNurseCalendar() {
   for (let d = 1; d <= daysCount; d++) {
     const dt = new Date(currentYear, currentMonth, d);
     const dayOfWeek = dt.getDay();
-    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+    const isSunday = (dayOfWeek === 0);
+    const isSaturday = (dayOfWeek === 6);
     const dayShifts = nurseShifts[d] || [];
 
     let shiftBadges = '';
@@ -940,15 +955,25 @@ function renderNurseCalendar() {
       if (s === 'N' && shiftMode === 3) shiftBadges += `<span class="shift-tag shift-n w-full text-center text-xs md:text-sm py-1 font-bold flex items-center justify-center gap-1 shadow-xs"><span>🌙</span> ดึก (00:30-08:30)</span>`;
     });
 
-    const weekendCardStyle = isWeekend 
-      ? 'bg-rose-50/70 border-rose-200/90 hover:border-rose-400' 
-      : 'glass-card hover:border-blue-400';
+    let dayCardStyle = 'glass-card hover:border-blue-400';
+    let dateColor = 'text-slate-900';
+    let badgeClass = 'bg-slate-100 text-slate-700';
+
+    if (isSunday) {
+      dayCardStyle = 'bg-rose-50/70 border-rose-200/90 hover:border-rose-400';
+      dateColor = 'text-rose-600';
+      badgeClass = 'bg-rose-100 text-rose-700';
+    } else if (isSaturday) {
+      dayCardStyle = 'bg-purple-50/75 border-purple-200/90 hover:border-purple-400';
+      dateColor = 'text-purple-700';
+      badgeClass = 'bg-purple-100 text-purple-700';
+    }
 
     calHtml += `
-      <div class="calendar-day-cell rounded-2xl border p-3 md:p-3.5 flex flex-col justify-between shadow-xs transition ${weekendCardStyle} cursor-pointer" onclick="openCellEditor('${nurseId}', ${d})">
+      <div class="calendar-day-cell rounded-2xl border p-3 md:p-3.5 flex flex-col justify-between shadow-xs transition ${dayCardStyle} cursor-pointer" onclick="openCellEditor('${nurseId}', ${d})">
         <div class="flex items-center justify-between pb-2 border-b border-slate-100">
-          <span class="text-2xl md:text-3xl font-black ${isWeekend ? 'text-rose-600' : 'text-slate-900'}">${d}</span>
-          <span class="text-xs md:text-sm font-extrabold px-2 py-0.5 rounded-lg ${isWeekend ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700'}">
+          <span class="text-2xl md:text-3xl font-black ${dateColor}">${d}</span>
+          <span class="text-xs md:text-sm font-extrabold px-2 py-0.5 rounded-lg ${badgeClass}">
             ${CALENDAR_HEADERS[dayOfWeek].short}
           </span>
         </div>
@@ -1026,8 +1051,11 @@ function renderMatrix() {
   for (let d = 1; d <= daysCount; d++) {
     const dt = new Date(currentYear, currentMonth, d);
     const dayOfWeek = dt.getDay();
-    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-    const thClass = isWeekend ? 'bg-rose-100/90 text-rose-800' : 'bg-slate-100 text-slate-700';
+    const isSunday = (dayOfWeek === 0);
+    const isSaturday = (dayOfWeek === 6);
+    let thClass = 'bg-slate-100 text-slate-700';
+    if (isSunday) thClass = 'bg-rose-100/90 text-rose-800';
+    else if (isSaturday) thClass = 'bg-purple-100/90 text-purple-800';
 
     h += `<th class="p-1.5 text-center min-w-[38px] border-r border-slate-200 ${thClass}">
       <div class="font-extrabold text-xs">${d}</div>
@@ -1063,8 +1091,12 @@ function renderMatrix() {
 
     for (let d = 1; d <= daysCount; d++) {
       const dt = new Date(currentYear, currentMonth, d);
-      const isWeekend = (dt.getDay() === 0 || dt.getDay() === 6);
-      const weekendClass = isWeekend ? 'weekend-cell' : '';
+      const isSunday = (dt.getDay() === 0);
+      const isSaturday = (dt.getDay() === 6);
+      let cellStyleClass = '';
+      if (isSunday) cellStyleClass = 'weekend-cell';
+      else if (isSaturday) cellStyleClass = 'bg-purple-50/40 hover:bg-purple-100/50';
+
       const dayShifts = nurseShifts[d] || [];
 
       let tags = '';
@@ -1074,7 +1106,7 @@ function renderMatrix() {
         if (s === 'N' && shiftMode === 3) { countN++; tags += `<span class="shift-tag shift-n">ด</span>`; }
       });
 
-      b += `<td class="p-1 text-center border-r border-slate-200 cursor-pointer transition ${weekendClass}"
+      b += `<td class="p-1 text-center border-r border-slate-200 cursor-pointer transition ${cellStyleClass}"
                onclick="openCellEditor('${nurse.id}', ${d})">
         <div class="min-h-[26px] flex items-center justify-center gap-0.5 flex-wrap">
           ${tags || '<span class="text-slate-300 text-[10px] font-bold hover:text-blue-600">+</span>'}
@@ -1349,25 +1381,34 @@ function renderDailyView() {
   for (let d = 1; d <= daysCount; d++) {
     const dt = new Date(currentYear, currentMonth, d);
     const dayOfWeek = dt.getDay();
-    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+    const isSunday = (dayOfWeek === 0);
+    const isSaturday = (dayOfWeek === 6);
     const dayName = CALENDAR_HEADERS[dayOfWeek].th;
+
+    let dayNumberColor = 'text-slate-900';
+    if (isSunday) dayNumberColor = 'text-rose-600';
+    else if (isSaturday) dayNumberColor = 'text-purple-700';
 
     const mNurses = [], aNurses = [], nNurses = [];
     NURSES.forEach(n => {
       const shifts = (monthState.roster[n.id] && monthState.roster[n.id][d]) || [];
       if (shifts.includes('M')) mNurses.push(n.name);
       if (shifts.includes('A')) aNurses.push(n.name);
-      if (shifts.includes('N')) nNurses.push(n.name);
+      if (shifts.includes('N') && shiftMode === 3) nNurses.push(n.name);
     });
+
+    const dayTotalNurses = shiftMode === 2 
+      ? (mNurses.length + aNurses.length) 
+      : (mNurses.length + aNurses.length + nNurses.length);
 
     html += `
       <div class="glass-card rounded-2xl p-4 border border-slate-200">
         <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
           <div>
-            <span class="text-xl font-black ${isWeekend ? 'text-rose-600' : 'text-slate-900'}">${d}</span>
+            <span class="text-xl font-black ${dayNumberColor}">${d}</span>
             <span class="text-xs font-bold text-slate-700 ml-1">วัน${dayName}</span>
           </div>
-          <span class="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">รวม ${mNurses.length + aNurses.length + nNurses.length} คน</span>
+          <span class="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">รวม ${dayTotalNurses} คน</span>
         </div>
 
         <div class="space-y-2 text-xs">
@@ -1387,6 +1428,7 @@ function renderDailyView() {
             <div class="text-[11px] text-amber-800 mt-1">${aNurses.join(', ') || '<span class="text-slate-400 italic">ไม่มีผู้เลือก</span>'}</div>
           </div>
 
+          ${shiftMode === 3 ? `
           <div class="p-2 rounded-xl bg-purple-50 border border-purple-200">
             <div class="font-bold text-purple-900 flex justify-between">
               <span>🌙 ดึก (00:30-08:30)</span>
@@ -1394,6 +1436,7 @@ function renderDailyView() {
             </div>
             <div class="text-[11px] text-purple-800 mt-1">${nNurses.join(', ') || '<span class="text-slate-400 italic">ไม่มีผู้เลือก</span>'}</div>
           </div>
+          ` : ''}
         </div>
       </div>
     `;
@@ -1403,6 +1446,11 @@ function renderDailyView() {
 
 function renderSummaryView() {
   renderNurseCardsModern('summaryNurseCardsContainer');
+
+  const colNHead = document.getElementById('summaryColNHead');
+  if (colNHead) {
+    colNHead.style.display = (shiftMode === 2 ? 'none' : '');
+  }
 
   const tbody = document.getElementById('summaryTableBody');
   const daysCount = getDaysCount(currentYear, currentMonth);
@@ -1416,10 +1464,13 @@ function renderSummaryView() {
       const arr = shiftsObj[d] || [];
       if (arr.includes('M')) m++;
       if (arr.includes('A')) a++;
-      if (arr.includes('N')) n++;
+      if (arr.includes('N') && shiftMode === 3) n++;
     }
-    const totalShifts = m + a + n;
-    grandM += m; grandA += a; grandN += n; grandTotal += totalShifts;
+    const totalShifts = shiftMode === 2 ? (m + a) : (m + a + n);
+    grandM += m; 
+    grandA += a; 
+    if (shiftMode === 3) grandN += n; 
+    grandTotal += totalShifts;
 
     const isEven = (index % 2 === 1);
     const rowBg = isEven ? 'bg-slate-50/80 hover:bg-blue-100/60' : 'bg-white hover:bg-blue-100/60';
@@ -1435,7 +1486,7 @@ function renderSummaryView() {
         <td class="py-2.5 px-4 font-bold text-slate-800">${nurse.name}</td>
         <td class="py-2.5 px-4 text-center text-sky-800 font-bold bg-sky-50/40">${m}</td>
         <td class="py-2.5 px-4 text-center text-amber-800 font-bold bg-amber-50/40">${a}</td>
-        <td class="py-2.5 px-4 text-center text-purple-800 font-bold bg-purple-50/40">${n}</td>
+        ${shiftMode === 3 ? `<td class="py-2.5 px-4 text-center text-purple-800 font-bold bg-purple-50/40">${n}</td>` : ''}
         <td class="py-2.5 px-4 text-center font-black text-blue-950 bg-blue-50/60">${totalShifts}</td>
         <td class="py-2.5 px-4 text-center font-black text-emerald-800 bg-emerald-50/60">${totalShifts * 8} ชม.</td>
       </tr>
@@ -1447,7 +1498,7 @@ function renderSummaryView() {
       <td colspan="3" class="py-3 px-4 text-right">รวมทั้งสิ้นในแผนก:</td>
       <td class="py-3 px-4 text-center text-sky-800 bg-sky-100">${grandM}</td>
       <td class="py-3 px-4 text-center text-amber-800 bg-amber-100">${grandA}</td>
-      <td class="py-3 px-4 text-center text-purple-800 bg-purple-100">${grandN}</td>
+      ${shiftMode === 3 ? `<td class="py-3 px-4 text-center text-purple-800 bg-purple-100">${grandN}</td>` : ''}
       <td class="py-3 px-4 text-center text-blue-950 bg-blue-200/80">${grandTotal}</td>
       <td class="py-3 px-4 text-center text-emerald-900 bg-emerald-100">${grandTotal * 8} ชม.</td>
     </tr>
@@ -1461,7 +1512,7 @@ function renderAdminVacanciesView() {
   const unassignedList = [];
 
   for (let d = 1; d <= daysCount; d++) {
-    ['M', 'A', 'N'].forEach(s => {
+    getActiveShifts().forEach(s => {
       const assigned = [];
       NURSES.forEach(n => {
         const shifts = (monthState.roster[n.id] && monthState.roster[n.id][d]) || [];
@@ -1625,8 +1676,11 @@ function populateBookingModal(nurseIdToLock) {
 
   // 1. Calendar day header row
   html += `<div class="col-span-7 grid grid-cols-7 gap-1 text-center text-xs font-black text-slate-700 pb-1.5 border-b border-slate-200 mb-1">`;
-  CALENDAR_HEADERS.forEach(ch => {
-    html += `<div class="${ch.isWeekend ? 'text-rose-700' : ''}">${ch.short}</div>`;
+  CALENDAR_HEADERS.forEach((ch, idx) => {
+    let colorClass = '';
+    if (idx === 0) colorClass = 'text-rose-700 font-bold';
+    else if (idx === 6) colorClass = 'text-purple-700 font-bold';
+    html += `<div class="${colorClass}">${ch.short}</div>`;
   });
   html += `</div>`;
 
@@ -1639,10 +1693,14 @@ function populateBookingModal(nurseIdToLock) {
   for (let d = 1; d <= daysCount; d++) {
     const dt = new Date(currentYear, currentMonth, d);
     const dayOfWeek = dt.getDay();
-    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+    const isSunday = (dayOfWeek === 0);
+    const isSaturday = (dayOfWeek === 6);
+    let weekendClass = '';
+    if (isSunday) weekendClass = 'is-sunday';
+    else if (isSaturday) weekendClass = 'is-saturday';
 
     html += `
-      <div class="booking-date-btn ${isWeekend ? 'is-weekend' : ''}" 
+      <div class="booking-date-btn ${weekendClass}" 
            id="dateBtn_${d}" 
            onclick="toggleDateSelection(this, ${d})"
            title="วันที่ ${d}">
