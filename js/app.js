@@ -491,8 +491,18 @@ function updateAuthUI() {
   } else {
     if (unauthButtons) unauthButtons.classList.add('hidden');
     if (authControls) authControls.classList.remove('hidden');
+  }
 
-    if (currentUser.role === 'admin') {
+  const unauthExcelBtn = document.getElementById('unauthExcelBtn');
+  if (unauthExcelBtn) {
+    if (!currentUser && monthState && monthState.isConfirmed) {
+      unauthExcelBtn.classList.remove('hidden');
+    } else {
+      unauthExcelBtn.classList.add('hidden');
+    }
+  }
+
+  if (currentUser) {
       if (headerLogoutText) headerLogoutText.innerText = 'ออกจากหน้า Admin';
       userProfileBadge.innerHTML = `
         <div class="flex items-center gap-2 bg-indigo-900/60 border border-white/30 px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
@@ -528,7 +538,7 @@ function updateNavSwitcher(viewName) {
   const configs = [
     { el: dashBtn, target: 'dashboard', label: 'ปฏิทินหลัก', icon: '📊', isAllowed: true },
     { el: personalBtn, target: 'personal', label: 'ตารางเวรของฉัน', icon: '📅', isAllowed: isNurse },
-    { el: excelBtn, target: 'excel', label: 'ตารางตามหมายเลข', icon: '📋', isAllowed: isConfirmed || isAdmin },
+    { el: excelBtn, target: 'excel', label: 'ตารางตามหมายเลข', icon: '📋', isAllowed: true },
     { el: adminBtn, target: 'admin', label: `ตารางรวม ${NURSES.length} ท่าน`, icon: '👑', isAllowed: isAdmin }
   ];
 
@@ -570,12 +580,6 @@ window.switchView = function(viewName) {
   if (viewName === 'admin' && (!currentUser || currentUser.role !== 'admin')) {
     openAdminLoginModal();
     return;
-  }
-  if (viewName === 'excel') {
-    if (!monthState.isConfirmed && (!currentUser || currentUser.role !== 'admin')) {
-      alert('ตารางตามหมายเลข (Excel View) จะเปิดให้ดูเมื่อผู้ดูแลระบบได้ยืนยันการจัดตารางเวรทางการแล้วเท่านั้น');
-      return;
-    }
   }
 
   activeView = viewName;
@@ -638,6 +642,16 @@ function renderPublicDashboard() {
   const nFilterBtn = document.getElementById('filterBtnN');
   if (nFilterBtn) {
     nFilterBtn.style.display = (shiftMode === 2 ? 'none' : 'inline-flex');
+  }
+
+  // Hide or show Excel View shortcut on public dashboard based on confirmation
+  const dashExcelBtn = document.getElementById('dashExcelShortcutBtn');
+  if (dashExcelBtn) {
+    if (monthState && monthState.isConfirmed) {
+      dashExcelBtn.classList.remove('hidden');
+    } else {
+      dashExcelBtn.classList.add('hidden');
+    }
   }
 
   // Render 7-Day Header
@@ -724,13 +738,13 @@ function renderPublicDashboard() {
         // แสดงตามจำนวนพยาบาลที่เลือก
         rowClass += ' cal-shift-assigned';
         statusBadge = `<span class="bg-sky-100 text-sky-900 border border-sky-300 text-[10px] px-2 py-0.5 rounded-full font-black">👤 มี ${count} คน</span>`;
-        subText = `<div class="text-[10px] text-sky-800 font-medium mt-0.5 flex items-center justify-between"><span>เลือกแล้ว ${count} คน</span><span class="underline text-sky-700">ดูรายชื่อ/เลือกเวร ➔</span></div>`;
+        subText = `<div class="text-[10px] text-sky-800 font-medium mt-0.5 flex items-center justify-between"><span>เลือกแล้ว ${count} คน</span><span class="underline text-sky-700">คลิกเพื่อเลือกเวร ➔</span></div>`;
       }
 
       const opacityClass = isVisible ? 'opacity-100' : 'opacity-25 grayscale pointer-events-none';
 
       shiftRowsHtml += `
-        <div class="${rowClass} ${opacityClass}" onclick="handleShiftClick(${d}, '${s}')" title="คลิกเพื่อดูรายชื่อหรือเลือกเวรนี้">
+        <div class="${rowClass} ${opacityClass}" onclick="handleShiftClick(${d}, '${s}')" title="คลิกเพื่อเลือกเวรนี้">
           <div class="flex items-center justify-between gap-1">
             <div class="flex items-center gap-1.5 font-black text-xs text-slate-800">
               <span class="text-base">${shiftObj.icon}</span>
@@ -818,40 +832,22 @@ window.handleShiftClick = function(day, shift) {
       document.getElementById('shiftModalTitle').innerText = `${shiftObj.name} (${shiftObj.time})`;
       document.getElementById('shiftModalDate').innerText = `วัน${dayName}ที่ ${day} ${THAI_MONTHS[currentMonth]} ${currentYear + 543}`;
 
-      let nursesListHtml = '';
-      if (assigned.length > 0) {
-        nursesListHtml = `
-          <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-            ${assigned.map((n, idx) => `
-              <div class="flex items-center justify-between py-1.5 px-3 rounded-xl bg-white border border-slate-200 shadow-xs">
-                <div class="flex items-center gap-2">
-                  <span class="w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center">${idx + 1}</span>
-                  <span class="font-bold text-slate-800 text-xs">${n.name}</span>
-                </div>
-                <span class="font-mono text-slate-400 text-[11px]">${n.id}</span>
-              </div>
-            `).join('')}
-          </div>
-        `;
-      } else {
-        nursesListHtml = `
-          <div class="p-3 text-center bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs rounded-xl">
-            🚨 ยังไม่มีพยาบาลเลือกเวรนี้
-          </div>
-        `;
-      }
-
       const bodyEl = document.getElementById('shiftModalBody');
       bodyEl.innerHTML = `
         <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
-          <div class="flex justify-between items-center pb-1.5 border-b border-slate-200">
+          <div class="flex justify-between items-center">
             <span class="text-slate-600 font-medium">จำนวนพยาบาลที่เลือกเวรนี้:</span>
             <span class="font-black text-sm ${assigned.length === 0 ? 'text-rose-600' : 'text-blue-900'}">${assigned.length} ท่าน</span>
           </div>
-          <div>
-            <span class="text-slate-600 font-bold block mb-1.5">รายชื่อพยาบาลที่เลือกเวรนี้:</span>
-            ${nursesListHtml}
-          </div>
+          ${assigned.length === 0 ? `
+            <div class="p-2.5 text-center bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs rounded-xl">
+              🚨 ยังไม่มีพยาบาลเลือกเวรนี้
+            </div>
+          ` : `
+            <div class="p-2.5 text-center bg-sky-50 border border-sky-200 text-sky-800 font-semibold text-xs rounded-xl">
+              ✓ มีพยาบาลเลือกเวรนี้แล้ว ${assigned.length} ท่าน
+            </div>
+          `}
         </div>
         <div class="p-3 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold flex items-center gap-2">
           <span>🔒</span>
@@ -888,31 +884,6 @@ window.handleShiftClick = function(day, shift) {
     document.getElementById('shiftModalTitle').innerText = `${shiftObj.name} (${shiftObj.time})`;
     document.getElementById('shiftModalDate').innerText = `วัน${dayName}ที่ ${day} ${THAI_MONTHS[currentMonth]} ${currentYear + 543}`;
 
-    // List of nurses in popup
-    let nursesListHtml = '';
-    if (assigned.length > 0) {
-      nursesListHtml = `
-        <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-          ${assigned.map((n, idx) => `
-            <div class="flex items-center justify-between py-1.5 px-3 rounded-xl bg-white border border-slate-200 shadow-xs">
-              <div class="flex items-center gap-2">
-                <span class="w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center">${idx + 1}</span>
-                <span class="font-bold text-slate-800 text-xs">${n.name}</span>
-                ${n.id === nurseId ? '<span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-bold">คุณ</span>' : ''}
-              </div>
-              <span class="font-mono text-slate-400 text-[11px]">${n.id}</span>
-            </div>
-          `).join('')}
-        </div>
-      `;
-    } else {
-      nursesListHtml = `
-        <div class="p-3 text-center bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs rounded-xl">
-          🚨 ยังไม่มีพยาบาลเลือกเวรนี้
-        </div>
-      `;
-    }
-
     let confirmationNotice = '';
     if (isConfirmed) {
       confirmationNotice = `
@@ -940,14 +911,19 @@ window.handleShiftClick = function(day, shift) {
     const bodyEl = document.getElementById('shiftModalBody');
     bodyEl.innerHTML = `
       <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
-        <div class="flex justify-between items-center pb-1.5 border-b border-slate-200">
+        <div class="flex justify-between items-center">
           <span class="text-slate-600 font-medium">จำนวนพยาบาลที่เลือกเวรนี้:</span>
           <span class="font-black text-sm ${assigned.length === 0 ? 'text-rose-600' : 'text-blue-900'}">${assigned.length} ท่าน</span>
         </div>
-        <div>
-          <span class="text-slate-600 font-bold block mb-1.5">รายชื่อพยาบาลที่เลือกเวรนี้:</span>
-          ${nursesListHtml}
-        </div>
+        ${assigned.length === 0 ? `
+          <div class="p-2.5 text-center bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs rounded-xl">
+            🚨 ยังไม่มีพยาบาลเลือกเวรนี้
+          </div>
+        ` : `
+          <div class="p-2.5 text-center bg-sky-50 border border-sky-200 text-sky-800 font-semibold text-xs rounded-xl">
+            ✓ มีพยาบาลเลือกเวรนี้แล้ว ${assigned.length} ท่าน
+          </div>
+        `}
       </div>
       ${confirmationNotice}
     `;
@@ -1231,7 +1207,7 @@ window.handleUnconfirmSchedule = function() {
 };
 
 function renderAdminSubView() {
-  const views = ['matrix', 'excel', 'daily', 'summary', 'vacancies'];
+  const views = ['matrix', 'excel', 'daily', 'summary', 'vacancies', 'chart'];
   views.forEach(v => {
     const sec = document.getElementById(`${v}ViewSection`);
     if (sec) sec.classList.add('hidden');
@@ -1253,6 +1229,7 @@ function renderAdminSubView() {
   if (adminActiveSubView === 'daily') renderDailyView();
   if (adminActiveSubView === 'summary') renderSummaryView();
   if (adminActiveSubView === 'vacancies') renderAdminVacanciesView();
+  if (adminActiveSubView === 'chart') renderDutyChart();
 }
 
 window.scrollMatrixTo = function(direction) {
@@ -1470,6 +1447,19 @@ function renderExcelView(targetContainerId = 'excelRosterContainer') {
 
   const daysCount = getDaysCount(currentYear, currentMonth);
   const monthTitle = `ตารางเวรพยาบาล ประจำเดือน ${THAI_MONTHS[currentMonth]} ${currentYear + 543}`;
+  const isConfirmed = !!(monthState && monthState.isConfirmed);
+
+  // Update Status Badge if on User Excel View Section
+  const statusBadge = document.getElementById('userExcelStatusBadge');
+  if (statusBadge) {
+    if (isConfirmed) {
+      statusBadge.className = "text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-full flex items-center gap-1";
+      statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span><span>ประกาศตารางทางการแล้ว</span>`;
+    } else {
+      statusBadge.className = "text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300 px-2.5 py-0.5 rounded-full flex items-center gap-1";
+      statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span><span>รอดำเนินการจัดตารางเวรอัตโนมัติ</span>`;
+    }
+  }
 
   // Days Header
   let thDaysHtml = '';
@@ -1497,36 +1487,45 @@ function renderExcelView(targetContainerId = 'excelRosterContainer') {
   shiftDefs.forEach(sDef => {
     let dayTds = '';
     for (let d = 1; d <= daysCount; d++) {
-      const assignedNurses = [];
-      NURSES.forEach(n => {
-        const shifts = (monthState.roster[n.id] && monthState.roster[n.id][d]) || [];
-        if (shifts.includes(sDef.key)) assignedNurses.push(n);
-      });
-
       let cellContent = '';
-      if (assignedNurses.length > 0) {
+      if (!isConfirmed) {
+        // ให้ว่างไว้จนกว่าจะกด จัดตารางเวรอัตโนมัติ
         cellContent = `
-          <div class="flex flex-wrap items-center justify-center gap-1 min-h-[30px]">
-            ${assignedNurses.map(n => `
-              <span class="nurse-num-badge w-7 h-7 text-xs font-black cursor-pointer shadow-xs transition hover:scale-110" 
-                    style="background-color: ${n.color}; color: ${n.textColor};"
-                    onclick="handleShiftClick(${d}, '${sDef.key}')"
-                    title="${n.name} (${n.id})">
-                ${n.num}
-              </span>
-            `).join('')}
+          <div class="min-h-[30px] flex items-center justify-center text-slate-300 font-bold select-none">
+            -
           </div>
         `;
       } else {
-        cellContent = `
-          <div class="min-h-[30px] flex items-center justify-center">
-            <span class="text-[10px] font-bold text-rose-500 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded cursor-pointer hover:bg-rose-100"
-                  onclick="handleShiftClick(${d}, '${sDef.key}')"
-                  title="คลิกเพื่อดูรายละเอียด">
-              ว่าง
-            </span>
-          </div>
-        `;
+        const assignedNurses = [];
+        NURSES.forEach(n => {
+          const shifts = (monthState.roster[n.id] && monthState.roster[n.id][d]) || [];
+          if (shifts.includes(sDef.key)) assignedNurses.push(n);
+        });
+
+        if (assignedNurses.length > 0) {
+          cellContent = `
+            <div class="flex flex-wrap items-center justify-center gap-1 min-h-[30px]">
+              ${assignedNurses.map(n => `
+                <span class="nurse-num-badge w-7 h-7 text-xs font-black cursor-pointer shadow-xs transition hover:scale-110" 
+                      style="background-color: ${n.color}; color: ${n.textColor};"
+                      onclick="handleShiftClick(${d}, '${sDef.key}')"
+                      title="${n.name} (${n.id})">
+                  ${n.num}
+                </span>
+              `).join('')}
+            </div>
+          `;
+        } else {
+          cellContent = `
+            <div class="min-h-[30px] flex items-center justify-center">
+              <span class="text-[10px] font-bold text-rose-500 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded cursor-pointer hover:bg-rose-100"
+                    onclick="handleShiftClick(${d}, '${sDef.key}')"
+                    title="คลิกเพื่อดูรายละเอียด">
+                ว่าง
+              </span>
+            </div>
+          `;
+        }
       }
 
       dayTds += `
@@ -1550,6 +1549,20 @@ function renderExcelView(targetContainerId = 'excelRosterContainer') {
   });
 
   const cardsContainerId = `${targetContainerId}_cards`;
+
+  // Informational banner for user when schedule is unconfirmed
+  const userNoticeHtml = !isConfirmed ? `
+    <div class="p-4 rounded-2xl bg-amber-50/90 border border-amber-300 text-amber-900 text-xs mb-4 flex items-start gap-3 shadow-2xs">
+      <span class="text-2xl">📢</span>
+      <div>
+        <div class="font-bold text-sm text-amber-950">ยังไม่ได้ดำเนินการจัดตารางเวรอัตโนมัติ (Automated Shift Optimizer)</div>
+        <div class="mt-1 leading-relaxed text-slate-700">
+          ขณะนี้ตารางเวรตามหมายเลขประจำเดือนนี้ยังไม่ได้ผ่านการจัดตารางเวรอัตโนมัติและกดยืนยันจากผู้ดูแลระบบ (Admin)
+          เนื้อหาตารางจึงแสดงเป็นช่องว่าง โปรดรอผู้ดูแลระบบดำเนินการจัดตารางเวรให้เรียบร้อย
+        </div>
+      </div>
+    </div>
+  ` : '';
 
   let html = `
     <!-- Excel View Card -->
@@ -1575,6 +1588,8 @@ function renderExcelView(targetContainerId = 'excelRosterContainer') {
           </button>
         </div>
       </div>
+
+      ${userNoticeHtml}
 
       <!-- Schedule Table with Nurse Number Badges -->
       <div class="overflow-x-auto rounded-2xl border border-slate-300 shadow-xs mb-4">
@@ -1798,6 +1813,425 @@ function renderAdminVacanciesView() {
   });
   html += `</div>`;
   container.innerHTML = html;
+}
+
+// 9.5 ADMIN LINE CHART VIEW (กราฟสรุปจำนวนเข้าเวร 3 เส้น: เช้า บ่าย ดึก | แกน X: เดือน/รายชื่อ | แกน Y: จำนวนเข้าเวร)
+let chartDisplayMode = 'monthly'; // 'monthly' หรือ 'nurse_compare'
+let dutyChartInstance = null;
+
+window.setChartDisplayMode = function(mode) {
+  chartDisplayMode = mode;
+  const monthBtn = document.getElementById('chartModeMonthTrendBtn');
+  const nurseBtn = document.getElementById('chartModeNurseCompareBtn');
+  const nurseSelectWrapper = document.getElementById('chartNurseSelectWrapper');
+
+  if (monthBtn && nurseBtn) {
+    if (mode === 'monthly') {
+      monthBtn.className = "px-3 py-1.5 rounded-lg font-bold bg-blue-600 text-white shadow-2xs transition";
+      nurseBtn.className = "px-3 py-1.5 rounded-lg font-semibold text-slate-600 hover:text-blue-600 transition";
+      if (nurseSelectWrapper) nurseSelectWrapper.style.display = 'flex';
+    } else {
+      nurseBtn.className = "px-3 py-1.5 rounded-lg font-bold bg-blue-600 text-white shadow-2xs transition";
+      monthBtn.className = "px-3 py-1.5 rounded-lg font-semibold text-slate-600 hover:text-blue-600 transition";
+      if (nurseSelectWrapper) nurseSelectWrapper.style.display = 'none';
+    }
+  }
+
+  renderDutyChart();
+};
+
+function renderDutyChart() {
+  const canvas = document.getElementById('dutyChartCanvas');
+  if (!canvas) return;
+
+  // Toggle Night shift legend based on shiftMode
+  const legNight = document.getElementById('chartLegendNight');
+  if (legNight) {
+    legNight.style.display = (shiftMode === 2 ? 'none' : 'inline-flex');
+  }
+
+  // Populate Nurse Select dropdown if needed
+  const nurseSelect = document.getElementById('chartNurseSelect');
+  if (nurseSelect) {
+    const currentVal = nurseSelect.value || 'ALL';
+    let optHtml = `<option value="ALL">🏢 รวมทั้งแผนก (Department Total)</option>`;
+    NURSES.forEach(n => {
+      optHtml += `<option value="${n.id}">${n.num}. ${n.name}</option>`;
+    });
+    nurseSelect.innerHTML = optHtml;
+    // Restore selection if valid
+    if (currentVal === 'ALL' || NURSES.some(x => x.id === currentVal)) {
+      nurseSelect.value = currentVal;
+    } else {
+      nurseSelect.value = 'ALL';
+    }
+  }
+
+  let labels = [];
+  let mCounts = [];
+  let aCounts = [];
+  let nCounts = [];
+  let summaryRows = [];
+
+  const chartTitleEl = document.getElementById('chartCanvasTitle');
+
+  if (chartDisplayMode === 'monthly') {
+    // Mode 1: X = 12 Months (ม.ค. - ธ.ค.), Y = Duty Count, 3 Lines (เช้า, บ่าย, ดึก)
+    labels = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    const selectedNurseId = nurseSelect ? nurseSelect.value : 'ALL';
+    const nurseObj = NURSES.find(x => x.id === selectedNurseId);
+    const targetName = (selectedNurseId === 'ALL') ? 'รวมทั้งแผนก' : (nurseObj ? `${nurseObj.name} (หมายเลข ${nurseObj.num})` : selectedNurseId);
+
+    if (chartTitleEl) {
+      chartTitleEl.innerText = `📈 แนวโน้มจำนวนเข้าเวร 12 เดือน ประจำปี พ.ศ. ${currentYear + 543} - [${targetName}]`;
+    }
+
+    for (let m = 0; m < 12; m++) {
+      let rosterData = {};
+      if (m === currentMonth) {
+        rosterData = monthState.roster || {};
+      } else {
+        const raw = localStorage.getItem(`nurse_system_${currentYear}_${m}`);
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            rosterData = parsed.roster || {};
+          } catch (e) {
+            rosterData = {};
+          }
+        }
+      }
+
+      let mVal = 0, aVal = 0, nVal = 0;
+      const daysInM = getDaysCount(currentYear, m);
+
+      if (selectedNurseId === 'ALL') {
+        NURSES.forEach(n => {
+          const nShifts = rosterData[n.id] || {};
+          for (let d = 1; d <= daysInM; d++) {
+            const arr = nShifts[d] || [];
+            if (arr.includes('M')) mVal++;
+            if (arr.includes('A')) aVal++;
+            if (arr.includes('N') && shiftMode === 3) nVal++;
+          }
+        });
+      } else {
+        const nShifts = rosterData[selectedNurseId] || {};
+        for (let d = 1; d <= daysInM; d++) {
+          const arr = nShifts[d] || [];
+          if (arr.includes('M')) mVal++;
+          if (arr.includes('A')) aVal++;
+          if (arr.includes('N') && shiftMode === 3) nVal++;
+        }
+      }
+
+      mCounts.push(mVal);
+      aCounts.push(aVal);
+      nCounts.push(nVal);
+
+      const tot = (shiftMode === 3) ? (mVal + aVal + nVal) : (mVal + aVal);
+      summaryRows.push({
+        label: `${labels[m]} ${currentYear + 543}`,
+        mVal,
+        aVal,
+        nVal,
+        tot
+      });
+    }
+  } else {
+    // Mode 2: X = 14 Nurses, Y = Duty Count, 3 Lines (เช้า, บ่าย, ดึก) in currentMonth
+    if (chartTitleEl) {
+      chartTitleEl.innerText = `👥 เปรียบเทียบจำนวนเวรพยาบาลทั้ง ${NURSES.length} ท่าน ประจำเดือน ${THAI_MONTHS[currentMonth]} ${currentYear + 543}`;
+    }
+
+    const daysInCurrentMonth = getDaysCount(currentYear, currentMonth);
+
+    NURSES.forEach(n => {
+      // Short label: "#1 ภิญญดา"
+      const shortName = n.name.replace(/^(น\.ส\.|นาง|นาย)\s*/, '').split(' ')[0] || n.name;
+      labels.push(`#${n.num} ${shortName}`);
+
+      let mVal = 0, aVal = 0, nVal = 0;
+      const nShifts = (monthState.roster && monthState.roster[n.id]) || {};
+      for (let d = 1; d <= daysInCurrentMonth; d++) {
+        const arr = nShifts[d] || [];
+        if (arr.includes('M')) mVal++;
+        if (arr.includes('A')) aVal++;
+        if (arr.includes('N') && shiftMode === 3) nVal++;
+      }
+
+      mCounts.push(mVal);
+      aCounts.push(aVal);
+      nCounts.push(nVal);
+
+      const tot = (shiftMode === 3) ? (mVal + aVal + nVal) : (mVal + aVal);
+      summaryRows.push({
+        label: `${n.num}. ${n.name} [${n.id}]`,
+        nurseColor: n.color,
+        nurseNum: n.num,
+        mVal,
+        aVal,
+        nVal,
+        tot
+      });
+    });
+  }
+
+  // 3 Datasets matching requirements: เช้า (M), บ่าย (A), ดึก (N)
+  const datasets = [
+    {
+      label: 'เวรเช้า (M)',
+      data: mCounts,
+      borderColor: '#0284c7', // Sky Blue
+      backgroundColor: 'rgba(2, 132, 199, 0.12)',
+      borderWidth: 3,
+      pointBackgroundColor: '#0284c7',
+      pointBorderColor: '#ffffff',
+      pointBorderWidth: 2,
+      pointRadius: 4.5,
+      pointHoverRadius: 7,
+      tension: 0.35,
+      fill: true
+    },
+    {
+      label: 'เวรบ่าย (A)',
+      data: aCounts,
+      borderColor: '#d97706', // Amber
+      backgroundColor: 'rgba(217, 119, 6, 0.12)',
+      borderWidth: 3,
+      pointBackgroundColor: '#d97706',
+      pointBorderColor: '#ffffff',
+      pointBorderWidth: 2,
+      pointRadius: 4.5,
+      pointHoverRadius: 7,
+      tension: 0.35,
+      fill: true
+    }
+  ];
+
+  if (shiftMode === 3) {
+    datasets.push({
+      label: 'เวรดึก (N)',
+      data: nCounts,
+      borderColor: '#7c3aed', // Purple
+      backgroundColor: 'rgba(124, 58, 237, 0.12)',
+      borderWidth: 3,
+      pointBackgroundColor: '#7c3aed',
+      pointBorderColor: '#ffffff',
+      pointBorderWidth: 2,
+      pointRadius: 4.5,
+      pointHoverRadius: 7,
+      tension: 0.35,
+      fill: true
+    });
+  }
+
+  // Render Chart via Chart.js if loaded, otherwise fallback to HTML5 2D Canvas
+  if (typeof Chart !== 'undefined') {
+    if (dutyChartInstance) {
+      dutyChartInstance.destroy();
+      dutyChartInstance = null;
+    }
+    const ctx = canvas.getContext('2d');
+    dutyChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: datasets
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        plugins: {
+          legend: {
+            display: false // Using our custom top badge legend
+          },
+          tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+            padding: 12,
+            cornerRadius: 12,
+            titleFont: { size: 13, weight: 'bold' },
+            bodyFont: { size: 12 },
+            callbacks: {
+              label: function(context) {
+                return ` ${context.dataset.label}: ${context.parsed.y} เวร`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(226, 232, 240, 0.8)' },
+            ticks: {
+              font: { weight: 'bold', size: 11 },
+              color: '#475569'
+            }
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(226, 232, 240, 0.8)' },
+            ticks: {
+              precision: 0,
+              font: { weight: 'bold', size: 11 },
+              color: '#475569',
+              callback: function(v) { return v + ' เวร'; }
+            }
+          }
+        }
+      }
+    });
+  } else {
+    drawCanvasLineChartFallback(canvas, labels, datasets);
+  }
+
+  // Render Tabular Summary Table below Chart
+  const tableContainer = document.getElementById('chartSummaryTableContainer');
+  if (tableContainer) {
+    let totM = mCounts.reduce((a, b) => a + b, 0);
+    let totA = aCounts.reduce((a, b) => a + b, 0);
+    let totN = nCounts.reduce((a, b) => a + b, 0);
+    let grandTot = (shiftMode === 3) ? (totM + totA + totN) : (totM + totA);
+
+    let rowsHtml = '';
+    summaryRows.forEach((r, idx) => {
+      const isEven = (idx % 2 === 1);
+      const rowBg = isEven ? 'bg-slate-50/70' : 'bg-white';
+      const numBadge = r.nurseColor ? `
+        <span class="nurse-num-badge w-5 h-5 text-[10px] font-black mr-2 inline-flex items-center justify-center rounded-md" 
+              style="background-color: ${r.nurseColor}; color: ${getContrastColor(r.nurseColor)};">
+          ${r.nurseNum}
+        </span>
+      ` : '';
+
+      rowsHtml += `
+        <tr class="${rowBg} hover:bg-blue-50/50 transition border-b border-slate-100">
+          <td class="py-2 px-3 font-semibold text-slate-800 text-xs flex items-center">
+            ${numBadge}
+            <span>${r.label}</span>
+          </td>
+          <td class="py-2 px-3 text-center text-sky-800 font-bold text-xs bg-sky-50/40">${r.mVal}</td>
+          <td class="py-2 px-3 text-center text-amber-800 font-bold text-xs bg-amber-50/40">${r.aVal}</td>
+          ${shiftMode === 3 ? `<td class="py-2 px-3 text-center text-purple-800 font-bold text-xs bg-purple-50/40">${r.nVal}</td>` : ''}
+          <td class="py-2 px-3 text-center font-black text-xs text-blue-950 bg-blue-50/70">${r.tot}</td>
+        </tr>
+      `;
+    });
+
+    tableContainer.innerHTML = `
+      <div class="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-200">
+        <h4 class="text-xs font-black text-slate-800">📊 ตารางสรุปตัวเลขสถิติการเข้าเวร</h4>
+        <span class="text-[11px] text-slate-500 font-medium">รวมทั้งหมด ${grandTot} เวร</span>
+      </div>
+      <table class="min-w-full text-left text-xs border-collapse">
+        <thead class="bg-slate-100 text-slate-700 font-black border-b border-slate-200">
+          <tr>
+            <th class="py-2 px-3">${chartDisplayMode === 'monthly' ? 'เดือน' : 'รายชื่อพยาบาล'}</th>
+            <th class="py-2 px-3 text-center text-sky-900 bg-sky-100/60 w-24">☀️ เวรเช้า (M)</th>
+            <th class="py-2 px-3 text-center text-amber-900 bg-amber-100/60 w-24">⛅ เวรบ่าย (A)</th>
+            ${shiftMode === 3 ? '<th class="py-2 px-3 text-center text-purple-900 bg-purple-100/60 w-24">🌙 เวรดึก (N)</th>' : ''}
+            <th class="py-2 px-3 text-center text-blue-950 bg-blue-100/80 w-28">รวมเวรทั้งหมด</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+        <tfoot class="bg-slate-100 font-black text-slate-800 border-t-2 border-slate-300">
+          <tr>
+            <td class="py-2.5 px-3">รวมทั้งสิ้น</td>
+            <td class="py-2.5 px-3 text-center text-sky-900">${totM}</td>
+            <td class="py-2.5 px-3 text-center text-amber-900">${totA}</td>
+            ${shiftMode === 3 ? `<td class="py-2.5 px-3 text-center text-purple-900">${totN}</td>` : ''}
+            <td class="py-2.5 px-3 text-center text-blue-950">${grandTot}</td>
+          </tr>
+        </tfoot>
+      </table>
+    `;
+  }
+}
+
+// Fallback HTML5 2D Canvas chart renderer if external Chart.js CDN is unavailable
+function drawCanvasLineChartFallback(canvas, labels, datasets) {
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
+  const w = rect.width;
+  const h = rect.height;
+  const padLeft = 45;
+  const padRight = 20;
+  const padTop = 30;
+  const padBottom = 40;
+
+  ctx.clearRect(0, 0, w, h);
+
+  let maxVal = 1;
+  datasets.forEach(ds => {
+    ds.data.forEach(v => { if (v > maxVal) maxVal = v; });
+  });
+  maxVal = Math.ceil(maxVal * 1.15) || 5;
+
+  const chartW = w - padLeft - padRight;
+  const chartH = h - padTop - padBottom;
+
+  // Draw Grid & Y-Ticks
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = '#64748b';
+  ctx.font = '10px sans-serif';
+  ctx.textAlign = 'right';
+
+  const ySteps = 4;
+  for (let i = 0; i <= ySteps; i++) {
+    const val = Math.round((maxVal / ySteps) * i);
+    const y = padTop + chartH - (i / ySteps) * chartH;
+    ctx.beginPath();
+    ctx.moveTo(padLeft, y);
+    ctx.lineTo(w - padRight, y);
+    ctx.stroke();
+    ctx.fillText(val + '', padLeft - 6, y + 3);
+  }
+
+  // Draw X-Ticks
+  const xStep = chartW / Math.max(labels.length - 1, 1);
+  ctx.textAlign = 'center';
+  labels.forEach((lbl, idx) => {
+    const x = padLeft + idx * xStep;
+    ctx.fillText(lbl, x, h - padBottom + 16);
+  });
+
+  // Draw Line Datasets
+  datasets.forEach(ds => {
+    ctx.strokeStyle = ds.borderColor;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ds.data.forEach((val, idx) => {
+      const x = padLeft + idx * xStep;
+      const y = padTop + chartH - (val / maxVal) * chartH;
+      if (idx === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Draw dots
+    ctx.fillStyle = ds.pointBackgroundColor;
+    ds.data.forEach((val, idx) => {
+      const x = padLeft + idx * xStep;
+      const y = padTop + chartH - (val / maxVal) * chartH;
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    });
+  });
 }
 
 window.openBookingForVacancy = function(day, shift) {
@@ -2828,9 +3262,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // Month navigation: Initialized to defaultMonth (current month + 1)
   function onMonthYearChanged() {
     loadMonthState();
-    if (activeView === 'excel' && !monthState.isConfirmed && (!currentUser || currentUser.role !== 'admin')) {
-      activeView = 'dashboard';
-    }
     updateNavSwitcher(activeView);
     renderPublicDashboard();
     if (activeView === 'personal') renderNurseCalendar();
@@ -2901,6 +3332,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('viewDailyBtn')?.addEventListener('click', () => { adminActiveSubView = 'daily'; renderAdminSubView(); });
   document.getElementById('viewSummaryBtn')?.addEventListener('click', () => { adminActiveSubView = 'summary'; renderAdminSubView(); });
   document.getElementById('viewVacanciesBtn')?.addEventListener('click', () => { adminActiveSubView = 'vacancies'; renderAdminSubView(); });
+  document.getElementById('viewChartBtn')?.addEventListener('click', () => { adminActiveSubView = 'chart'; renderAdminSubView(); });
 
   // Action Buttons
   document.getElementById('adminOptimizeBtn')?.addEventListener('click', runOptimization);

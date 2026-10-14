@@ -6,6 +6,8 @@
   <title>ระบบตาราง Booking เวรพยาบาล</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for Admin Duty Statistics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="min-h-screen text-slate-900 font-sans selection:bg-blue-500 selection:text-white">
@@ -66,6 +68,30 @@
         <!-- Right: Actions & Separate Login Buttons (ตัดคำว่าปุ่มออก) -->
         <div class="flex items-center gap-3 flex-wrap">
           
+          <!-- Segmented Pill Group for Views (Active Indicator - Matches Image 333) -->
+          <div id="navSegmentedPillGroup" class="flex items-center p-1 bg-black/20 backdrop-blur-md rounded-2xl border border-white/25 gap-1.5 shadow-inner">
+            <button id="navDashboardBtn" onclick="switchView('dashboard')" 
+                    class="nav-tab-btn nav-tab-btn-inactive">
+              <span class="text-base sm:text-lg">📊</span>
+              <span>ปฏิทินหลัก</span>
+            </button>
+            <button id="navMyScheduleBtn" onclick="switchView('personal')" 
+                    class="nav-tab-btn nav-tab-btn-inactive hidden">
+              <span class="text-base sm:text-lg">📅</span>
+              <span>ตารางเวรของฉัน</span>
+            </button>
+            <button id="navExcelViewBtn" onclick="switchView('excel')" 
+                    class="nav-tab-btn nav-tab-btn-inactive">
+              <span class="text-base sm:text-lg">📋</span>
+              <span>ตารางตามหมายเลข</span>
+            </button>
+            <button id="navAdminPortalBtn" onclick="switchView('admin')" 
+                    class="nav-tab-btn nav-tab-btn-inactive hidden">
+              <span class="text-base sm:text-lg">👑</span>
+              <span>พื้นที่ Admin</span>
+            </button>
+          </div>
+
           <!-- When Unauthenticated: "จองตารางเวร" & "Admin" Buttons -->
           <div id="unauthButtons" class="flex items-center gap-3">
             <!-- จองตารางเวร (พยาบาล) -->
@@ -83,33 +109,8 @@
             </button>
           </div>
 
-          <!-- When Authenticated: Profile Badge & Navigation Switchers & Pinned Logout Button on Far Right -->
+          <!-- When Authenticated: Profile Badge & Pinned Logout Button on Far Right -->
           <div id="authControls" class="hidden flex items-center gap-3 flex-wrap">
-            
-            <!-- Segmented Pill Group for Views (Active Indicator) -->
-            <div class="flex items-center p-1 bg-black/20 backdrop-blur-md rounded-2xl border border-white/25 gap-1.5 shadow-inner">
-              <button id="navDashboardBtn" onclick="switchView('dashboard')" 
-                      class="nav-tab-btn nav-tab-btn-inactive">
-                <span class="text-base sm:text-lg">📊</span>
-                <span>ปฏิทินหลัก</span>
-              </button>
-              <button id="navMyScheduleBtn" onclick="switchView('personal')" 
-                      class="nav-tab-btn nav-tab-btn-inactive hidden">
-                <span class="text-base sm:text-lg">📅</span>
-                <span>ตารางเวรของฉัน</span>
-              </button>
-              <button id="navExcelViewBtn" onclick="switchView('excel')" 
-                      class="nav-tab-btn nav-tab-btn-inactive hidden">
-                <span class="text-base sm:text-lg">📋</span>
-                <span>ตารางตามหมายเลข</span>
-              </button>
-              <button id="navAdminPortalBtn" onclick="switchView('admin')" 
-                      class="nav-tab-btn nav-tab-btn-inactive hidden">
-                <span class="text-base sm:text-lg">👑</span>
-                <span>พื้นที่ Admin</span>
-              </button>
-            </div>
-
             <div id="userProfileBadge"></div>
 
             <!-- ย้ายปุ่ม ออกจากระบบ ไปขอบขวา ของ header ตามความต้องการ -->
@@ -196,6 +197,10 @@
 
         <!-- Quick Action on Dashboard -->
         <div class="flex items-center gap-2.5">
+          <button id="dashExcelShortcutBtn" onclick="switchView('excel')" class="hidden px-4 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md transition flex items-center gap-1.5 cursor-pointer">
+            <span class="text-base">📋</span>
+            <span>ตารางตามหมายเลข (Excel View)</span>
+          </button>
           <button onclick="openPersonalBookingModal()" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white shadow-md transition flex items-center gap-2">
             <span class="text-base">✍️</span>
             <span>จองหลายวันพร้อมกัน</span>
@@ -405,7 +410,7 @@
           <div>
             <div class="flex items-center gap-2">
               <h2 class="text-base md:text-lg font-black text-slate-900 font-heading" id="userExcelSectionTitle">ตารางเวรตามหมายเลข (Excel View)</h2>
-              <span class="text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+              <span id="userExcelStatusBadge" class="text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-full flex items-center gap-1">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span>ประกาศตารางทางการแล้ว</span>
               </span>
@@ -489,6 +494,9 @@
             </button>
             <button id="viewVacanciesBtn" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-rose-700 transition">
               ⚠️ ตรวจสอบเวรที่ขาด
+            </button>
+            <button id="viewChartBtn" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-blue-700 transition">
+              📈 กราฟสรุปจำนวนเข้าเวร
             </button>
           </div>
 
@@ -636,6 +644,70 @@
         <div id="vacanciesViewSection" class="hidden p-6 bg-slate-50/50">
           <h3 class="text-lg font-black text-slate-800 mb-4 font-heading">รายงานตรวจสอบเวรที่ยังขาดคน (Shift Vacancy Report)</h3>
           <div id="adminVacanciesList"></div>
+        </div>
+
+        <!-- 5. Chart View (Line Chart for Duty Counts) -->
+        <div id="chartViewSection" class="hidden p-5 md:p-6 bg-slate-50/60 space-y-5">
+          <!-- Controls Header -->
+          <div class="glass-card rounded-2xl p-4 md:p-5 border border-white/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-2xl">📈</span>
+                <h3 class="text-base md:text-lg font-black text-slate-900 font-heading">กราฟสรุปจำนวนเข้าเวร (Duty Trends Line Chart)</h3>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">แกน X: เดือน (12 เดือน) หรือ รายชื่อ | แกน Y: จำนวนเข้าเวร | เส้นกราฟ 3 สี (เช้า, บ่าย, ดึก)</p>
+            </div>
+
+            <!-- Chart Filters / Mode -->
+            <div class="flex items-center gap-3 flex-wrap">
+              <div class="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl p-1 shadow-2xs text-xs">
+                <button type="button" id="chartModeMonthTrendBtn" onclick="setChartDisplayMode('monthly')" 
+                        class="px-3 py-1.5 rounded-lg font-bold bg-blue-600 text-white shadow-2xs transition">
+                  📅 แนวโน้มรายเดือน (12 เดือน)
+                </button>
+                <button type="button" id="chartModeNurseCompareBtn" onclick="setChartDisplayMode('nurse_compare')" 
+                        class="px-3 py-1.5 rounded-lg font-semibold text-slate-600 hover:text-blue-600 transition">
+                  👥 เปรียบเทียบพยาบาล (14 ท่าน)
+                </button>
+              </div>
+
+              <!-- Nurse Select Filter for Monthly Trend -->
+              <div id="chartNurseSelectWrapper" class="flex items-center gap-2">
+                <label for="chartNurseSelect" class="text-xs font-bold text-slate-700 whitespace-nowrap">พยาบาล:</label>
+                <select id="chartNurseSelect" onchange="renderDutyChart()" 
+                        class="glass-input rounded-xl px-3 py-1.5 text-xs font-medium text-slate-800 outline-none">
+                  <option value="ALL">🏢 รวมทั้งแผนก (Department Total)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chart Canvas Container -->
+          <div class="glass-card rounded-3xl p-5 md:p-6 border border-white/80 shadow-md">
+            <!-- Chart Legend Badges -->
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 flex-wrap gap-2 text-xs">
+              <span id="chartCanvasTitle" class="font-bold text-slate-800">สรุปแนวโน้มจำนวนเวรตลอดทั้งปี</span>
+              <div class="flex items-center gap-3 font-semibold">
+                <span class="inline-flex items-center gap-1.5 text-sky-700 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200">
+                  <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span> เวรเช้า (M)
+                </span>
+                <span class="inline-flex items-center gap-1.5 text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                  <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> เวรบ่าย (A)
+                </span>
+                <span id="chartLegendNight" class="inline-flex items-center gap-1.5 text-purple-700 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200">
+                  <span class="w-2.5 h-2.5 rounded-full bg-purple-600"></span> เวรดึก (N)
+                </span>
+              </div>
+            </div>
+
+            <div class="relative w-full h-[360px] md:h-[400px]">
+              <canvas id="dutyChartCanvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Tabular Summary Under Chart -->
+          <div id="chartSummaryTableContainer" class="glass-card rounded-2xl p-4 border border-white/80 shadow-xs overflow-x-auto">
+          </div>
         </div>
 
       </div>
