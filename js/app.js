@@ -503,6 +503,7 @@ function updateAuthUI() {
   }
 
   if (currentUser) {
+    if (currentUser.role === 'admin') {
       if (headerLogoutText) headerLogoutText.innerText = 'ออกจากหน้า Admin';
       userProfileBadge.innerHTML = `
         <div class="flex items-center gap-2 bg-indigo-900/60 border border-white/30 px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
@@ -520,8 +521,8 @@ function updateAuthUI() {
         </div>
       `;
     }
-    updateNavSwitcher(activeView);
   }
+  updateNavSwitcher(activeView);
 }
 
 // Update Active/Inactive Switcher Buttons in Top Navigation Header
