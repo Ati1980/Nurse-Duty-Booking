@@ -40,27 +40,27 @@
           </div>
         </div>
 
-        <!-- Middle: Shift Legend Pills with Enlarged Icons (แสดงตามโหมดเวรที่เลือก) -->
-        <div id="headerShiftPillsContainer" class="flex flex-wrap items-center gap-2.5 bg-white/15 p-2 rounded-2xl border border-white/20 backdrop-blur-md shadow-xs">
-          <div class="flex items-center gap-2 bg-sky-500/25 border border-white/30 px-3.5 py-1.5 rounded-xl">
-            <span class="text-xl">☀️</span>
+        <!-- Middle: Shift Legend Pills with Enlarged Icons (แสดงตามโหมดเวรที่เลือก - สไตล์เท่าเทียมกันทุกการ์ด) -->
+        <div id="headerShiftPillsContainer" class="flex items-center gap-2 bg-white/15 p-1.5 sm:p-2 rounded-2xl border border-white/20 backdrop-blur-md shadow-xs overflow-x-auto max-w-full">
+          <div class="flex items-center gap-2 bg-sky-500/25 border border-white/30 px-3 py-1.5 rounded-xl shrink-0">
+            <span class="text-xl shrink-0">☀️</span>
             <div>
-              <div class="font-bold text-white text-xs">เวรเช้า (M)</div>
-              <div class="text-[10px] text-blue-100 font-mono">08:30 - 16:30 น.</div>
+              <div class="font-bold text-white text-xs whitespace-nowrap">เวรเช้า (M)</div>
+              <div class="text-[10px] text-blue-100 font-mono whitespace-nowrap">08:30 - 16:30 น.</div>
             </div>
           </div>
-          <div class="flex items-center gap-2 bg-amber-500/25 border border-white/30 px-3.5 py-1.5 rounded-xl">
-            <span class="text-xl">⛅</span>
+          <div class="flex items-center gap-2 bg-amber-500/25 border border-white/30 px-3 py-1.5 rounded-xl shrink-0">
+            <span class="text-xl shrink-0">⛅</span>
             <div>
-              <div class="font-bold text-white text-xs">เวรบ่าย (A)</div>
-              <div class="text-[10px] text-amber-100 font-mono">16:30 - 00:30 น.</div>
+              <div class="font-bold text-white text-xs whitespace-nowrap">เวรบ่าย (A)</div>
+              <div class="text-[10px] text-amber-100 font-mono whitespace-nowrap">16:30 - 00:30 น.</div>
             </div>
           </div>
-          <div id="headerShiftNPill" class="flex items-center gap-2 bg-purple-500/25 border border-white/30 px-3.5 py-1.5 rounded-xl">
-            <span class="text-xl">🌙</span>
+          <div id="headerShiftNPill" class="flex items-center gap-2 bg-purple-500/25 border border-white/30 px-3 py-1.5 rounded-xl shrink-0">
+            <span class="text-xl shrink-0">🌙</span>
             <div>
-              <div class="font-bold text-white text-xs">เวรดึก (N)</div>
-              <div class="text-[10px] text-purple-100 font-mono">00:30 - 08:30 น.</div>
+              <div class="font-bold text-white text-xs whitespace-nowrap">เวรดึก (N)</div>
+              <div class="text-[10px] text-purple-100 font-mono whitespace-nowrap">00:30 - 08:30 น.</div>
             </div>
           </div>
         </div>
@@ -1161,6 +1161,7 @@
     </div>
   </div>
 
+  <script src="js/exceljs.min.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

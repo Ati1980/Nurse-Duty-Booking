@@ -118,7 +118,7 @@ function updateShiftModeUI() {
   // Header shift pills reflect active shift mode
   const headerNPill = document.getElementById('headerShiftNPill');
   if (headerNPill) {
-    headerNPill.style.display = (shiftMode === 2 ? 'none' : 'inline-block');
+    headerNPill.style.display = (shiftMode === 2 ? 'none' : 'flex');
   }
 
   // Hide or show 'N' (เวรดึก) in quick booking modal
@@ -3682,37 +3682,610 @@ window.cancelOptimization = function() {
 window.confirmOptimization = confirmOptimization;
 window.runOptimization = runOptimization;
 
-function exportRoster() {
+async function exportRoster() {
   const daysCount = getDaysCount(currentYear, currentMonth);
-  let csv = '\uFEFF';
-  csv += `"ตารางเวรพยาบาล ประจำเดือน ${THAI_MONTHS[currentMonth]} พ.ศ. ${currentYear + 543}"\r\n\r\n`;
-  let header = ['ลำดับ', 'รหัส', 'ชื่อ - สกุล'];
-  for (let d = 1; d <= daysCount; d++) header.push(`"วันที่ ${d}"`);
-  header.push('เวรเช้า', 'เวรบ่าย', 'เวรดึก', 'รวมเวร', 'รวมชั่วโมง');
-  csv += header.join(',') + '\r\n';
+  const monthName = THAI_MONTHS[currentMonth];
+  const yearBE = currentYear + 543;
+  const fileNameBase = `ตารางเวรพยาบาล_${monthName}_${yearBE}`;
 
-  NURSES.forEach((nurse, index) => {
-    let row = [index + 1, `"${nurse.id}"`, `"${nurse.name}"`];
+  // 1. Primary Method: ExcelJS for Native .xlsx with Real Cell Colors, Borders & Freeze Panes
+  if (typeof ExcelJS !== 'undefined') {
+    try {
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'ระบบจัดตารางเวรพยาบาล';
+      wb.created = new Date();
+
+      const ws = wb.addWorksheet(`ตารางเวร ${monthName} ${yearBE}`, {
+        views: [{ state: 'frozen', xSplit: 3, ySplit: 5 }],
+        pageSetup: { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+      });
+
+      // Border styles
+      const borderThinSlate = {
+        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+      };
+      const borderHeader = {
+        top: { style: 'thin', color: { argb: 'FF94A3B8' } },
+        left: { style: 'thin', color: { argb: 'FF94A3B8' } },
+        bottom: { style: 'medium', color: { argb: 'FF1E293B' } },
+        right: { style: 'thin', color: { argb: 'FF94A3B8' } }
+      };
+
+      const summaryColOffset = 3 + daysCount;
+      const totalCols = shiftMode === 3 ? (summaryColOffset + 5) : (summaryColOffset + 4);
+
+      // Title & Subtitle Rows (Row 1 & 2)
+      ws.mergeCells(1, 1, 1, Math.min(10, totalCols));
+      const titleCell = ws.getCell(1, 1);
+      titleCell.value = `ตารางเวรพยาบาล ประจำเดือน ${monthName} พ.ศ. ${yearBE}`;
+      titleCell.font = { name: 'Sarabun', size: 16, bold: true, color: { argb: 'FF1E3A8A' } };
+      titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+      ws.getRow(1).height = 30;
+
+      const now = new Date();
+      const exportTimeStr = `${now.getDate()} ${THAI_MONTHS[now.getMonth()]} ${now.getFullYear() + 543} เวลา ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} น.`;
+      ws.mergeCells(2, 1, 2, Math.min(10, totalCols));
+      const subCell = ws.getCell(2, 1);
+      subCell.value = `รูปแบบเวร: ${shiftMode === 3 ? '3 เวร/วัน (เช้า 08:30-16:30, บ่าย 16:30-00:30, ดึก 00:30-08:30)' : '2 เวร/วัน (เช้า 08:30-16:30, บ่าย 16:30-00:30)'}  |  ส่งออกเมื่อ: ${exportTimeStr}`;
+      subCell.font = { name: 'Sarabun', size: 10, italic: true, color: { argb: 'FF64748B' } };
+      subCell.alignment = { vertical: 'middle', horizontal: 'left' };
+      ws.getRow(2).height = 18;
+      ws.getRow(3).height = 8;
+
+      // Table Header Rows (Row 4 & Row 5)
+      ws.getRow(4).height = 24;
+      ws.getRow(5).height = 20;
+
+      // Col 1: ลำดับ
+      ws.mergeCells(4, 1, 5, 1);
+      const cNo = ws.getCell(4, 1);
+      cNo.value = 'ลำดับ';
+      cNo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } };
+      cNo.font = { name: 'Sarabun', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+      cNo.alignment = { vertical: 'middle', horizontal: 'center' };
+      cNo.border = borderHeader;
+
+      // Col 2: รหัส
+      ws.mergeCells(4, 2, 5, 2);
+      const cId = ws.getCell(4, 2);
+      cId.value = 'รหัส';
+      cId.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } };
+      cId.font = { name: 'Sarabun', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+      cId.alignment = { vertical: 'middle', horizontal: 'center' };
+      cId.border = borderHeader;
+
+      // Col 3: ชื่อ - สกุล
+      ws.mergeCells(4, 3, 5, 3);
+      const cName = ws.getCell(4, 3);
+      cName.value = 'ชื่อ - สกุล';
+      cName.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } };
+      cName.font = { name: 'Sarabun', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+      cName.alignment = { vertical: 'middle', horizontal: 'center' };
+      cName.border = borderHeader;
+
+      // Dates (Col 4 to 3 + daysCount)
+      for (let d = 1; d <= daysCount; d++) {
+        const colIdx = 3 + d;
+        const dt = new Date(currentYear, currentMonth, d);
+        const dayOfWeek = dt.getDay();
+        const dayName = CALENDAR_HEADERS[dayOfWeek].short;
+
+        const cellDate = ws.getCell(4, colIdx);
+        cellDate.value = d;
+        cellDate.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } };
+        cellDate.font = { name: 'Sarabun', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+        cellDate.alignment = { vertical: 'middle', horizontal: 'center' };
+        cellDate.border = borderHeader;
+
+        const cellDay = ws.getCell(5, colIdx);
+        cellDay.value = dayName;
+        let dayBg = 'FF1D4ED8';
+        if (dayOfWeek === 0) dayBg = 'FFF43F5E'; // อาทิตย์ (แดง/ชมพู)
+        else if (dayOfWeek === 6) dayBg = 'FF8B5CF6'; // เสาร์ (ม่วง)
+        cellDay.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: dayBg } };
+        cellDay.font = { name: 'Sarabun', size: 9, bold: true, color: { argb: 'FFFFFFFF' } };
+        cellDay.alignment = { vertical: 'middle', horizontal: 'center' };
+        cellDay.border = borderHeader;
+      }
+
+      // Summary Headers
+      let sumColIdx = summaryColOffset + 1;
+      const sumColsDef = [
+        { title: 'เวรเช้า (ช)', bg: 'FF0284C7' },
+        { title: 'เวรบ่าย (บ)', bg: 'FFD97706' }
+      ];
+      if (shiftMode === 3) {
+        sumColsDef.push({ title: 'เวรดึก (ด)', bg: 'FF7C3AED' });
+      }
+      sumColsDef.push(
+        { title: 'รวมเวร', bg: 'FF1E40AF' },
+        { title: 'รวมชั่วโมง', bg: 'FF047857' }
+      );
+
+      sumColsDef.forEach(sc => {
+        ws.mergeCells(4, sumColIdx, 5, sumColIdx);
+        const scCell = ws.getCell(4, sumColIdx);
+        scCell.value = sc.title;
+        scCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: sc.bg } };
+        scCell.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+        scCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        scCell.border = borderHeader;
+        sumColIdx++;
+      });
+
+      // Data Rows
+      let currentRowIdx = 6;
+      const dailyTotalsM = Array(daysCount + 1).fill(0);
+      const dailyTotalsA = Array(daysCount + 1).fill(0);
+      const dailyTotalsN = Array(daysCount + 1).fill(0);
+
+      NURSES.forEach((nurse, nIdx) => {
+        ws.getRow(currentRowIdx).height = 24;
+
+        const cN = ws.getCell(currentRowIdx, 1);
+        cN.value = nIdx + 1;
+        cN.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+        cN.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FF64748B' } };
+        cN.alignment = { vertical: 'middle', horizontal: 'center' };
+        cN.border = borderThinSlate;
+
+        const cI = ws.getCell(currentRowIdx, 2);
+        cI.value = nurse.id;
+        cI.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+        cI.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FF1E293B' } };
+        cI.alignment = { vertical: 'middle', horizontal: 'center' };
+        cI.border = borderThinSlate;
+
+        const cNm = ws.getCell(currentRowIdx, 3);
+        cNm.value = nurse.name;
+        cNm.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+        cNm.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FF0F172A' } };
+        cNm.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        cNm.border = borderThinSlate;
+
+        let mCount = 0, aCount = 0, nCount = 0;
+        const shifts = (monthState.roster && monthState.roster[nurse.id]) || {};
+
+        for (let d = 1; d <= daysCount; d++) {
+          const colIdx = 3 + d;
+          const cell = ws.getCell(currentRowIdx, colIdx);
+          const s = shifts[d] || [];
+          const hasM = s.includes('M');
+          const hasA = s.includes('A');
+          const hasN = (shiftMode === 3 && s.includes('N'));
+
+          if (hasM) { mCount++; dailyTotalsM[d]++; }
+          if (hasA) { aCount++; dailyTotalsA[d]++; }
+          if (hasN) { nCount++; dailyTotalsN[d]++; }
+
+          const activeShifts = [];
+          if (hasM) activeShifts.push('ช');
+          if (hasA) activeShifts.push('บ');
+          if (hasN) activeShifts.push('ด');
+
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+          if (activeShifts.length === 1) {
+            const shiftChar = activeShifts[0];
+            cell.value = shiftChar;
+            if (shiftChar === 'ช') {
+              // เวรเช้า: สีฟ้าพาสเทลสดใส ขอบฟ้า ตัวหนังสือสีน้ำเงินเข้มหนา
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBAE6FD' } };
+              cell.font = { name: 'Sarabun', size: 11, bold: true, color: { argb: 'FF0369A1' } };
+              cell.border = {
+                top: { style: 'thin', color: { argb: 'FF7DD3FC' } },
+                left: { style: 'thin', color: { argb: 'FF7DD3FC' } },
+                bottom: { style: 'thin', color: { argb: 'FF7DD3FC' } },
+                right: { style: 'thin', color: { argb: 'FF7DD3FC' } }
+              };
+            } else if (shiftChar === 'บ') {
+              // เวรบ่าย: สีส้ม/เหลืองอบอุ่น ขอบส้ม ตัวหนังสือสีน้ำตาลส้มเข้มหนา
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFED7AA' } };
+              cell.font = { name: 'Sarabun', size: 11, bold: true, color: { argb: 'FFC2410C' } };
+              cell.border = {
+                top: { style: 'thin', color: { argb: 'FFFDBA74' } },
+                left: { style: 'thin', color: { argb: 'FFFDBA74' } },
+                bottom: { style: 'thin', color: { argb: 'FFFDBA74' } },
+                right: { style: 'thin', color: { argb: 'FFFDBA74' } }
+              };
+            } else if (shiftChar === 'ด') {
+              // เวรดึก: สีม่วงอ่อนพาสเทล ขอบม่วง ตัวหนังสือสีม่วงเข้มหนา
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDDD6FE' } };
+              cell.font = { name: 'Sarabun', size: 11, bold: true, color: { argb: 'FF6D28D9' } };
+              cell.border = {
+                top: { style: 'thin', color: { argb: 'FFC4B5FD' } },
+                left: { style: 'thin', color: { argb: 'FFC4B5FD' } },
+                bottom: { style: 'thin', color: { argb: 'FFC4B5FD' } },
+                right: { style: 'thin', color: { argb: 'FFC4B5FD' } }
+              };
+            }
+          } else if (activeShifts.length > 1) {
+            // เวรควบ (ช+บ หรือ บ+ด)
+            cell.value = activeShifts.join('+');
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFECDD3' } };
+            cell.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FFBE123C' } };
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FFFDA4AF' } },
+              left: { style: 'thin', color: { argb: 'FFFDA4AF' } },
+              bottom: { style: 'thin', color: { argb: 'FFFDA4AF' } },
+              right: { style: 'thin', color: { argb: 'FFFDA4AF' } }
+            };
+          } else {
+            // วันว่าง
+            cell.value = '';
+            const dt = new Date(currentYear, currentMonth, d);
+            const isWeekend = (dt.getDay() === 0 || dt.getDay() === 6);
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isWeekend ? 'FFF8FAFC' : 'FFFFFFFF' } };
+            cell.border = borderThinSlate;
+          }
+        }
+
+        // Summary columns
+        const totShifts = shiftMode === 3 ? (mCount + aCount + nCount) : (mCount + aCount);
+        const totHours = totShifts * 8;
+        let cCol = summaryColOffset + 1;
+
+        // Morning Total
+        const cM = ws.getCell(currentRowIdx, cCol++);
+        cM.value = mCount;
+        cM.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F9FF' } };
+        cM.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FF0284C7' } };
+        cM.alignment = { vertical: 'middle', horizontal: 'center' };
+        cM.border = borderThinSlate;
+
+        // Afternoon Total
+        const cA = ws.getCell(currentRowIdx, cCol++);
+        cA.value = aCount;
+        cA.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFBEB' } };
+        cA.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FFD97706' } };
+        cA.alignment = { vertical: 'middle', horizontal: 'center' };
+        cA.border = borderThinSlate;
+
+        // Night Total (if 3-shift mode)
+        if (shiftMode === 3) {
+          const cNt = ws.getCell(currentRowIdx, cCol++);
+          cNt.value = nCount;
+          cNt.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFAF5FF' } };
+          cNt.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FF7C3AED' } };
+          cNt.alignment = { vertical: 'middle', horizontal: 'center' };
+          cNt.border = borderThinSlate;
+        }
+
+        // Total Shifts
+        const cTot = ws.getCell(currentRowIdx, cCol++);
+        cTot.value = totShifts;
+        cTot.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } };
+        cTot.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FF1D4ED8' } };
+        cTot.alignment = { vertical: 'middle', horizontal: 'center' };
+        cTot.border = borderThinSlate;
+
+        // Total Hours
+        const cHr = ws.getCell(currentRowIdx, cCol++);
+        cHr.value = totHours;
+        cHr.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } };
+        cHr.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FF047857' } };
+        cHr.alignment = { vertical: 'middle', horizontal: 'center' };
+        cHr.border = borderThinSlate;
+
+        currentRowIdx++;
+      });
+
+      // Footer Summary Rows (Department Total per Day)
+      const borderFooterTop = {
+        top: { style: 'medium', color: { argb: 'FF334155' } },
+        left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+      };
+      const borderFooterDoubleBottom = {
+        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        bottom: { style: 'double', color: { argb: 'FF1E293B' } },
+        right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+      };
+
+      // 1. รวมเวรเช้า (ช)
+      ws.getRow(currentRowIdx).height = 22;
+      ws.mergeCells(currentRowIdx, 1, currentRowIdx, 3);
+      const fLabelM = ws.getCell(currentRowIdx, 1);
+      fLabelM.value = '☀️ รวมเวรเช้า (ช)';
+      fLabelM.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+      fLabelM.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FF0369A1' } };
+      fLabelM.alignment = { vertical: 'middle', horizontal: 'right' };
+      fLabelM.border = borderFooterTop;
+      ws.getCell(currentRowIdx, 2).border = borderFooterTop;
+      ws.getCell(currentRowIdx, 3).border = borderFooterTop;
+
+      let grandTotalM = 0;
+      for (let d = 1; d <= daysCount; d++) {
+        const val = dailyTotalsM[d];
+        grandTotalM += val;
+        const c = ws.getCell(currentRowIdx, 3 + d);
+        c.value = val;
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+        c.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FF0369A1' } };
+        c.alignment = { vertical: 'middle', horizontal: 'center' };
+        c.border = borderFooterTop;
+      }
+      let fColM = summaryColOffset + 1;
+      const cGrandM = ws.getCell(currentRowIdx, fColM);
+      cGrandM.value = grandTotalM;
+      cGrandM.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+      cGrandM.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FF0369A1' } };
+      cGrandM.alignment = { vertical: 'middle', horizontal: 'center' };
+      cGrandM.border = borderFooterTop;
+      for (let extra = fColM + 1; extra <= totalCols; extra++) {
+        const c = ws.getCell(currentRowIdx, extra);
+        c.value = '';
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+        c.border = borderFooterTop;
+      }
+      currentRowIdx++;
+
+      // 2. รวมเวรบ่าย (บ)
+      ws.getRow(currentRowIdx).height = 22;
+      ws.mergeCells(currentRowIdx, 1, currentRowIdx, 3);
+      const fLabelA = ws.getCell(currentRowIdx, 1);
+      fLabelA.value = '⛅ รวมเวรบ่าย (บ)';
+      fLabelA.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+      fLabelA.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FFB45309' } };
+      fLabelA.alignment = { vertical: 'middle', horizontal: 'right' };
+      fLabelA.border = borderThinSlate;
+      ws.getCell(currentRowIdx, 2).border = borderThinSlate;
+      ws.getCell(currentRowIdx, 3).border = borderThinSlate;
+
+      let grandTotalA = 0;
+      for (let d = 1; d <= daysCount; d++) {
+        const val = dailyTotalsA[d];
+        grandTotalA += val;
+        const c = ws.getCell(currentRowIdx, 3 + d);
+        c.value = val;
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+        c.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FFB45309' } };
+        c.alignment = { vertical: 'middle', horizontal: 'center' };
+        c.border = borderThinSlate;
+      }
+      let fColA = summaryColOffset + 2;
+      const cGrandA = ws.getCell(currentRowIdx, fColA);
+      cGrandA.value = grandTotalA;
+      cGrandA.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+      cGrandA.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FFB45309' } };
+      cGrandA.alignment = { vertical: 'middle', horizontal: 'center' };
+      cGrandA.border = borderThinSlate;
+      for (let extra = 1; extra <= totalCols; extra++) {
+        if (extra > 3 + daysCount && extra !== fColA) {
+          const c = ws.getCell(currentRowIdx, extra);
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+          c.border = borderThinSlate;
+        }
+      }
+      currentRowIdx++;
+
+      // 3. รวมเวรดึก (ด) if Mode 3
+      let grandTotalN = 0;
+      if (shiftMode === 3) {
+        ws.getRow(currentRowIdx).height = 22;
+        ws.mergeCells(currentRowIdx, 1, currentRowIdx, 3);
+        const fLabelN = ws.getCell(currentRowIdx, 1);
+        fLabelN.value = '🌙 รวมเวรดึก (ด)';
+        fLabelN.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEDE9FE' } };
+        fLabelN.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FF6D28D9' } };
+        fLabelN.alignment = { vertical: 'middle', horizontal: 'right' };
+        fLabelN.border = borderThinSlate;
+        ws.getCell(currentRowIdx, 2).border = borderThinSlate;
+        ws.getCell(currentRowIdx, 3).border = borderThinSlate;
+
+        for (let d = 1; d <= daysCount; d++) {
+          const val = dailyTotalsN[d];
+          grandTotalN += val;
+          const c = ws.getCell(currentRowIdx, 3 + d);
+          c.value = val;
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEDE9FE' } };
+          c.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FF6D28D9' } };
+          c.alignment = { vertical: 'middle', horizontal: 'center' };
+          c.border = borderThinSlate;
+        }
+        let fColN = summaryColOffset + 3;
+        const cGrandN = ws.getCell(currentRowIdx, fColN);
+        cGrandN.value = grandTotalN;
+        cGrandN.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEDE9FE' } };
+        cGrandN.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FF6D28D9' } };
+        cGrandN.alignment = { vertical: 'middle', horizontal: 'center' };
+        cGrandN.border = borderThinSlate;
+        for (let extra = 1; extra <= totalCols; extra++) {
+          if (extra > 3 + daysCount && extra !== fColN) {
+            const c = ws.getCell(currentRowIdx, extra);
+            c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+            c.border = borderThinSlate;
+          }
+        }
+        currentRowIdx++;
+      }
+
+      // 4. Grand Total / รวมปฏิบัติงานต่อวัน
+      ws.getRow(currentRowIdx).height = 24;
+      ws.mergeCells(currentRowIdx, 1, currentRowIdx, 3);
+      const fLabelTot = ws.getCell(currentRowIdx, 1);
+      fLabelTot.value = '👥 รวมปฏิบัติงานต่อวัน';
+      fLabelTot.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+      fLabelTot.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FF0F172A' } };
+      fLabelTot.alignment = { vertical: 'middle', horizontal: 'right' };
+      fLabelTot.border = borderFooterDoubleBottom;
+      ws.getCell(currentRowIdx, 2).border = borderFooterDoubleBottom;
+      ws.getCell(currentRowIdx, 3).border = borderFooterDoubleBottom;
+
+      let grandTotalAllShifts = 0;
+      for (let d = 1; d <= daysCount; d++) {
+        const dayTot = dailyTotalsM[d] + dailyTotalsA[d] + (shiftMode === 3 ? dailyTotalsN[d] : 0);
+        grandTotalAllShifts += dayTot;
+        const c = ws.getCell(currentRowIdx, 3 + d);
+        c.value = dayTot;
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+        c.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FF0F172A' } };
+        c.alignment = { vertical: 'middle', horizontal: 'center' };
+        c.border = borderFooterDoubleBottom;
+      }
+
+      const totShiftsCol = shiftMode === 3 ? (summaryColOffset + 4) : (summaryColOffset + 3);
+      const totHoursCol = totShiftsCol + 1;
+      const cAllShifts = ws.getCell(currentRowIdx, totShiftsCol);
+      cAllShifts.value = grandTotalAllShifts;
+      cAllShifts.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } };
+      cAllShifts.font = { name: 'Sarabun', size: 11, bold: true, color: { argb: 'FF1D4ED8' } };
+      cAllShifts.alignment = { vertical: 'middle', horizontal: 'center' };
+      cAllShifts.border = borderFooterDoubleBottom;
+
+      const cAllHours = ws.getCell(currentRowIdx, totHoursCol);
+      cAllHours.value = grandTotalAllShifts * 8;
+      cAllHours.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } };
+      cAllHours.font = { name: 'Sarabun', size: 11, bold: true, color: { argb: 'FF047857' } };
+      cAllHours.alignment = { vertical: 'middle', horizontal: 'center' };
+      cAllHours.border = borderFooterDoubleBottom;
+
+      for (let extra = summaryColOffset + 1; extra < totShiftsCol; extra++) {
+        const c = ws.getCell(currentRowIdx, extra);
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+        c.border = borderFooterDoubleBottom;
+      }
+
+      // Column widths
+      ws.getColumn(1).width = 7;
+      ws.getColumn(2).width = 11;
+      ws.getColumn(3).width = 25;
+      for (let d = 1; d <= daysCount; d++) {
+        ws.getColumn(3 + d).width = 5.5;
+      }
+      ws.getColumn(summaryColOffset + 1).width = 12;
+      ws.getColumn(summaryColOffset + 2).width = 12;
+      if (shiftMode === 3) {
+        ws.getColumn(summaryColOffset + 3).width = 12;
+        ws.getColumn(summaryColOffset + 4).width = 11;
+        ws.getColumn(summaryColOffset + 5).width = 13;
+      } else {
+        ws.getColumn(summaryColOffset + 3).width = 11;
+        ws.getColumn(summaryColOffset + 4).width = 13;
+      }
+
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${fileNameBase}.xlsx`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+
+      window.showToast?.('✅ ส่งออกไฟล์ Excel (.xlsx) สวยงามเรียบร้อยแล้ว');
+      return;
+    } catch (err) {
+      console.error('ExcelJS export error, falling back to styled HTML spreadsheet:', err);
+    }
+  }
+
+  // 2. Fallback: Styled HTML Spreadsheet with full inline CSS colors & borders
+  let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+  <head>
+    <meta http-equiv="content-type" content="application/vnd.ms-excel; charset=UTF-8">
+    <style>
+      body { font-family: 'Sarabun', Tahoma, sans-serif; font-size: 11px; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #CBD5E1; padding: 5px 6px; text-align: center; vertical-align: middle; }
+      .title-cell { font-size: 16px; font-weight: bold; color: #1E3A8A; text-align: left; border: none; padding: 10px 0 4px 0; }
+      .sub-cell { font-size: 10px; color: #64748B; text-align: left; border: none; padding: 0 0 10px 0; }
+      .header-main { background-color: #1E3A8A; color: #FFFFFF; font-weight: bold; border: 1px solid #94A3B8; }
+      .header-date { background-color: #2563EB; color: #FFFFFF; font-weight: bold; border: 1px solid #94A3B8; }
+      .header-sun { background-color: #F43F5E; color: #FFFFFF; font-weight: bold; border: 1px solid #94A3B8; }
+      .header-sat { background-color: #8B5CF6; color: #FFFFFF; font-weight: bold; border: 1px solid #94A3B8; }
+      .header-m { background-color: #0284C7; color: #FFFFFF; font-weight: bold; }
+      .header-a { background-color: #D97706; color: #FFFFFF; font-weight: bold; }
+      .header-n { background-color: #7C3AED; color: #FFFFFF; font-weight: bold; }
+      .header-tot { background-color: #1E40AF; color: #FFFFFF; font-weight: bold; }
+      .header-hr { background-color: #047857; color: #FFFFFF; font-weight: bold; }
+      .nurse-no { background-color: #F8FAFC; color: #64748B; font-weight: bold; }
+      .nurse-id { background-color: #F8FAFC; color: #1E293B; font-weight: bold; }
+      .nurse-name { background-color: #FFFFFF; color: #0F172A; text-align: left; font-weight: bold; padding-left: 8px; }
+      .shift-m { background-color: #BAE6FD !important; color: #0369A1 !important; font-weight: bold; border: 1px solid #7DD3FC; }
+      .shift-a { background-color: #FED7AA !important; color: #C2410C !important; font-weight: bold; border: 1px solid #FDBA74; }
+      .shift-n { background-color: #DDD6FE !important; color: #6D28D9 !important; font-weight: bold; border: 1px solid #C4B5FD; }
+      .shift-multi { background-color: #FECDD3 !important; color: #BE123C !important; font-weight: bold; border: 1px solid #FDA4AF; }
+      .tot-m { background-color: #F0F9FF; color: #0284C7; font-weight: bold; }
+      .tot-a { background-color: #FFFBEB; color: #D97706; font-weight: bold; }
+      .tot-n { background-color: #FAF5FF; color: #7C3AED; font-weight: bold; }
+      .tot-shifts { background-color: #EFF6FF; color: #1D4ED8; font-weight: bold; }
+      .tot-hours { background-color: #ECFDF5; color: #047857; font-weight: bold; }
+      .footer-label { font-weight: bold; text-align: right; padding-right: 8px; }
+      .footer-grand { font-weight: bold; background-color: #F1F5F9; border-bottom: 3px double #1E293B; }
+    </style>
+  </head>
+  <body>
+    <table>
+      <tr><td colspan="${shiftMode === 3 ? daysCount + 8 : daysCount + 7}" class="title-cell">ตารางเวรพยาบาล ประจำเดือน ${monthName} พ.ศ. ${yearBE}</td></tr>
+      <tr><td colspan="${shiftMode === 3 ? daysCount + 8 : daysCount + 7}" class="sub-cell">รูปแบบ: ${shiftMode === 3 ? '3 เวร/วัน (เช้า, บ่าย, ดึก)' : '2 เวร/วัน (เช้า, บ่าย)'}</td></tr>
+      <tr>
+        <th rowspan="2" class="header-main">ลำดับ</th>
+        <th rowspan="2" class="header-main">รหัส</th>
+        <th rowspan="2" class="header-main">ชื่อ - สกุล</th>`;
+  
+  for (let d = 1; d <= daysCount; d++) {
+    html += `<th class="header-date">${d}</th>`;
+  }
+  html += `<th rowspan="2" class="header-m">เวรเช้า (ช)</th><th rowspan="2" class="header-a">เวรบ่าย (บ)</th>`;
+  if (shiftMode === 3) html += `<th rowspan="2" class="header-n">เวรดึก (ด)</th>`;
+  html += `<th rowspan="2" class="header-tot">รวมเวร</th><th rowspan="2" class="header-hr">รวมชั่วโมง</th></tr><tr>`;
+
+  for (let d = 1; d <= daysCount; d++) {
+    const dt = new Date(currentYear, currentMonth, d);
+    const dayOfWeek = dt.getDay();
+    const dayName = CALENDAR_HEADERS[dayOfWeek].short;
+    const cls = dayOfWeek === 0 ? 'header-sun' : (dayOfWeek === 6 ? 'header-sat' : 'header-date');
+    html += `<th class="${cls}">${dayName}</th>`;
+  }
+  html += `</tr>`;
+
+  NURSES.forEach((nurse, idx) => {
     let m = 0, a = 0, n = 0;
-    const shifts = monthState.roster[nurse.id] || {};
+    const shifts = (monthState.roster && monthState.roster[nurse.id]) || {};
+    html += `<tr><td class="nurse-no">${idx + 1}</td><td class="nurse-id">${nurse.id}</td><td class="nurse-name">${nurse.name}</td>`;
     for (let d = 1; d <= daysCount; d++) {
       const s = shifts[d] || [];
-      let shiftText = [];
-      if (s.includes('M')) { m++; shiftText.push('ช'); }
-      if (s.includes('A')) { a++; shiftText.push('บ'); }
-      if (s.includes('N') && shiftMode === 3) { n++; shiftText.push('ด'); }
-      row.push(`"${shiftText.join('+')}"`);
+      const hasM = s.includes('M');
+      const hasA = s.includes('A');
+      const hasN = (shiftMode === 3 && s.includes('N'));
+      if (hasM) m++;
+      if (hasA) a++;
+      if (hasN) n++;
+
+      const arr = [];
+      if (hasM) arr.push('ช');
+      if (hasA) arr.push('บ');
+      if (hasN) arr.push('ด');
+
+      if (arr.length === 1) {
+        const c = arr[0];
+        const cls = c === 'ช' ? 'shift-m' : (c === 'บ' ? 'shift-a' : 'shift-n');
+        html += `<td class="${cls}">${c}</td>`;
+      } else if (arr.length > 1) {
+        html += `<td class="shift-multi">${arr.join('+')}</td>`;
+      } else {
+        html += `<td></td>`;
+      }
     }
     const tot = shiftMode === 3 ? (m + a + n) : (m + a);
-    row.push(m, a, n, tot, tot * 8);
-    csv += row.join(',') + '\r\n';
+    html += `<td class="tot-m">${m}</td><td class="tot-a">${a}</td>`;
+    if (shiftMode === 3) html += `<td class="tot-n">${n}</td>`;
+    html += `<td class="tot-shifts">${tot}</td><td class="tot-hours">${tot * 8}</td></tr>`;
   });
 
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  html += `</table></body></html>`;
+
+  const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `ตารางเวรพยาบาล_${THAI_MONTHS[currentMonth]}_${currentYear + 543}.csv`;
+  link.download = `${fileNameBase}.xls`;
   link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
 // 13. NURSE MANAGEMENT CRUD LOGIC (เพิ่ม ลบ แก้ไข รายชื่อพยาบาล มีผลทุกหน้าเพจ)
