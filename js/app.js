@@ -1816,229 +1816,952 @@ function renderAdminVacanciesView() {
   container.innerHTML = html;
 }
 
-// 9.5 ADMIN LINE CHART VIEW (กราฟสรุปจำนวนเข้าเวร 3 เส้น: เช้า บ่าย ดึก | แกน X: เดือน/รายชื่อ | แกน Y: จำนวนเข้าเวร)
-let chartDisplayMode = 'monthly'; // 'monthly' หรือ 'nurse_compare'
+// 9.5 ADMIN DUTY ANALYTICS & VISUALIZATION (ศูนย์วิเคราะห์และสถิติตารางเวร)
+// โหมด: 1. เปรียบเทียบทุกคน (รายเดือน), 2. แต่ละคน (รายเดือน 12 เดือน), 3. ยอดเวรสะสม (Cumulative)
+let chartDisplayMode = 'compare_monthly'; // 'compare_monthly', 'individual_monthly', 'cumulative'
+let chartSelectedMonth = currentMonth;
+let chartSelectedNurseId = 'ALL';
+let chartCumulativeSubMode = 'total_bar'; // 'total_bar' (สะสมทุกคน 14 ท่าน), 'trend_line' (แนวโน้มสะสม 12 เดือน)
 let dutyChartInstance = null;
 
 window.setChartDisplayMode = function(mode) {
   chartDisplayMode = mode;
-  const monthBtn = document.getElementById('chartModeMonthTrendBtn');
-  const nurseBtn = document.getElementById('chartModeNurseCompareBtn');
-  const nurseSelectWrapper = document.getElementById('chartNurseSelectWrapper');
+  
+  // Update Tab Buttons UI
+  const tabCompare = document.getElementById('chartTabCompareMonthlyBtn');
+  const tabIndiv = document.getElementById('chartTabIndividualMonthlyBtn');
+  const tabCumul = document.getElementById('chartTabCumulativeBtn');
 
-  if (monthBtn && nurseBtn) {
-    if (mode === 'monthly') {
-      monthBtn.className = "px-3 py-1.5 rounded-lg font-bold bg-blue-600 text-white shadow-2xs transition";
-      nurseBtn.className = "px-3 py-1.5 rounded-lg font-semibold text-slate-600 hover:text-blue-600 transition";
-      if (nurseSelectWrapper) nurseSelectWrapper.style.display = 'flex';
-    } else {
-      nurseBtn.className = "px-3 py-1.5 rounded-lg font-bold bg-blue-600 text-white shadow-2xs transition";
-      monthBtn.className = "px-3 py-1.5 rounded-lg font-semibold text-slate-600 hover:text-blue-600 transition";
-      if (nurseSelectWrapper) nurseSelectWrapper.style.display = 'none';
-    }
-  }
+  const activeClass = "px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 bg-blue-600 text-white shadow-xs cursor-pointer";
+  const inactiveClass = "px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 text-slate-600 hover:text-blue-700 hover:bg-slate-50 cursor-pointer";
+
+  if (tabCompare) tabCompare.className = (mode === 'compare_monthly') ? activeClass : inactiveClass;
+  if (tabIndiv) tabIndiv.className = (mode === 'individual_monthly') ? activeClass : inactiveClass;
+  if (tabCumul) tabCumul.className = (mode === 'cumulative') ? activeClass : inactiveClass;
 
   renderDutyChart();
 };
+
+window.setChartSelectedMonth = function(m) {
+  chartSelectedMonth = parseInt(m, 10);
+  renderDutyChart();
+};
+
+window.setChartSelectedNurse = function(nurseId) {
+  chartSelectedNurseId = nurseId;
+  renderDutyChart();
+};
+
+window.setChartCumulativeSubMode = function(subMode) {
+  chartCumulativeSubMode = subMode;
+  renderDutyChart();
+};
+
+// Helper: Read roster for any month
+function getRosterForMonth(year, month) {
+  if (month === currentMonth && year === currentYear && monthState && monthState.roster) {
+    return monthState.roster;
+  }
+  const key = `nurse_system_${year}_${month}`;
+  const raw = localStorage.getItem(key);
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed.roster || {};
+    } catch (e) {
+      return {};
+    }
+  }
+  return {};
+}
+
+// Helper: Gather 12-month roster statistics for all nurses
+function getYearlyRosterStats() {
+  const stats = {};
+  NURSES.forEach(n => {
+    stats[n.id] = [];
+  });
+
+  for (let m = 0; m < 12; m++) {
+    const roster = getRosterForMonth(currentYear, m);
+    const daysInM = getDaysCount(currentYear, m);
+
+    NURSES.forEach(n => {
+      const nurseShifts = roster[n.id] || {};
+      let countM = 0, countA = 0, countN = 0;
+      for (let d = 1; d <= daysInM; d++) {
+        const shifts = nurseShifts[d] || [];
+        if (shifts.includes('M')) countM++;
+        if (shifts.includes('A')) countA++;
+        if (shifts.includes('N') && shiftMode === 3) countN++;
+      }
+      const tot = (shiftMode === 3) ? (countM + countA + countN) : (countM + countA);
+      stats[n.id].push({ M: countM, A: countA, N: countN, tot });
+    });
+  }
+
+  return stats;
+}
+
+window.renderDutyChart = renderDutyChart;
 
 function renderDutyChart() {
   const canvas = document.getElementById('dutyChartCanvas');
   if (!canvas) return;
 
-  // Toggle Night shift legend based on shiftMode
+  const filtersBar = document.getElementById('chartSubFilterControls');
+  const kpiContainer = document.getElementById('chartKpiCardsContainer');
+  const titleEl = document.getElementById('chartCanvasTitle');
+  const subtitleEl = document.getElementById('chartCanvasSubtitle');
+  const tableContainer = document.getElementById('chartSummaryTableContainer');
+
+  // Legend night pill
   const legNight = document.getElementById('chartLegendNight');
-  if (legNight) {
-    legNight.style.display = (shiftMode === 2 ? 'none' : 'inline-flex');
-  }
+  if (legNight) legNight.style.display = (shiftMode === 2 ? 'none' : 'inline-flex');
+  const legTarget = document.getElementById('chartLegendTarget');
+  if (legTarget) legTarget.style.display = (chartDisplayMode === 'individual_monthly' ? 'none' : 'inline-flex');
 
-  // Populate Nurse Select dropdown if needed
-  const nurseSelect = document.getElementById('chartNurseSelect');
-  if (nurseSelect) {
-    const currentVal = nurseSelect.value || 'ALL';
-    let optHtml = `<option value="ALL">🏢 รวมทั้งแผนก (Department Total)</option>`;
+  const yearlyStats = getYearlyRosterStats();
+
+  let chartLabels = [];
+  let chartDatasets = [];
+  let chartIsStacked = true;
+  let summaryTableHtml = '';
+
+  // =========================================================================
+  // VIEW 1: เปรียบเทียบทุกคน (รายเดือน) - Stacked Bars per Nurse + Average Target Line
+  // =========================================================================
+  if (chartDisplayMode === 'compare_monthly') {
+    // 1. Context Filters Toolbar: Month Selector
+    if (filtersBar) {
+      filtersBar.innerHTML = `
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="font-bold text-slate-700">📅 เลือกเดือน:</span>
+          <div class="inline-flex items-center gap-1 bg-white border border-slate-300 rounded-xl p-0.5 shadow-2xs">
+            <button onclick="setChartSelectedMonth(Math.max(0, chartSelectedMonth - 1))" 
+                    class="p-1 px-2.5 hover:bg-slate-100 rounded-lg text-slate-700 font-bold transition cursor-pointer" title="เดือนก่อนหน้า">◀</button>
+            <select onchange="setChartSelectedMonth(this.value)" 
+                    class="rounded-lg px-2.5 py-1 text-xs font-black text-blue-900 border-none outline-none cursor-pointer bg-transparent">
+              ${THAI_MONTHS.map((name, idx) => `
+                <option value="${idx}" ${idx === chartSelectedMonth ? 'selected' : ''}>
+                  ${name} (${idx + 1}/${currentYear + 543})
+                </option>
+              `).join('')}
+            </select>
+            <button onclick="setChartSelectedMonth(Math.min(11, chartSelectedMonth + 1))" 
+                    class="p-1 px-2.5 hover:bg-slate-100 rounded-lg text-slate-700 font-bold transition cursor-pointer" title="เดือนถัดไป">▶</button>
+          </div>
+          <button onclick="setChartSelectedMonth(${currentMonth})" 
+                  class="px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${chartSelectedMonth === currentMonth ? 'bg-blue-600 text-white shadow-2xs' : 'bg-white border border-slate-200 text-slate-700 hover:bg-blue-50'}">
+            📅 เดือนปัจจุบัน (${THAI_MONTHS[currentMonth]})
+          </button>
+        </div>
+      `;
+    }
+
+    // 2. Data Calculation
+    const mCounts = [];
+    const aCounts = [];
+    const nCounts = [];
+    const totCounts = [];
+    const nurseRows = [];
+
+    let totalMonthShifts = 0;
+    let maxNurse = { name: '-', tot: -1 };
+    let minNurse = { name: '-', tot: 99999 };
+
     NURSES.forEach(n => {
-      optHtml += `<option value="${n.id}">${n.num}. ${n.name}</option>`;
+      const monthData = yearlyStats[n.id][chartSelectedMonth] || { M: 0, A: 0, N: 0, tot: 0 };
+      mCounts.push(monthData.M);
+      aCounts.push(monthData.A);
+      nCounts.push(monthData.N);
+      totCounts.push(monthData.tot);
+
+      totalMonthShifts += monthData.tot;
+
+      if (monthData.tot > maxNurse.tot) {
+        maxNurse = { name: n.name, tot: monthData.tot, num: n.num };
+      }
+      if (monthData.tot < minNurse.tot) {
+        minNurse = { name: n.name, tot: monthData.tot, num: n.num };
+      }
+
+      nurseRows.push({
+        nurse: n,
+        M: monthData.M,
+        A: monthData.A,
+        N: monthData.N,
+        tot: monthData.tot
+      });
+
+      const shortName = n.name.replace(/^(น\.ส\.|นาง|นาย)\s*/, '').split(' ')[0] || n.name;
+      chartLabels.push(`#${n.num} ${shortName}`);
     });
-    nurseSelect.innerHTML = optHtml;
-    // Restore selection if valid
-    if (currentVal === 'ALL' || NURSES.some(x => x.id === currentVal)) {
-      nurseSelect.value = currentVal;
-    } else {
-      nurseSelect.value = 'ALL';
+
+    const targetAvg = NURSES.length > 0 ? (totalMonthShifts / NURSES.length) : 0;
+    if (minNurse.tot === 99999) minNurse = { name: '-', tot: 0, num: 0 };
+
+    // 3. Titles
+    if (titleEl) titleEl.innerText = `👥 เปรียบเทียบจำนวนเวรพยาบาลทั้ง ${NURSES.length} ท่าน ประจำเดือน ${THAI_MONTHS[chartSelectedMonth]} ${currentYear + 543}`;
+    if (subtitleEl) subtitleEl.innerText = `(กราฟแท่งแบบซ้อนแยกตามกะ เช้า/บ่าย/ดึก พร้อมเส้นเป้าหมายค่าเฉลี่ยแผนก)`;
+
+    // 4. KPI Cards
+    if (kpiContainer) {
+      kpiContainer.innerHTML = `
+        <div class="glass-card rounded-2xl p-4 border border-blue-200/60 bg-gradient-to-br from-blue-50/70 to-indigo-50/40 shadow-xs">
+          <div class="flex items-center justify-between pb-1.5">
+            <span class="text-xs font-bold text-blue-900">🏢 เวรทั้งหมดในเดือนนี้</span>
+            <span class="text-lg">📋</span>
+          </div>
+          <div class="text-2xl font-black text-blue-950">${totalMonthShifts} <span class="text-xs font-bold text-blue-700">เวร</span></div>
+          <div class="text-[11px] text-slate-500 font-medium mt-0.5">รวมชั่วโมง: ${totalMonthShifts * 8} ชม.</div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-4 border border-rose-200/60 bg-gradient-to-br from-rose-50/70 to-orange-50/40 shadow-xs">
+          <div class="flex items-center justify-between pb-1.5">
+            <span class="text-xs font-bold text-rose-900">🎯 ค่าเฉลี่ยเวรต่อคน</span>
+            <span class="text-lg">⚖️</span>
+          </div>
+          <div class="text-2xl font-black text-rose-950">${targetAvg.toFixed(1)} <span class="text-xs font-bold text-rose-700">เวร/ท่าน</span></div>
+          <div class="text-[11px] text-slate-500 font-medium mt-0.5">เกณฑ์จัดเวรที่เท่าเทียม</div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-4 border border-emerald-200/60 bg-gradient-to-br from-emerald-50/70 to-teal-50/40 shadow-xs">
+          <div class="flex items-center justify-between pb-1.5">
+            <span class="text-xs font-bold text-emerald-900">🥇 ผู้เข้าเวรสูงสุด</span>
+            <span class="text-lg">🔝</span>
+          </div>
+          <div class="text-2xl font-black text-emerald-950">${maxNurse.tot} <span class="text-xs font-bold text-emerald-700">เวร</span></div>
+          <div class="text-[11px] text-slate-600 font-bold truncate mt-0.5">${maxNurse.num ? '#' + maxNurse.num + ' ' : ''}${maxNurse.name}</div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-4 border border-amber-200/60 bg-gradient-to-br from-amber-50/70 to-yellow-50/40 shadow-xs">
+          <div class="flex items-center justify-between pb-1.5">
+            <span class="text-xs font-bold text-amber-900">📉 ผู้เข้าเวรต่ำสุด</span>
+            <span class="text-lg">🔻</span>
+          </div>
+          <div class="text-2xl font-black text-amber-950">${minNurse.tot} <span class="text-xs font-bold text-amber-700">เวร</span></div>
+          <div class="text-[11px] text-slate-600 font-bold truncate mt-0.5">${minNurse.num ? '#' + minNurse.num + ' ' : ''}${minNurse.name}</div>
+        </div>
+      `;
     }
+
+    // 5. Datasets (Stacked Bar + Target Line)
+    chartIsStacked = true;
+    chartDatasets = [
+      {
+        type: 'bar',
+        label: 'เวรเช้า (M)',
+        data: mCounts,
+        backgroundColor: '#0284c7',
+        borderRadius: 4,
+        stack: 'duty_stack'
+      },
+      {
+        type: 'bar',
+        label: 'เวรบ่าย (A)',
+        data: aCounts,
+        backgroundColor: '#f59e0b',
+        borderRadius: 4,
+        stack: 'duty_stack'
+      }
+    ];
+
+    if (shiftMode === 3) {
+      chartDatasets.push({
+        type: 'bar',
+        label: 'เวรดึก (N)',
+        data: nCounts,
+        backgroundColor: '#8b5cf6',
+        borderRadius: 4,
+        stack: 'duty_stack'
+      });
+    }
+
+    // Reference Target Line
+    chartDatasets.push({
+      type: 'line',
+      label: 'ค่าเฉลี่ยเป้าหมาย',
+      data: Array(NURSES.length).fill(parseFloat(targetAvg.toFixed(1))),
+      borderColor: '#ef4444',
+      borderWidth: 2.5,
+      borderDash: [6, 4],
+      pointRadius: 0,
+      fill: false,
+      stack: 'none'
+    });
+
+    // 6. Summary Table
+    let rowsHtml = '';
+    nurseRows.forEach((r, idx) => {
+      const isEven = (idx % 2 === 1);
+      const rowBg = isEven ? 'bg-slate-50/70' : 'bg-white';
+      const diff = r.tot - targetAvg;
+      let balanceBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">🟢 ตามเป้าหมาย</span>`;
+      if (diff >= 2) {
+        balanceBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">🟠 สูงกว่าเฉลี่ย (+${diff.toFixed(1)})</span>`;
+      } else if (diff <= -2) {
+        balanceBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">🔵 ต่ำกว่าเฉลี่ย (${diff.toFixed(1)})</span>`;
+      }
+
+      rowsHtml += `
+        <tr class="${rowBg} hover:bg-blue-50/60 transition border-b border-slate-100">
+          <td class="py-2.5 px-3 text-center">
+            <span class="nurse-num-badge w-6 h-6 text-xs font-black shadow-2xs" 
+                  style="background-color: ${r.nurse.color}; color: ${getContrastColor(r.nurse.color)};">
+              ${r.nurse.num}
+            </span>
+          </td>
+          <td class="py-2.5 px-3 font-mono font-bold text-blue-900">${r.nurse.id}</td>
+          <td class="py-2.5 px-3 font-bold text-slate-800">${r.nurse.name}</td>
+          <td class="py-2.5 px-3 text-center text-sky-800 font-bold bg-sky-50/40">${r.M}</td>
+          <td class="py-2.5 px-3 text-center text-amber-800 font-bold bg-amber-50/40">${r.A}</td>
+          ${shiftMode === 3 ? `<td class="py-2.5 px-3 text-center text-purple-800 font-bold bg-purple-50/40">${r.N}</td>` : ''}
+          <td class="py-2.5 px-3 text-center font-black text-blue-950 bg-blue-50/80">${r.tot}</td>
+          <td class="py-2.5 px-3 text-center font-mono text-slate-600">${r.tot * 8} ชม.</td>
+          <td class="py-2.5 px-3 text-center">${balanceBadge}</td>
+        </tr>
+      `;
+    });
+
+    summaryTableHtml = `
+      <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 flex-wrap gap-2">
+        <h4 class="text-xs md:text-sm font-black text-slate-900 flex items-center gap-1.5">
+          <span>📊</span>
+          <span>ตารางแจกแจงเวรพยาบาล ประจำเดือน ${THAI_MONTHS[chartSelectedMonth]} ${currentYear + 543}</span>
+        </h4>
+        <span class="text-xs text-slate-500 font-bold">รวมทั้งหมด ${totalMonthShifts} เวร</span>
+      </div>
+      <table class="min-w-full text-left text-xs border-collapse">
+        <thead class="bg-slate-100 text-slate-700 font-black border-b border-slate-300">
+          <tr>
+            <th class="py-2.5 px-3 text-center w-12">#</th>
+            <th class="py-2.5 px-3 w-24">รหัส</th>
+            <th class="py-2.5 px-3">ชื่อ - สกุล</th>
+            <th class="py-2.5 px-3 text-center text-sky-900 bg-sky-100/60 w-24">☀️ เวรเช้า (M)</th>
+            <th class="py-2.5 px-3 text-center text-amber-900 bg-amber-100/60 w-24">⛅ เวรบ่าย (A)</th>
+            ${shiftMode === 3 ? '<th class="py-2.5 px-3 text-center text-purple-900 bg-purple-100/60 w-24">🌙 เวรดึก (N)</th>' : ''}
+            <th class="py-2.5 px-3 text-center text-blue-950 bg-blue-100/80 w-24">รวมเวร</th>
+            <th class="py-2.5 px-3 text-center w-24">รวมชั่วโมง</th>
+            <th class="py-2.5 px-3 text-center w-36">สถานะเทียบค่าเฉลี่ย</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+        <tfoot class="bg-slate-100 font-black text-slate-800 border-t-2 border-slate-300">
+          <tr>
+            <td colspan="3" class="py-2.5 px-3 text-right">รวมทั้งสิ้นในเดือนนี้:</td>
+            <td class="py-2.5 px-3 text-center text-sky-900 font-black">${mCounts.reduce((a,b)=>a+b,0)}</td>
+            <td class="py-2.5 px-3 text-center text-amber-900 font-black">${aCounts.reduce((a,b)=>a+b,0)}</td>
+            ${shiftMode === 3 ? `<td class="py-2.5 px-3 text-center text-purple-900 font-black">${nCounts.reduce((a,b)=>a+b,0)}</td>` : ''}
+            <td class="py-2.5 px-3 text-center text-blue-950 font-black">${totalMonthShifts}</td>
+            <td class="py-2.5 px-3 text-center font-mono font-black">${totalMonthShifts * 8} ชม.</td>
+            <td class="py-2.5 px-3 text-center text-slate-500 font-normal">เฉลี่ย ${targetAvg.toFixed(1)}/ท่าน</td>
+          </tr>
+        </tfoot>
+      </table>
+    `;
   }
 
-  let labels = [];
-  let mCounts = [];
-  let aCounts = [];
-  let nCounts = [];
-  let summaryRows = [];
+  // =========================================================================
+  // VIEW 2: แต่ละคน (รายเดือน 12 เดือน) - Grouped / Stacked Bars + Monthly Line
+  // =========================================================================
+  else if (chartDisplayMode === 'individual_monthly') {
+    // 1. Context Filters Toolbar: Nurse Selector + Quick Chips
+    if (filtersBar) {
+      const quickChipsHtml = NURSES.map(n => `
+        <button type="button" onclick="setChartSelectedNurse('${n.id}')"
+                class="px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border cursor-pointer ${chartSelectedNurseId === n.id ? 'ring-2 ring-blue-600 bg-blue-50 text-blue-900 border-blue-400' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}"
+                title="${n.name}">
+          <span class="nurse-num-badge w-4 h-4 text-[9px] font-black inline-flex items-center justify-center rounded-sm"
+                style="background-color: ${n.color}; color: ${getContrastColor(n.color)};">
+            ${n.num}
+          </span>
+          <span>${n.name.split(' ')[0]}</span>
+        </button>
+      `).join('');
 
-  const chartTitleEl = document.getElementById('chartCanvasTitle');
-
-  if (chartDisplayMode === 'monthly') {
-    // Mode 1: X = 12 Months (ม.ค. - ธ.ค.), Y = Duty Count, 3 Lines (เช้า, บ่าย, ดึก)
-    labels = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-    const selectedNurseId = nurseSelect ? nurseSelect.value : 'ALL';
-    const nurseObj = NURSES.find(x => x.id === selectedNurseId);
-    const targetName = (selectedNurseId === 'ALL') ? 'รวมทั้งแผนก' : (nurseObj ? `${nurseObj.name} (หมายเลข ${nurseObj.num})` : selectedNurseId);
-
-    if (chartTitleEl) {
-      chartTitleEl.innerText = `📈 แนวโน้มจำนวนเข้าเวร 12 เดือน ประจำปี พ.ศ. ${currentYear + 543} - [${targetName}]`;
+      filtersBar.innerHTML = `
+        <div class="flex items-center gap-2.5 flex-wrap w-full">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-slate-700">👩‍⚕️ เลือกพยาบาล:</span>
+            <select id="chartNurseSelect" onchange="setChartSelectedNurse(this.value)" 
+                    class="glass-input rounded-xl px-3 py-1.5 text-xs font-bold text-blue-900 outline-none cursor-pointer">
+              <option value="ALL" ${chartSelectedNurseId === 'ALL' ? 'selected' : ''}>🏢 รวมทั้งแผนก (Department Total)</option>
+              ${NURSES.map(n => `<option value="${n.id}" ${n.id === chartSelectedNurseId ? 'selected' : ''}>#${n.num} ${n.name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
+            <button type="button" onclick="setChartSelectedNurse('ALL')"
+                    class="px-2.5 py-1 rounded-xl text-xs font-bold transition border cursor-pointer ${chartSelectedNurseId === 'ALL' ? 'ring-2 ring-blue-600 bg-blue-50 text-blue-900 border-blue-400' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}">
+              🏢 รวมแผนก
+            </button>
+            ${quickChipsHtml}
+          </div>
+        </div>
+      `;
     }
+
+    // 2. Data Calculation across 12 months
+    chartLabels = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    const mCounts = [];
+    const aCounts = [];
+    const nCounts = [];
+    const totCounts = [];
+    const monthlyRows = [];
+
+    let yearTot = 0;
+    let yearM = 0;
+    let yearA = 0;
+    let yearN = 0;
+    let peakMonth = { name: '-', val: 0 };
 
     for (let m = 0; m < 12; m++) {
-      let rosterData = {};
-      if (m === currentMonth) {
-        rosterData = monthState.roster || {};
-      } else {
-        const raw = localStorage.getItem(`nurse_system_${currentYear}_${m}`);
-        if (raw) {
-          try {
-            const parsed = JSON.parse(raw);
-            rosterData = parsed.roster || {};
-          } catch (e) {
-            rosterData = {};
-          }
-        }
-      }
-
       let mVal = 0, aVal = 0, nVal = 0;
-      const daysInM = getDaysCount(currentYear, m);
-
-      if (selectedNurseId === 'ALL') {
+      if (chartSelectedNurseId === 'ALL') {
         NURSES.forEach(n => {
-          const nShifts = rosterData[n.id] || {};
-          for (let d = 1; d <= daysInM; d++) {
-            const arr = nShifts[d] || [];
-            if (arr.includes('M')) mVal++;
-            if (arr.includes('A')) aVal++;
-            if (arr.includes('N') && shiftMode === 3) nVal++;
-          }
+          const d = yearlyStats[n.id][m];
+          mVal += d.M; aVal += d.A; nVal += d.N;
         });
       } else {
-        const nShifts = rosterData[selectedNurseId] || {};
-        for (let d = 1; d <= daysInM; d++) {
-          const arr = nShifts[d] || [];
-          if (arr.includes('M')) mVal++;
-          if (arr.includes('A')) aVal++;
-          if (arr.includes('N') && shiftMode === 3) nVal++;
-        }
+        const d = yearlyStats[chartSelectedNurseId] ? yearlyStats[chartSelectedNurseId][m] : { M: 0, A: 0, N: 0 };
+        mVal = d.M; aVal = d.A; nVal = d.N;
       }
 
+      const tot = (shiftMode === 3) ? (mVal + aVal + nVal) : (mVal + aVal);
       mCounts.push(mVal);
       aCounts.push(aVal);
       nCounts.push(nVal);
+      totCounts.push(tot);
 
-      const tot = (shiftMode === 3) ? (mVal + aVal + nVal) : (mVal + aVal);
-      summaryRows.push({
-        label: `${labels[m]} ${currentYear + 543}`,
-        mVal,
-        aVal,
-        nVal,
-        tot
+      yearTot += tot;
+      yearM += mVal;
+      yearA += aVal;
+      yearN += nVal;
+
+      if (tot > peakMonth.val) {
+        peakMonth = { name: THAI_MONTHS[m], val: tot };
+      }
+
+      monthlyRows.push({
+        monthName: THAI_MONTHS[m],
+        monthIndex: m,
+        M: mVal,
+        A: aVal,
+        N: nVal,
+        tot: tot
       });
     }
-  } else {
-    // Mode 2: X = 14 Nurses, Y = Duty Count, 3 Lines (เช้า, บ่าย, ดึก) in currentMonth
-    if (chartTitleEl) {
-      chartTitleEl.innerText = `👥 เปรียบเทียบจำนวนเวรพยาบาลทั้ง ${NURSES.length} ท่าน ประจำเดือน ${THAI_MONTHS[currentMonth]} ${currentYear + 543}`;
+
+    const selectedNurseObj = NURSES.find(n => n.id === chartSelectedNurseId);
+    const targetLabel = (chartSelectedNurseId === 'ALL') ? 'รวมทั้งแผนก' : `${selectedNurseObj?.name} (หมายเลข ${selectedNurseObj?.num})`;
+
+    // 3. Titles
+    if (titleEl) titleEl.innerText = `👩‍⚕️ สถิติการเข้าเวรรายเดือน: ${targetLabel} ประจำปี พ.ศ. ${currentYear + 543}`;
+    if (subtitleEl) subtitleEl.innerText = `(แสดงแจกแจงเวรแต่ละกะ ☀️ เช้า, ⛅ บ่าย, 🌙 ดึก และเส้นแนวโน้มผลรวมทั้ง 12 เดือน)`;
+
+    // 4. KPI Cards
+    if (kpiContainer) {
+      kpiContainer.innerHTML = `
+        <div class="glass-card rounded-2xl p-4 border border-blue-200/60 bg-gradient-to-br from-blue-50/70 to-indigo-50/40 shadow-xs">
+          <div class="flex items-center justify-between pb-1.5">
+            <span class="text-xs font-bold text-blue-900">🏆 เวรรวมทั้งปี</span>
+            <span class="text-lg">🌟</span>
+          </div>
+          <div class="text-2xl font-black text-blue-950">${yearTot} <span class="text-xs font-bold text-blue-700">เวร</span></div>
+          <div class="text-[11px] text-slate-500 font-medium mt-0.5">รวมทั้งปี: ${yearTot * 8} ชั่วโมง</div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-4 border border-indigo-200/60 bg-gradient-to-br from-indigo-50/70 to-blue-50/40 shadow-xs">
+          <div class="flex items-center justify-between pb-1.5">
+            <span class="text-xs font-bold text-indigo-900">📊 เฉลี่ยต่อเดือน</span>
+            <span class="text-lg">📈</span>
+          </div>
+          <div class="text-2xl font-black text-indigo-950">${(yearTot / 12).toFixed(1)} <span class="text-xs font-bold text-indigo-700">เวร/เดือน</span></div>
+          <div class="text-[11px] text-slate-500 font-medium mt-0.5">เฉลี่ย: ${((yearTot * 8) / 12).toFixed(1)} ชม./เดือน</div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-4 border border-emerald-200/60 bg-gradient-to-br from-emerald-50/70 to-teal-50/40 shadow-xs">
+          <div class="flex items-center justify-between pb-1.5">
+            <span class="text-xs font-bold text-emerald-900">🔥 เดือนที่เวรสูงสุด</span>
+            <span class="text-lg">📅</span>
+          </div>
+          <div class="text-2xl font-black text-emerald-950">${peakMonth.val} <span class="text-xs font-bold text-emerald-700">เวร</span></div>
+          <div class="text-[11px] text-slate-600 font-bold truncate mt-0.5">เดือน ${peakMonth.name}</div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-4 border border-purple-200/60 bg-gradient-to-br from-purple-50/70 to-fuchsia-50/40 shadow-xs">
+          <div class="flex items-center justify-between pb-1.5">
+            <span class="text-xs font-bold text-purple-900">สัดส่วนกะ (เช้า : บ่าย${shiftMode === 3 ? ' : ดึก' : ''})</span>
+            <span class="text-lg">⚖️</span>
+          </div>
+          <div class="text-xl font-black text-purple-950">${yearM} : ${yearA}${shiftMode === 3 ? ` : ${yearN}` : ''}</div>
+          <div class="text-[11px] text-slate-500 font-medium mt-0.5">เช้า ${yearM} / บ่าย ${yearA}${shiftMode === 3 ? ` / ดึก ${yearN}` : ''}</div>
+        </div>
+      `;
     }
 
-    const daysInCurrentMonth = getDaysCount(currentYear, currentMonth);
+    // 5. Datasets (Stacked Bars + Total Line)
+    chartIsStacked = true;
+    chartDatasets = [
+      {
+        type: 'bar',
+        label: 'เวรเช้า (M)',
+        data: mCounts,
+        backgroundColor: '#0284c7',
+        borderRadius: 4,
+        stack: 'duty_stack'
+      },
+      {
+        type: 'bar',
+        label: 'เวรบ่าย (A)',
+        data: aCounts,
+        backgroundColor: '#f59e0b',
+        borderRadius: 4,
+        stack: 'duty_stack'
+      }
+    ];
+
+    if (shiftMode === 3) {
+      chartDatasets.push({
+        type: 'bar',
+        label: 'เวรดึก (N)',
+        data: nCounts,
+        backgroundColor: '#8b5cf6',
+        borderRadius: 4,
+        stack: 'duty_stack'
+      });
+    }
+
+    // Total Monthly Line
+    chartDatasets.push({
+      type: 'line',
+      label: 'รวมเวรรายเดือน',
+      data: totCounts,
+      borderColor: '#1e293b',
+      borderWidth: 2.5,
+      pointBackgroundColor: '#2563eb',
+      pointBorderColor: '#ffffff',
+      pointBorderWidth: 2,
+      pointRadius: 4.5,
+      pointHoverRadius: 7,
+      tension: 0.25,
+      fill: false,
+      stack: 'none'
+    });
+
+    // 6. Summary Table
+    let rowsHtml = '';
+    monthlyRows.forEach((r, idx) => {
+      const isEven = (idx % 2 === 1);
+      const isCurr = (r.monthIndex === currentMonth);
+      const rowBg = isCurr ? 'bg-blue-50/80 font-bold' : (isEven ? 'bg-slate-50/70' : 'bg-white');
+      const pct = yearTot > 0 ? ((r.tot / yearTot) * 100).toFixed(1) : '0.0';
+
+      rowsHtml += `
+        <tr class="${rowBg} hover:bg-blue-50/60 transition border-b border-slate-100">
+          <td class="py-2.5 px-3 font-semibold text-slate-800 flex items-center gap-1.5">
+            ${isCurr ? '<span class="text-xs">👉</span>' : ''}
+            <span>${r.monthName} ${currentYear + 543}</span>
+            ${isCurr ? '<span class="text-[10px] font-black bg-blue-600 text-white px-2 py-0.2 rounded-full">เดือนปัจจุบัน</span>' : ''}
+          </td>
+          <td class="py-2.5 px-3 text-center text-sky-800 font-bold bg-sky-50/40">${r.M}</td>
+          <td class="py-2.5 px-3 text-center text-amber-800 font-bold bg-amber-50/40">${r.A}</td>
+          ${shiftMode === 3 ? `<td class="py-2.5 px-3 text-center text-purple-800 font-bold bg-purple-50/40">${r.N}</td>` : ''}
+          <td class="py-2.5 px-3 text-center font-black text-blue-950 bg-blue-50/80">${r.tot}</td>
+          <td class="py-2.5 px-3 text-center font-mono text-slate-600">${r.tot * 8} ชม.</td>
+          <td class="py-2.5 px-3 text-center">
+            <div class="flex items-center justify-center gap-2">
+              <div class="w-16 bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                <div class="bg-blue-600 h-1.5 rounded-full" style="width: ${pct}%"></div>
+              </div>
+              <span class="font-mono text-slate-500 text-[11px]">${pct}%</span>
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+
+    summaryTableHtml = `
+      <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 flex-wrap gap-2">
+        <h4 class="text-xs md:text-sm font-black text-slate-900 flex items-center gap-1.5">
+          <span>📊</span>
+          <span>ตารางสรุปเวร 12 เดือน: ${targetLabel}</span>
+        </h4>
+        <span class="text-xs text-slate-500 font-bold">ยอดรวมทั้งปี ${yearTot} เวร (${yearTot * 8} ชม.)</span>
+      </div>
+      <table class="min-w-full text-left text-xs border-collapse">
+        <thead class="bg-slate-100 text-slate-700 font-black border-b border-slate-300">
+          <tr>
+            <th class="py-2.5 px-3">เดือน</th>
+            <th class="py-2.5 px-3 text-center text-sky-900 bg-sky-100/60 w-24">☀️ เวรเช้า (M)</th>
+            <th class="py-2.5 px-3 text-center text-amber-900 bg-amber-100/60 w-24">⛅ เวรบ่าย (A)</th>
+            ${shiftMode === 3 ? '<th class="py-2.5 px-3 text-center text-purple-900 bg-purple-100/60 w-24">🌙 เวรดึก (N)</th>' : ''}
+            <th class="py-2.5 px-3 text-center text-blue-950 bg-blue-100/80 w-24">รวมเวร</th>
+            <th class="py-2.5 px-3 text-center w-24">รวมชั่วโมง</th>
+            <th class="py-2.5 px-3 text-center w-32">สัดส่วนทั้งปี (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+        <tfoot class="bg-slate-100 font-black text-slate-800 border-t-2 border-slate-300">
+          <tr>
+            <td class="py-2.5 px-3">รวมทั้งสิ้น 12 เดือน:</td>
+            <td class="py-2.5 px-3 text-center text-sky-900 font-black">${yearM}</td>
+            <td class="py-2.5 px-3 text-center text-amber-900 font-black">${yearA}</td>
+            ${shiftMode === 3 ? `<td class="py-2.5 px-3 text-center text-purple-900 font-black">${yearN}</td>` : ''}
+            <td class="py-2.5 px-3 text-center text-blue-950 font-black">${yearTot}</td>
+            <td class="py-2.5 px-3 text-center font-mono font-black">${yearTot * 8} ชม.</td>
+            <td class="py-2.5 px-3 text-center text-slate-500 font-bold">100%</td>
+          </tr>
+        </tfoot>
+      </table>
+    `;
+  }
+
+  // =========================================================================
+  // VIEW 3: ยอดเวรสะสม (Cumulative) - All Nurses YTD Stacked or Growth Trendline
+  // =========================================================================
+  else if (chartDisplayMode === 'cumulative') {
+    // 1. Context Filters Toolbar: Submode Switcher
+    if (filtersBar) {
+      filtersBar.innerHTML = `
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="font-bold text-slate-700">📈 รูปแบบกราฟสะสม:</span>
+          <div class="inline-flex rounded-xl bg-white border border-slate-300 p-0.5 shadow-2xs text-xs font-bold">
+            <button type="button" onclick="setChartCumulativeSubMode('total_bar')" 
+                    class="px-3 py-1.5 rounded-lg transition cursor-pointer ${chartCumulativeSubMode === 'total_bar' ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:text-blue-700'}">
+              👥 ยอดสะสมทุกคน (14 ท่าน)
+            </button>
+            <button type="button" onclick="setChartCumulativeSubMode('trend_line')" 
+                    class="px-3 py-1.5 rounded-lg transition cursor-pointer ${chartCumulativeSubMode === 'trend_line' ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:text-blue-700'}">
+              📈 แนวโน้มการเติบโตสะสม 12 เดือน
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    // Calculate cumulative numbers per nurse across the entire year
+    const nurseCumStats = [];
+    let deptGrandTotal = 0;
+    let maxCumNurse = { name: '-', tot: -1 };
+    let minCumNurse = { name: '-', tot: 99999 };
 
     NURSES.forEach(n => {
-      // Short label: "#1 ภิญญดา"
-      const shortName = n.name.replace(/^(น\.ส\.|นาง|นาย)\s*/, '').split(' ')[0] || n.name;
-      labels.push(`#${n.num} ${shortName}`);
+      let cumM = 0, cumA = 0, cumN = 0;
+      const arr = yearlyStats[n.id] || [];
+      arr.forEach(item => {
+        cumM += item.M;
+        cumA += item.A;
+        cumN += item.N;
+      });
+      const cumTot = (shiftMode === 3) ? (cumM + cumA + cumN) : (cumM + cumA);
+      deptGrandTotal += cumTot;
 
-      let mVal = 0, aVal = 0, nVal = 0;
-      const nShifts = (monthState.roster && monthState.roster[n.id]) || {};
-      for (let d = 1; d <= daysInCurrentMonth; d++) {
-        const arr = nShifts[d] || [];
-        if (arr.includes('M')) mVal++;
-        if (arr.includes('A')) aVal++;
-        if (arr.includes('N') && shiftMode === 3) nVal++;
+      if (cumTot > maxCumNurse.tot) {
+        maxCumNurse = { name: n.name, tot: cumTot, num: n.num };
+      }
+      if (cumTot < minCumNurse.tot) {
+        minCumNurse = { name: n.name, tot: cumTot, num: n.num };
       }
 
-      mCounts.push(mVal);
-      aCounts.push(aVal);
-      nCounts.push(nVal);
-
-      const tot = (shiftMode === 3) ? (mVal + aVal + nVal) : (mVal + aVal);
-      summaryRows.push({
-        label: `${n.num}. ${n.name} [${n.id}]`,
-        nurseColor: n.color,
-        nurseNum: n.num,
-        mVal,
-        aVal,
-        nVal,
-        tot
+      nurseCumStats.push({
+        nurse: n,
+        M: cumM,
+        A: cumA,
+        N: cumN,
+        tot: cumTot
       });
     });
-  }
 
-  // 3 Datasets matching requirements: เช้า (M), บ่าย (A), ดึก (N)
-  const datasets = [
-    {
-      label: 'เวรเช้า (M)',
-      data: mCounts,
-      borderColor: '#0284c7', // Sky Blue
-      backgroundColor: 'rgba(2, 132, 199, 0.12)',
-      borderWidth: 3,
-      pointBackgroundColor: '#0284c7',
-      pointBorderColor: '#ffffff',
-      pointBorderWidth: 2,
-      pointRadius: 4.5,
-      pointHoverRadius: 7,
-      tension: 0.35,
-      fill: true
-    },
-    {
-      label: 'เวรบ่าย (A)',
-      data: aCounts,
-      borderColor: '#d97706', // Amber
-      backgroundColor: 'rgba(217, 119, 6, 0.12)',
-      borderWidth: 3,
-      pointBackgroundColor: '#d97706',
-      pointBorderColor: '#ffffff',
-      pointBorderWidth: 2,
-      pointRadius: 4.5,
-      pointHoverRadius: 7,
-      tension: 0.35,
-      fill: true
+    const targetCumAvg = NURSES.length > 0 ? (deptGrandTotal / NURSES.length) : 0;
+    if (minCumNurse.tot === 99999) minCumNurse = { name: '-', tot: 0, num: 0 };
+
+    // KPI Cards
+    if (kpiContainer) {
+      kpiContainer.innerHTML = `
+        <div class="glass-card rounded-2xl p-4 border border-blue-200/60 bg-gradient-to-br from-blue-50/70 to-indigo-50/40 shadow-xs">
+          <div class="flex items-center justify-between pb-1.5">
+            <span class="text-xs font-bold text-blue-900">📦 ยอดเวรสะสมทั้งแผนก</span>
+            <span class="text-lg">📊</span>
+          </div>
+          <div class="text-2xl font-black text-blue-950">${deptGrandTotal} <span class="text-xs font-bold text-blue-700">เวร</span></div>
+          <div class="text-[11px] text-slate-500 font-medium mt-0.5">รวมชั่วโมงสะสม: ${deptGrandTotal * 8} ชม.</div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-4 border border-rose-200/60 bg-gradient-to-br from-rose-50/70 to-orange-50/40 shadow-xs">
+          <div class="flex items-center justify-between pb-1.5">
+            <span class="text-xs font-bold text-rose-900">⚖️ ค่าเฉลี่ยสะสมต่อคน</span>
+            <span class="text-lg">🎯</span>
+          </div>
+          <div class="text-2xl font-black text-rose-950">${targetCumAvg.toFixed(1)} <span class="text-xs font-bold text-rose-700">เวร/ท่าน</span></div>
+          <div class="text-[11px] text-slate-500 font-medium mt-0.5">เกณฑ์ความยุติธรรมตลอดปี</div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-4 border border-emerald-200/60 bg-gradient-to-br from-emerald-50/70 to-teal-50/40 shadow-xs">
+          <div class="flex items-center justify-between pb-1.5">
+            <span class="text-xs font-bold text-emerald-900">🔝 ผู้สะสมเวรสูงสุด</span>
+            <span class="text-lg">🥇</span>
+          </div>
+          <div class="text-2xl font-black text-emerald-950">${maxCumNurse.tot} <span class="text-xs font-bold text-emerald-700">เวร</span></div>
+          <div class="text-[11px] text-slate-600 font-bold truncate mt-0.5">${maxCumNurse.num ? '#' + maxCumNurse.num + ' ' : ''}${maxCumNurse.name}</div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-4 border border-amber-200/60 bg-gradient-to-br from-amber-50/70 to-yellow-50/40 shadow-xs">
+          <div class="flex items-center justify-between pb-1.5">
+            <span class="text-xs font-bold text-amber-900">🔻 ผู้สะสมเวรต่ำสุด</span>
+            <span class="text-lg">📉</span>
+          </div>
+          <div class="text-2xl font-black text-amber-950">${minCumNurse.tot} <span class="text-xs font-bold text-amber-700">เวร</span></div>
+          <div class="text-[11px] text-slate-600 font-bold truncate mt-0.5">${minCumNurse.num ? '#' + minCumNurse.num + ' ' : ''}${minCumNurse.name} (ควรเพิ่มเวร)</div>
+        </div>
+      `;
     }
-  ];
 
-  if (shiftMode === 3) {
-    datasets.push({
-      label: 'เวรดึก (N)',
-      data: nCounts,
-      borderColor: '#7c3aed', // Purple
-      backgroundColor: 'rgba(124, 58, 237, 0.12)',
-      borderWidth: 3,
-      pointBackgroundColor: '#7c3aed',
-      pointBorderColor: '#ffffff',
-      pointBorderWidth: 2,
-      pointRadius: 4.5,
-      pointHoverRadius: 7,
-      tension: 0.35,
-      fill: true
+    // Submode A: Total Bar (All 14 Nurses Stacked Bar + Average Line)
+    if (chartCumulativeSubMode === 'total_bar') {
+      if (titleEl) titleEl.innerText = `📊 ยอดเวรสะสมรายบุคคลตลอดปี พ.ศ. ${currentYear + 543} (เปรียบเทียบทุกคน ${NURSES.length} ท่าน)`;
+      if (subtitleEl) subtitleEl.innerText = `(กราฟแท่งแสดงยอดเวรที่เข้าปฏิบัติหน้าที่สะสมตั้งแต่ต้นปี พร้อมเส้นเกณฑ์เฉลี่ยสะสม)`;
+
+      const cumM = [];
+      const cumA = [];
+      const cumN = [];
+
+      nurseCumStats.forEach(item => {
+        const shortName = item.nurse.name.replace(/^(น\.ส\.|นาง|นาย)\s*/, '').split(' ')[0] || item.nurse.name;
+        chartLabels.push(`#${item.nurse.num} ${shortName}`);
+        cumM.push(item.M);
+        cumA.push(item.A);
+        cumN.push(item.N);
+      });
+
+      chartIsStacked = true;
+      chartDatasets = [
+        {
+          type: 'bar',
+          label: 'เวรเช้าสะสม (M)',
+          data: cumM,
+          backgroundColor: '#0284c7',
+          borderRadius: 4,
+          stack: 'cum_stack'
+        },
+        {
+          type: 'bar',
+          label: 'เวรบ่ายสะสม (A)',
+          data: cumA,
+          backgroundColor: '#f59e0b',
+          borderRadius: 4,
+          stack: 'cum_stack'
+        }
+      ];
+
+      if (shiftMode === 3) {
+        chartDatasets.push({
+          type: 'bar',
+          label: 'เวรดึกสะสม (N)',
+          data: cumN,
+          backgroundColor: '#8b5cf6',
+          borderRadius: 4,
+          stack: 'cum_stack'
+        });
+      }
+
+      chartDatasets.push({
+        type: 'line',
+        label: 'ค่าเฉลี่ยสะสมเป้าหมาย',
+        data: Array(NURSES.length).fill(parseFloat(targetCumAvg.toFixed(1))),
+        borderColor: '#ef4444',
+        borderWidth: 2.5,
+        borderDash: [6, 4],
+        pointRadius: 0,
+        fill: false,
+        stack: 'none'
+      });
+    }
+
+    // Submode B: Trendline (Cumulative monthly growth across 12 months)
+    else {
+      if (titleEl) titleEl.innerText = `📈 กราฟแนวโน้มการเติบโตของเวรสะสมรายเดือน (มกราคม - ธันวาคม พ.ศ. ${currentYear + 543})`;
+      if (subtitleEl) subtitleEl.innerText = `(เส้นกราฟแสดงยอดสะสมพอกพูนเพิ่มขึ้นทีละเดือนตลอดทั้งปีของทั้งแผนก)`;
+
+      chartLabels = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+
+      const runningM = [];
+      const runningA = [];
+      const runningN = [];
+      const runningTot = [];
+
+      let accM = 0, accA = 0, accN = 0, accTot = 0;
+
+      for (let m = 0; m < 12; m++) {
+        let mVal = 0, aVal = 0, nVal = 0;
+        NURSES.forEach(n => {
+          const d = yearlyStats[n.id][m];
+          mVal += d.M; aVal += d.A; nVal += d.N;
+        });
+
+        accM += mVal;
+        accA += aVal;
+        accN += nVal;
+        accTot += (shiftMode === 3 ? (mVal + aVal + nVal) : (mVal + aVal));
+
+        runningM.push(accM);
+        runningA.push(accA);
+        runningN.push(accN);
+        runningTot.push(accTot);
+      }
+
+      chartIsStacked = false;
+      chartDatasets = [
+        {
+          type: 'line',
+          label: 'เวรเช้าสะสม (M)',
+          data: runningM,
+          borderColor: '#0284c7',
+          backgroundColor: 'rgba(2, 132, 199, 0.08)',
+          borderWidth: 2.5,
+          pointRadius: 4,
+          tension: 0.25,
+          fill: true
+        },
+        {
+          type: 'line',
+          label: 'เวรบ่ายสะสม (A)',
+          data: runningA,
+          borderColor: '#f59e0b',
+          backgroundColor: 'rgba(245, 158, 11, 0.08)',
+          borderWidth: 2.5,
+          pointRadius: 4,
+          tension: 0.25,
+          fill: true
+        }
+      ];
+
+      if (shiftMode === 3) {
+        chartDatasets.push({
+          type: 'line',
+          label: 'เวรดึกสะสม (N)',
+          data: runningN,
+          borderColor: '#8b5cf6',
+          backgroundColor: 'rgba(139, 92, 246, 0.08)',
+          borderWidth: 2.5,
+          pointRadius: 4,
+          tension: 0.25,
+          fill: true
+        });
+      }
+
+      chartDatasets.push({
+        type: 'line',
+        label: 'รวมเวรสะสมทั้งหมด',
+        data: runningTot,
+        borderColor: '#1e293b',
+        borderWidth: 3,
+        pointBackgroundColor: '#2563eb',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        tension: 0.2,
+        fill: false
+      });
+    }
+
+    // Cumulative Table
+    let rowsHtml = '';
+    // Sort nurses by total cumulative shifts descending
+    const sortedNurseStats = [...nurseCumStats].sort((a, b) => b.tot - a.tot);
+
+    sortedNurseStats.forEach((r, idx) => {
+      const isEven = (idx % 2 === 1);
+      const rowBg = isEven ? 'bg-slate-50/70' : 'bg-white';
+      const diff = r.tot - targetCumAvg;
+      let balanceBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">🟢 สมดุลดี</span>`;
+      if (diff >= 3) {
+        balanceBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">🟠 สะสมเกินเฉลี่ย (+${diff.toFixed(1)})</span>`;
+      } else if (diff <= -3) {
+        balanceBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">🔵 ควรเติมเวรเพิ่ม (${diff.toFixed(1)})</span>`;
+      }
+
+      rowsHtml += `
+        <tr class="${rowBg} hover:bg-blue-50/60 transition border-b border-slate-100">
+          <td class="py-2.5 px-3 text-center">
+            <span class="nurse-num-badge w-6 h-6 text-xs font-black shadow-2xs" 
+                  style="background-color: ${r.nurse.color}; color: ${getContrastColor(r.nurse.color)};">
+              ${r.nurse.num}
+            </span>
+          </td>
+          <td class="py-2.5 px-3 font-mono font-bold text-blue-900">${r.nurse.id}</td>
+          <td class="py-2.5 px-3 font-bold text-slate-800">${r.nurse.name}</td>
+          <td class="py-2.5 px-3 text-center text-sky-800 font-bold bg-sky-50/40">${r.M}</td>
+          <td class="py-2.5 px-3 text-center text-amber-800 font-bold bg-amber-50/40">${r.A}</td>
+          ${shiftMode === 3 ? `<td class="py-2.5 px-3 text-center text-purple-800 font-bold bg-purple-50/40">${r.N}</td>` : ''}
+          <td class="py-2.5 px-3 text-center font-black text-blue-950 bg-blue-50/80">${r.tot}</td>
+          <td class="py-2.5 px-3 text-center font-mono text-slate-600">${r.tot * 8} ชม.</td>
+          <td class="py-2.5 px-3 text-center">${balanceBadge}</td>
+        </tr>
+      `;
     });
+
+    summaryTableHtml = `
+      <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 flex-wrap gap-2">
+        <h4 class="text-xs md:text-sm font-black text-slate-900 flex items-center gap-1.5">
+          <span>📊</span>
+          <span>ตารางอันดับยอดเวรสะสมตลอดปี พ.ศ. ${currentYear + 543} (เรียงจากมากไปน้อย)</span>
+        </h4>
+        <span class="text-xs text-slate-500 font-bold">รวมสะสมทั้งแผนก ${deptGrandTotal} เวร (${deptGrandTotal * 8} ชม.)</span>
+      </div>
+      <table class="min-w-full text-left text-xs border-collapse">
+        <thead class="bg-slate-100 text-slate-700 font-black border-b border-slate-300">
+          <tr>
+            <th class="py-2.5 px-3 text-center w-12">#</th>
+            <th class="py-2.5 px-3 w-24">รหัส</th>
+            <th class="py-2.5 px-3">ชื่อ - สกุล</th>
+            <th class="py-2.5 px-3 text-center text-sky-900 bg-sky-100/60 w-24">☀️ เช้าสะสม (M)</th>
+            <th class="py-2.5 px-3 text-center text-amber-900 bg-amber-100/60 w-24">⛅ บ่ายสะสม (A)</th>
+            ${shiftMode === 3 ? '<th class="py-2.5 px-3 text-center text-purple-900 bg-purple-100/60 w-24">🌙 ดึกสะสม (N)</th>' : ''}
+            <th class="py-2.5 px-3 text-center text-blue-950 bg-blue-100/80 w-28">รวมเวรสะสม</th>
+            <th class="py-2.5 px-3 text-center w-28">ชั่วโมงสะสม</th>
+            <th class="py-2.5 px-3 text-center w-36">สถานะเทียบค่าเฉลี่ย</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+        <tfoot class="bg-slate-100 font-black text-slate-800 border-t-2 border-slate-300">
+          <tr>
+            <td colspan="3" class="py-2.5 px-3 text-right">รวมสะสมทั้งแผนก:</td>
+            <td class="py-2.5 px-3 text-center text-sky-900 font-black">${nurseCumStats.reduce((a,b)=>a+b.M,0)}</td>
+            <td class="py-2.5 px-3 text-center text-amber-900 font-black">${nurseCumStats.reduce((a,b)=>a+b.A,0)}</td>
+            ${shiftMode === 3 ? `<td class="py-2.5 px-3 text-center text-purple-900 font-black">${nurseCumStats.reduce((a,b)=>a+b.N,0)}</td>` : ''}
+            <td class="py-2.5 px-3 text-center text-blue-950 font-black">${deptGrandTotal}</td>
+            <td class="py-2.5 px-3 text-center font-mono font-black">${deptGrandTotal * 8} ชม.</td>
+            <td class="py-2.5 px-3 text-center text-slate-500 font-normal">เฉลี่ย ${targetCumAvg.toFixed(1)}/ท่าน</td>
+          </tr>
+        </tfoot>
+      </table>
+    `;
   }
 
-  // Render Chart via Chart.js if loaded, otherwise fallback to HTML5 2D Canvas
+  // Render Table HTML
+  if (tableContainer) {
+    tableContainer.innerHTML = summaryTableHtml;
+  }
+
+  // Render Chart via Chart.js
   if (typeof Chart !== 'undefined') {
     if (dutyChartInstance) {
       dutyChartInstance.destroy();
       dutyChartInstance = null;
     }
+
     const ctx = canvas.getContext('2d');
     dutyChartInstance = new Chart(ctx, {
-      type: 'line',
       data: {
-        labels: labels,
-        datasets: datasets
+        labels: chartLabels,
+        datasets: chartDatasets
       },
       options: {
         responsive: true,
@@ -2049,7 +2772,7 @@ function renderDutyChart() {
         },
         plugins: {
           legend: {
-            display: false // Using our custom top badge legend
+            display: false // Handled via our custom top badge legend
           },
           tooltip: {
             backgroundColor: 'rgba(15, 23, 42, 0.95)',
@@ -2066,19 +2789,21 @@ function renderDutyChart() {
         },
         scales: {
           x: {
-            grid: { color: 'rgba(226, 232, 240, 0.8)' },
+            stacked: chartIsStacked,
+            grid: { color: 'rgba(226, 232, 240, 0.7)' },
             ticks: {
               font: { weight: 'bold', size: 11 },
-              color: '#475569'
+              color: '#334155'
             }
           },
           y: {
+            stacked: chartIsStacked,
             beginAtZero: true,
-            grid: { color: 'rgba(226, 232, 240, 0.8)' },
+            grid: { color: 'rgba(226, 232, 240, 0.7)' },
             ticks: {
               precision: 0,
               font: { weight: 'bold', size: 11 },
-              color: '#475569',
+              color: '#334155',
               callback: function(v) { return v + ' เวร'; }
             }
           }
@@ -2086,76 +2811,13 @@ function renderDutyChart() {
       }
     });
   } else {
-    drawCanvasLineChartFallback(canvas, labels, datasets);
-  }
-
-  // Render Tabular Summary Table below Chart
-  const tableContainer = document.getElementById('chartSummaryTableContainer');
-  if (tableContainer) {
-    let totM = mCounts.reduce((a, b) => a + b, 0);
-    let totA = aCounts.reduce((a, b) => a + b, 0);
-    let totN = nCounts.reduce((a, b) => a + b, 0);
-    let grandTot = (shiftMode === 3) ? (totM + totA + totN) : (totM + totA);
-
-    let rowsHtml = '';
-    summaryRows.forEach((r, idx) => {
-      const isEven = (idx % 2 === 1);
-      const rowBg = isEven ? 'bg-slate-50/70' : 'bg-white';
-      const numBadge = r.nurseColor ? `
-        <span class="nurse-num-badge w-5 h-5 text-[10px] font-black mr-2 inline-flex items-center justify-center rounded-md" 
-              style="background-color: ${r.nurseColor}; color: ${getContrastColor(r.nurseColor)};">
-          ${r.nurseNum}
-        </span>
-      ` : '';
-
-      rowsHtml += `
-        <tr class="${rowBg} hover:bg-blue-50/50 transition border-b border-slate-100">
-          <td class="py-2 px-3 font-semibold text-slate-800 text-xs flex items-center">
-            ${numBadge}
-            <span>${r.label}</span>
-          </td>
-          <td class="py-2 px-3 text-center text-sky-800 font-bold text-xs bg-sky-50/40">${r.mVal}</td>
-          <td class="py-2 px-3 text-center text-amber-800 font-bold text-xs bg-amber-50/40">${r.aVal}</td>
-          ${shiftMode === 3 ? `<td class="py-2 px-3 text-center text-purple-800 font-bold text-xs bg-purple-50/40">${r.nVal}</td>` : ''}
-          <td class="py-2 px-3 text-center font-black text-xs text-blue-950 bg-blue-50/70">${r.tot}</td>
-        </tr>
-      `;
-    });
-
-    tableContainer.innerHTML = `
-      <div class="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-200">
-        <h4 class="text-xs font-black text-slate-800">📊 ตารางสรุปตัวเลขสถิติการเข้าเวร</h4>
-        <span class="text-[11px] text-slate-500 font-medium">รวมทั้งหมด ${grandTot} เวร</span>
-      </div>
-      <table class="min-w-full text-left text-xs border-collapse">
-        <thead class="bg-slate-100 text-slate-700 font-black border-b border-slate-200">
-          <tr>
-            <th class="py-2 px-3">${chartDisplayMode === 'monthly' ? 'เดือน' : 'รายชื่อพยาบาล'}</th>
-            <th class="py-2 px-3 text-center text-sky-900 bg-sky-100/60 w-24">☀️ เวรเช้า (M)</th>
-            <th class="py-2 px-3 text-center text-amber-900 bg-amber-100/60 w-24">⛅ เวรบ่าย (A)</th>
-            ${shiftMode === 3 ? '<th class="py-2 px-3 text-center text-purple-900 bg-purple-100/60 w-24">🌙 เวรดึก (N)</th>' : ''}
-            <th class="py-2 px-3 text-center text-blue-950 bg-blue-100/80 w-28">รวมเวรทั้งหมด</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rowsHtml}
-        </tbody>
-        <tfoot class="bg-slate-100 font-black text-slate-800 border-t-2 border-slate-300">
-          <tr>
-            <td class="py-2.5 px-3">รวมทั้งสิ้น</td>
-            <td class="py-2.5 px-3 text-center text-sky-900">${totM}</td>
-            <td class="py-2.5 px-3 text-center text-amber-900">${totA}</td>
-            ${shiftMode === 3 ? `<td class="py-2.5 px-3 text-center text-purple-900">${totN}</td>` : ''}
-            <td class="py-2.5 px-3 text-center text-blue-950">${grandTot}</td>
-          </tr>
-        </tfoot>
-      </table>
-    `;
+    // Pure Canvas 2D Fallback
+    drawCanvasChartFallback(canvas, chartLabels, chartDatasets, chartIsStacked);
   }
 }
 
-// Fallback HTML5 2D Canvas chart renderer if external Chart.js CDN is unavailable
-function drawCanvasLineChartFallback(canvas, labels, datasets) {
+// Fallback Canvas 2D renderer supporting both stacked bars and lines
+function drawCanvasChartFallback(canvas, labels, datasets, isStacked) {
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
@@ -2168,20 +2830,31 @@ function drawCanvasLineChartFallback(canvas, labels, datasets) {
   const padLeft = 45;
   const padRight = 20;
   const padTop = 30;
-  const padBottom = 40;
+  const padBottom = 45;
 
   ctx.clearRect(0, 0, w, h);
 
+  // Compute maximum value
   let maxVal = 1;
-  datasets.forEach(ds => {
-    ds.data.forEach(v => { if (v > maxVal) maxVal = v; });
-  });
-  maxVal = Math.ceil(maxVal * 1.15) || 5;
+  if (isStacked) {
+    labels.forEach((_, idx) => {
+      let sum = 0;
+      datasets.forEach(ds => {
+        if (ds.type === 'bar') sum += (ds.data[idx] || 0);
+      });
+      if (sum > maxVal) maxVal = sum;
+    });
+  } else {
+    datasets.forEach(ds => {
+      ds.data.forEach(v => { if (v > maxVal) maxVal = v; });
+    });
+  }
+  maxVal = Math.ceil(maxVal * 1.2) || 5;
 
   const chartW = w - padLeft - padRight;
   const chartH = h - padTop - padBottom;
 
-  // Draw Grid & Y-Ticks
+  // Grid & Y Ticks
   ctx.strokeStyle = '#e2e8f0';
   ctx.lineWidth = 1;
   ctx.fillStyle = '#64748b';
@@ -2199,40 +2872,76 @@ function drawCanvasLineChartFallback(canvas, labels, datasets) {
     ctx.fillText(val + '', padLeft - 6, y + 3);
   }
 
-  // Draw X-Ticks
-  const xStep = chartW / Math.max(labels.length - 1, 1);
-  ctx.textAlign = 'center';
-  labels.forEach((lbl, idx) => {
-    const x = padLeft + idx * xStep;
-    ctx.fillText(lbl, x, h - padBottom + 16);
-  });
+  // Draw Bars (if stacked)
+  if (isStacked) {
+    const slotW = chartW / labels.length;
+    const barW = Math.min(slotW * 0.55, 36);
 
-  // Draw Line Datasets
-  datasets.forEach(ds => {
-    ctx.strokeStyle = ds.borderColor;
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ds.data.forEach((val, idx) => {
-      const x = padLeft + idx * xStep;
-      const y = padTop + chartH - (val / maxVal) * chartH;
-      if (idx === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+    labels.forEach((lbl, idx) => {
+      const centerX = padLeft + idx * slotW + slotW / 2;
+      ctx.textAlign = 'center';
+      ctx.fillText(lbl, centerX, h - padBottom + 16);
+
+      let currentBaseY = padTop + chartH;
+      datasets.filter(ds => ds.type === 'bar').forEach(ds => {
+        const val = ds.data[idx] || 0;
+        if (val > 0) {
+          const barH = (val / maxVal) * chartH;
+          ctx.fillStyle = ds.backgroundColor;
+          ctx.fillRect(centerX - barW / 2, currentBaseY - barH, barW, barH);
+          currentBaseY -= barH;
+        }
+      });
     });
-    ctx.stroke();
 
-    // Draw dots
-    ctx.fillStyle = ds.pointBackgroundColor;
-    ds.data.forEach((val, idx) => {
-      const x = padLeft + idx * xStep;
-      const y = padTop + chartH - (val / maxVal) * chartH;
+    // Draw Line Datasets on top (e.g. Target Average line)
+    datasets.filter(ds => ds.type === 'line').forEach(ds => {
+      ctx.strokeStyle = ds.borderColor;
+      ctx.lineWidth = ds.borderWidth || 2;
+      if (ds.borderDash) ctx.setLineDash(ds.borderDash);
       ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.5;
+      labels.forEach((_, idx) => {
+        const centerX = padLeft + idx * slotW + slotW / 2;
+        const val = ds.data[idx] || 0;
+        const y = padTop + chartH - (val / maxVal) * chartH;
+        if (idx === 0) ctx.moveTo(centerX, y);
+        else ctx.lineTo(centerX, y);
+      });
       ctx.stroke();
+      ctx.setLineDash([]);
     });
-  });
+  } else {
+    // Standard Lines
+    const xStep = chartW / Math.max(labels.length - 1, 1);
+    ctx.textAlign = 'center';
+    labels.forEach((lbl, idx) => {
+      const x = padLeft + idx * xStep;
+      ctx.fillText(lbl, x, h - padBottom + 16);
+    });
+
+    datasets.forEach(ds => {
+      ctx.strokeStyle = ds.borderColor;
+      ctx.lineWidth = ds.borderWidth || 2.5;
+      ctx.beginPath();
+      ds.data.forEach((val, idx) => {
+        const x = padLeft + idx * xStep;
+        const y = padTop + chartH - (val / maxVal) * chartH;
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // Points
+      ctx.fillStyle = ds.borderColor;
+      ds.data.forEach((val, idx) => {
+        const x = padLeft + idx * xStep;
+        const y = padTop + chartH - (val / maxVal) * chartH;
+        ctx.beginPath();
+        ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    });
+  }
 }
 
 window.openBookingForVacancy = function(day, shift) {

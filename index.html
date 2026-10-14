@@ -647,66 +647,98 @@
         </div>
 
         <!-- 5. Chart View (Line Chart for Duty Counts) -->
-        <div id="chartViewSection" class="hidden p-5 md:p-6 bg-slate-50/60 space-y-5">
-          <!-- Controls Header -->
-          <div class="glass-card rounded-2xl p-4 md:p-5 border border-white/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <!-- 5. Chart View (Duty Analytics & Trends) -->
+        <div id="chartViewSection" class="hidden p-4 md:p-6 bg-slate-50/70 space-y-5">
+          
+          <!-- Controls Header Bar -->
+          <div class="glass-card rounded-2xl p-4 md:p-5 border border-white/80 shadow-xs flex flex-col xl:flex-row xl:items-center justify-between gap-4">
             <div>
-              <div class="flex items-center gap-2">
-                <span class="text-2xl">📈</span>
-                <h3 class="text-base md:text-lg font-black text-slate-900 font-heading">กราฟสรุปจำนวนเข้าเวร (Duty Trends Line Chart)</h3>
+              <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center text-xl font-bold shadow-sm">
+                  📊
+                </div>
+                <div>
+                  <h3 class="text-base md:text-lg font-black text-slate-900 font-heading">ศูนย์วิเคราะห์และสถิติตารางเวร (Duty Analytics)</h3>
+                  <p class="text-xs text-slate-500 mt-0.5">วิเคราะห์สถิติเวรพยาบาล: เปรียบเทียบทุกคนในเดือน, แต่ละคนรายเดือน (12 เดือน) และยอดสะสมตลอดทั้งปี</p>
+                </div>
               </div>
-              <p class="text-xs text-slate-500 mt-0.5">แกน X: เดือน (12 เดือน) หรือ รายชื่อ | แกน Y: จำนวนเข้าเวร | เส้นกราฟ 3 สี (เช้า, บ่าย, ดึก)</p>
             </div>
 
-            <!-- Chart Filters / Mode -->
-            <div class="flex items-center gap-3 flex-wrap">
-              <div class="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl p-1 shadow-2xs text-xs">
-                <button type="button" id="chartModeMonthTrendBtn" onclick="setChartDisplayMode('monthly')" 
-                        class="px-3 py-1.5 rounded-lg font-bold bg-blue-600 text-white shadow-2xs transition">
-                  📅 แนวโน้มรายเดือน (12 เดือน)
+            <!-- Primary 3 View Modes Tabs -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <div class="inline-flex rounded-2xl bg-white border border-slate-200 p-1 shadow-xs gap-1 text-xs font-bold">
+                <button type="button" id="chartTabCompareMonthlyBtn" onclick="setChartDisplayMode('compare_monthly')"
+                        class="px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 bg-blue-600 text-white shadow-xs">
+                  <span>👥</span>
+                  <span>เปรียบเทียบทุกคน (รายเดือน)</span>
                 </button>
-                <button type="button" id="chartModeNurseCompareBtn" onclick="setChartDisplayMode('nurse_compare')" 
-                        class="px-3 py-1.5 rounded-lg font-semibold text-slate-600 hover:text-blue-600 transition">
-                  👥 เปรียบเทียบพยาบาล (14 ท่าน)
+                <button type="button" id="chartTabIndividualMonthlyBtn" onclick="setChartDisplayMode('individual_monthly')"
+                        class="px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 text-slate-600 hover:text-blue-700">
+                  <span>👩‍⚕️</span>
+                  <span>แต่ละคน (รายเดือน)</span>
                 </button>
-              </div>
-
-              <!-- Nurse Select Filter for Monthly Trend -->
-              <div id="chartNurseSelectWrapper" class="flex items-center gap-2">
-                <label for="chartNurseSelect" class="text-xs font-bold text-slate-700 whitespace-nowrap">พยาบาล:</label>
-                <select id="chartNurseSelect" onchange="renderDutyChart()" 
-                        class="glass-input rounded-xl px-3 py-1.5 text-xs font-medium text-slate-800 outline-none">
-                  <option value="ALL">🏢 รวมทั้งแผนก (Department Total)</option>
-                </select>
+                <button type="button" id="chartTabCumulativeBtn" onclick="setChartDisplayMode('cumulative')"
+                        class="px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 text-slate-600 hover:text-blue-700">
+                  <span>📈</span>
+                  <span>ยอดเวรสะสม (Cumulative)</span>
+                </button>
               </div>
             </div>
           </div>
 
-          <!-- Chart Canvas Container -->
-          <div class="glass-card rounded-3xl p-5 md:p-6 border border-white/80 shadow-md">
-            <!-- Chart Legend Badges -->
-            <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 flex-wrap gap-2 text-xs">
-              <span id="chartCanvasTitle" class="font-bold text-slate-800">สรุปแนวโน้มจำนวนเวรตลอดทั้งปี</span>
-              <div class="flex items-center gap-3 font-semibold">
-                <span class="inline-flex items-center gap-1.5 text-sky-700 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200">
-                  <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span> เวรเช้า (M)
+          <!-- Dynamic Filter Toolbar based on Selected Mode -->
+          <div id="chartContextFiltersBar" class="glass-card rounded-2xl p-3.5 px-4 border border-white/80 shadow-xs flex items-center justify-between gap-3 flex-wrap">
+            <!-- Left: Dynamic Sub-filters (Month selector or Nurse selector or Cumulative view toggle) -->
+            <div id="chartSubFilterControls" class="flex items-center gap-3 flex-wrap text-xs">
+              <!-- Populated dynamically via JS -->
+            </div>
+
+            <!-- Right: Quick Export / Action buttons -->
+            <div class="flex items-center gap-2">
+              <button onclick="renderDutyChart()" class="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold shadow-2xs transition flex items-center gap-1 cursor-pointer" title="โหลดข้อมูลกราฟใหม่">
+                <span>🔄</span>
+                <span>รีเฟรชกราฟ</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Dynamic KPI Metric Cards Bar -->
+          <div id="chartKpiCardsContainer" class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <!-- Populated dynamically with rich metrics -->
+          </div>
+
+          <!-- Main Chart Container Card -->
+          <div class="glass-card rounded-3xl p-5 md:p-6 border border-white/80 shadow-md space-y-4">
+            <!-- Chart Header & Legend Badges -->
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 flex-wrap gap-2 text-xs">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span id="chartCanvasTitle" class="font-black text-slate-900 text-sm"></span>
+                <span id="chartCanvasSubtitle" class="text-xs text-slate-500 font-medium"></span>
+              </div>
+              <div id="chartLegendContainer" class="flex items-center gap-2.5 font-bold flex-wrap">
+                <span class="inline-flex items-center gap-1.5 text-sky-800 bg-sky-50 px-2.5 py-1 rounded-xl border border-sky-200">
+                  <span class="w-2.5 h-2.5 rounded-full bg-sky-500 shadow-2xs"></span> เวรเช้า (M)
                 </span>
-                <span class="inline-flex items-center gap-1.5 text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
-                  <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> เวรบ่าย (A)
+                <span class="inline-flex items-center gap-1.5 text-amber-800 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200">
+                  <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-2xs"></span> เวรบ่าย (A)
                 </span>
-                <span id="chartLegendNight" class="inline-flex items-center gap-1.5 text-purple-700 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200">
-                  <span class="w-2.5 h-2.5 rounded-full bg-purple-600"></span> เวรดึก (N)
+                <span id="chartLegendNight" class="inline-flex items-center gap-1.5 text-purple-800 bg-purple-50 px-2.5 py-1 rounded-xl border border-purple-200">
+                  <span class="w-2.5 h-2.5 rounded-full bg-purple-600 shadow-2xs"></span> เวรดึก (N)
+                </span>
+                <span id="chartLegendTarget" class="inline-flex items-center gap-1.5 text-rose-800 bg-rose-50 px-2.5 py-1 rounded-xl border border-rose-200">
+                  <span class="w-3 h-0.5 bg-rose-500 border-t border-dashed border-rose-600"></span> ค่าเฉลี่ยแผนก
                 </span>
               </div>
             </div>
 
-            <div class="relative w-full h-[360px] md:h-[400px]">
+            <!-- Canvas Wrapper -->
+            <div class="relative w-full h-[380px] md:h-[430px]">
               <canvas id="dutyChartCanvas"></canvas>
             </div>
           </div>
 
           <!-- Tabular Summary Under Chart -->
-          <div id="chartSummaryTableContainer" class="glass-card rounded-2xl p-4 border border-white/80 shadow-xs overflow-x-auto">
+          <div id="chartSummaryTableContainer" class="glass-card rounded-2xl p-5 border border-white/80 shadow-xs overflow-x-auto">
           </div>
         </div>
 
