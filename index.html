@@ -86,7 +86,7 @@
           </button>
 
           <!-- Segmented Pill Group for Views (Active Indicator - Fits mobile 100%) -->
-          <div id="navSegmentedPillGroup" class="flex items-center p-1 bg-black/20 backdrop-blur-md rounded-2xl border border-white/25 gap-1 shadow-inner w-full sm:w-auto max-w-full">
+          <div id="navSegmentedPillGroup" class="flex items-center p-1 bg-black/20 backdrop-blur-md rounded-2xl border border-white/25 gap-1 shadow-inner w-full sm:w-auto max-w-full overflow-hidden">
             <button id="navDashboardBtn" onclick="switchView('dashboard')" 
                     class="nav-tab-btn nav-tab-btn-inactive">
               <span class="text-base sm:text-lg">📊</span>
@@ -360,7 +360,7 @@
 
 
     <!-- ==================== VIEW 2: ตารางเวรของฉัน (PAGE หน้า USER จะมองเห็นเฉพาะ USER เลือก) ==================== -->
-    <section id="nursePersonalSection" class="glass-container rounded-3xl p-5 md:p-8 shadow-2xl border border-white/60 mb-8 hidden flex-1">
+    <section id="nursePersonalSection" class="glass-container rounded-3xl p-5 md:p-8 shadow-2xl border border-white/60 mb-8 hidden flex-1" style="display: none;">
       
       <!-- Status Banner -->
       <div id="nurseRoundStatusBanner"></div>
@@ -448,7 +448,7 @@
 
 
     <!-- ==================== VIEW 4: สรุปตารางเวร (EXCEL VIEW สำหรับ USER - เห็นเมื่อยืนยันแล้วเท่านั้น) ==================== -->
-    <section id="userExcelViewSection" class="glass-container rounded-3xl overflow-hidden shadow-2xl border border-white/60 mb-8 hidden flex-1 flex flex-col p-5 md:p-6 space-y-5">
+    <section id="userExcelViewSection" class="glass-container rounded-3xl overflow-hidden shadow-2xl border border-white/60 mb-8 hidden flex-1 flex-col p-5 md:p-6 space-y-5" style="display: none;">
       <!-- Top Bar with Back buttons and Excel/Print actions -->
       <div class="flex items-center justify-between pb-3.5 border-b border-slate-200 flex-wrap gap-3">
         <div class="flex items-center gap-3">
@@ -493,7 +493,7 @@
 
 
     <!-- ==================== VIEW 3: ระบบผู้ดูแลระบบ (ADMIN MASTER SECTION) ==================== -->
-    <section id="adminSection" class="glass-container rounded-3xl overflow-hidden shadow-2xl border border-white/60 mb-8 hidden flex-1 flex flex-col">
+    <section id="adminSection" class="glass-container rounded-3xl overflow-hidden shadow-2xl border border-white/60 mb-8 hidden flex-1 flex-col" style="display: none;">
       
       <!-- Admin Controls Section -->
       <div id="adminControlsSection" class="p-4 md:p-5 bg-slate-100/90 border-b border-slate-200 space-y-4 backdrop-blur-md">

@@ -494,6 +494,115 @@ window.handleAdminRefresh = function() {
   window.showToast('🔄 รีเฟรชและอัปเดตข้อมูลตารางเวรล่าสุดเรียบร้อยแล้ว');
 };
 
+// ==================== CELEBRATORY FIREWORKS EFFECT (1-2 SECONDS) ====================
+function triggerFireworks(durationMs = 1800) {
+  try {
+    const existing = document.getElementById('celebrationFireworksCanvas');
+    if (existing && existing.parentNode) {
+      existing.parentNode.removeChild(existing);
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.id = 'celebrationFireworksCanvas';
+    canvas.style.position = 'fixed';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.width = '100vw';
+    canvas.style.height = '100vh';
+    canvas.style.pointerEvents = 'none';
+    canvas.style.zIndex = '99999';
+    document.body.appendChild(canvas);
+
+    const ctx = canvas.getContext('2d');
+    let width = canvas.width = window.innerWidth;
+    let height = canvas.height = window.innerHeight;
+
+    const colors = [
+      '#f59e0b', '#ef4444', '#10b981', '#3b82f6', '#8b5cf6', 
+      '#ec4899', '#06b6d4', '#eab308', '#ffffff', '#6366f1'
+    ];
+
+    const particles = [];
+
+    function createBurst(x, y, particleCount = 45) {
+      for (let i = 0; i < particleCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 6.5 + 2.5;
+        particles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          size: Math.random() * 3.5 + 1.5,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          alpha: 1,
+          decay: Math.random() * 0.025 + 0.015,
+          gravity: 0.12,
+          friction: 0.96
+        });
+      }
+    }
+
+    // Launch multiple celebratory bursts across the screen
+    createBurst(width * 0.5, height * 0.35, 55);
+    setTimeout(() => createBurst(width * 0.25, height * 0.38, 45), 180);
+    setTimeout(() => createBurst(width * 0.75, height * 0.36, 45), 320);
+    setTimeout(() => createBurst(width * 0.5, height * 0.22, 50), 500);
+
+    const startTime = performance.now();
+    let animId;
+
+    function render(now) {
+      const elapsed = now - startTime;
+      ctx.clearRect(0, 0, width, height);
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.vx *= p.friction;
+        p.vy *= p.friction;
+        p.vy += p.gravity;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= p.decay;
+
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.alpha);
+        ctx.fillStyle = p.color;
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      if (elapsed < durationMs || particles.length > 0) {
+        animId = requestAnimationFrame(render);
+      } else {
+        cancelAnimationFrame(animId);
+        if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+      }
+    }
+
+    animId = requestAnimationFrame(render);
+
+    // Safety cleanup timeout
+    setTimeout(() => {
+      cancelAnimationFrame(animId);
+      if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+    }, durationMs + 400);
+
+  } catch (err) {
+    console.error('Fireworks animation error:', err);
+  }
+}
+window.triggerFireworks = triggerFireworks;
+
 function loginAsNurse(nurseId, enteredPin) {
   const nurse = NURSES.find(n => n.id === nurseId);
   if (!nurse) {
@@ -531,6 +640,7 @@ function loginAsNurse(nurseId, enteredPin) {
 
   renderPublicDashboard();
   switchView('personal');
+  triggerFireworks(1800);
   return true;
 }
 
@@ -548,6 +658,7 @@ function loginAsAdmin(password) {
     closeAdminLoginModal();
     updateAuthUI();
     switchView('admin');
+    triggerFireworks(1800);
     return true;
   }
   alert('รหัสผ่าน Admin ไม่ถูกต้อง');
@@ -843,18 +954,15 @@ function updateNavSwitcher(viewName) {
     if (isActive) {
       el.className = 'nav-tab-btn nav-tab-btn-active';
       el.innerHTML = `
-        <span class="text-base sm:text-lg">${icon}</span>
-        <span>${label}</span>
-        <span class="nav-active-badge">
-          <span class="nav-active-dot"></span>
-          <span>เปิดอยู่</span>
-        </span>
+        <span class="text-xs sm:text-base leading-none shrink-0">${icon}</span>
+        <span class="truncate">${label}</span>
+        <span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-blue-600 shadow-xs shrink-0 animate-pulse ml-0.5"></span>
       `;
     } else {
       el.className = 'nav-tab-btn nav-tab-btn-inactive';
       el.innerHTML = `
-        <span class="text-base sm:text-lg">${icon}</span>
-        <span>${label}</span>
+        <span class="text-xs sm:text-base leading-none shrink-0">${icon}</span>
+        <span class="truncate">${label}</span>
       `;
     }
   });
@@ -898,24 +1006,36 @@ window.switchView = function(viewName) {
   const adminSection = document.getElementById('adminSection');
   const userExcelSection = document.getElementById('userExcelViewSection');
 
-  // Hide all sections first
-  if (publicDashSection) publicDashSection.classList.add('hidden');
-  if (nurseSection) nurseSection.classList.add('hidden');
-  if (adminSection) adminSection.classList.add('hidden');
-  if (userExcelSection) userExcelSection.classList.add('hidden');
+  // Strictly hide all main sections first so no other views or matrix tables leak through
+  [publicDashSection, nurseSection, adminSection, userExcelSection].forEach(sec => {
+    if (sec) {
+      sec.classList.add('hidden');
+      sec.style.setProperty('display', 'none', 'important');
+    }
+  });
 
   if (viewName === 'dashboard') {
-    if (publicDashSection) publicDashSection.classList.remove('hidden');
+    if (publicDashSection) {
+      publicDashSection.classList.remove('hidden');
+      publicDashSection.style.setProperty('display', 'block', 'important');
+    }
     renderPublicDashboard();
   } else if (viewName === 'personal') {
-    if (nurseSection) nurseSection.classList.remove('hidden');
+    if (nurseSection) {
+      nurseSection.classList.remove('hidden');
+      nurseSection.style.setProperty('display', 'block', 'important');
+    }
     renderNurseCalendar();
   } else if (viewName === 'admin') {
-    if (adminSection) adminSection.classList.remove('hidden');
+    if (adminSection) {
+      adminSection.classList.remove('hidden');
+      adminSection.style.setProperty('display', 'flex', 'important');
+    }
     renderAdminView();
   } else if (viewName === 'excel') {
     if (userExcelSection) {
       userExcelSection.classList.remove('hidden');
+      userExcelSection.style.setProperty('display', 'flex', 'important');
       const uSecTitle = document.getElementById('userExcelSectionTitle');
       if (uSecTitle) {
         uSecTitle.innerText = `สรุปตารางเวร ประจำเดือน ${THAI_MONTHS[currentMonth]} ${currentYear + 543}`;
