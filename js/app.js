@@ -586,15 +586,18 @@ function updateAuthUI() {
         userProfileBadge.innerHTML = `
           <div class="flex items-center gap-2 bg-indigo-900/60 border border-white/30 px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
             <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/40"></span>
-            <span class="font-bold text-white">👑 ผู้ดูแลระบบ (Admin)</span>
+            <span class="font-bold text-white">🛡️ ผู้ดูแลระบบ (Admin)</span>
           </div>
         `;
       }
       if (userProfileBadgeMobile) {
         userProfileBadgeMobile.innerHTML = `
-          <div class="flex items-center gap-1.5 bg-indigo-950/80 border border-white/30 px-2 py-1 rounded-xl text-[10px] font-bold text-white shadow-xs">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            <span>Admin</span>
+          <div class="flex items-center gap-2 text-xs sm:text-sm font-bold text-white min-w-0 flex-1">
+            <span class="text-base sm:text-lg shrink-0">🛡️</span>
+            <div class="min-w-0">
+              <div class="font-black tracking-tight leading-tight">ผู้ดูแลระบบ (Admin)</div>
+              <div class="text-[10px] text-blue-100 font-mono font-normal">สิทธิ์ผู้ดูแลระบบ</div>
+            </div>
           </div>
         `;
       }
@@ -610,11 +613,13 @@ function updateAuthUI() {
         `;
       }
       if (userProfileBadgeMobile) {
-        const cleanName = currentUser.name.replace(/^พว\.\s*/, '').slice(0, 8);
         userProfileBadgeMobile.innerHTML = `
-          <div class="flex items-center gap-1 bg-white/20 border border-white/30 px-2 py-1 rounded-xl text-[10px] font-bold text-white shadow-xs">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
-            <span class="truncate max-w-[70px]">👩‍⚕️ ${cleanName}</span>
+          <div class="flex items-center gap-2 text-xs sm:text-sm font-bold text-white min-w-0 flex-1">
+            <span class="text-base sm:text-lg shrink-0">👩‍⚕️</span>
+            <div class="min-w-0">
+              <div class="font-black tracking-tight leading-tight whitespace-normal">${currentUser.name}</div>
+              <div class="text-[10px] text-blue-100 font-mono font-normal">รหัสพยาบาล: ${currentUser.nurseId}</div>
+            </div>
           </div>
         `;
       }
@@ -638,7 +643,7 @@ function updateNavSwitcher(viewName) {
     { el: dashBtn, target: 'dashboard', label: 'ปฏิทินหลัก', icon: '📊', isAllowed: true },
     { el: personalBtn, target: 'personal', label: 'ตารางเวรของฉัน', icon: '📅', isAllowed: isNurse },
     { el: excelBtn, target: 'excel', label: 'ตารางตามหมายเลข', icon: '📋', isAllowed: true },
-    { el: adminBtn, target: 'admin', label: `ตารางรวม ${NURSES.length} ท่าน`, icon: '👑', isAllowed: isAdmin }
+    { el: adminBtn, target: 'admin', label: `ตารางรวม ${NURSES.length} ท่าน`, icon: '🛡️', isAllowed: isAdmin }
   ];
 
   configs.forEach(({ el, target, label, icon, isAllowed }) => {
@@ -1390,33 +1395,39 @@ function renderNurseCalendar() {
   if (statNEl) statNEl.innerText = `${countN} ครั้ง`;
   document.getElementById('nurseStatTotal').innerText = `${totalShifts} เวร (${totalHours} ชม.)`;
 
-  // Render 7-Day Monthly Calendar Grid Header: วัน ใหญ่ขึ้น (text-base md:text-lg)
+  // Render 7-Day Monthly Calendar Grid Header: Fit to mobile without slide
   const calHeader = document.getElementById('nurseCalendarHeader');
   let hHtml = '';
   CALENDAR_HEADERS.forEach(ch => {
     hHtml += `
-      <div class="p-3 md:p-3.5 text-center rounded-2xl border ${ch.headerClass} shadow-xs bg-white/90 backdrop-blur-sm">
-        <div class="text-base md:text-lg font-black tracking-wide">${ch.th}</div>
-        <div class="text-xs md:text-sm font-bold opacity-75 font-mono">${ch.en}</div>
+      <div class="p-1 sm:p-2 md:p-2.5 text-center rounded-lg sm:rounded-2xl border ${ch.headerClass} shadow-2xs bg-white/95 dark:bg-slate-800/90 backdrop-blur-sm">
+        <div class="text-[11px] sm:text-base md:text-lg font-black tracking-tight leading-tight">
+          <span class="sm:hidden">${ch.short}</span>
+          <span class="hidden sm:inline">${ch.th}</span>
+        </div>
+        <div class="text-[8px] sm:text-xs font-bold opacity-75 font-mono leading-tight">
+          <span class="sm:hidden">${ch.en.slice(0, 2)}</span>
+          <span class="hidden sm:inline">${ch.en}</span>
+        </div>
       </div>
     `;
   });
   calHeader.innerHTML = hHtml;
 
-  // Render 7-Day Monthly Calendar Grid Body: มองเห็นเฉพาะเวรที่ User เลือก
+  // Render 7-Day Monthly Calendar Grid Body: แสดงแบบ Icon ใน mobile
   const calGrid = document.getElementById('nurseCalendarGrid');
   let calHtml = '';
 
   // Pad beginning of month
   for (let pad = 0; pad < firstDayIndex; pad++) {
     calHtml += `
-      <div class="calendar-empty-cell p-2 flex items-start justify-end text-slate-300 select-none">
-        <span class="opacity-30 font-mono text-sm">•</span>
+      <div class="calendar-empty-cell p-1 sm:p-2 flex items-start justify-end text-slate-300 select-none">
+        <span class="opacity-25 font-mono text-[9px] sm:text-xs">•</span>
       </div>
     `;
   }
 
-  // Days 1..daysCount: Only showing nurse's OWN selected shifts!
+  // Days 1..daysCount: Only showing nurse's OWN selected shifts as Icons on mobile!
   for (let d = 1; d <= daysCount; d++) {
     const dt = new Date(currentYear, currentMonth, d);
     const dayOfWeek = dt.getDay();
@@ -1425,45 +1436,75 @@ function renderNurseCalendar() {
     const dayShifts = nurseShifts[d] || [];
 
     let shiftBadges = '';
-    dayShifts.forEach(s => {
-      if (s === 'M') shiftBadges += `<span class="shift-tag shift-m w-full text-center text-xs md:text-sm py-1 font-bold flex items-center justify-center gap-1 shadow-xs"><span>☀️</span> เช้า (08:30-16:30)</span>`;
-      if (s === 'A') shiftBadges += `<span class="shift-tag shift-a w-full text-center text-xs md:text-sm py-1 font-bold flex items-center justify-center gap-1 shadow-xs"><span>⛅</span> บ่าย (16:30-00:30)</span>`;
-      if (s === 'N' && shiftMode === 3) shiftBadges += `<span class="shift-tag shift-n w-full text-center text-xs md:text-sm py-1 font-bold flex items-center justify-center gap-1 shadow-xs"><span>🌙</span> ดึก (00:30-08:30)</span>`;
-    });
+    if (dayShifts.length > 0) {
+      shiftBadges = `<div class="flex items-center justify-center gap-1 flex-wrap sm:flex-col sm:space-y-1">`;
+      dayShifts.forEach(s => {
+        if (s === 'M') {
+          shiftBadges += `
+            <span class="shift-tag shift-m py-0.5 px-1 sm:py-1 sm:px-2 rounded-md sm:rounded-xl text-xs sm:text-sm font-black flex items-center justify-center gap-1 shadow-2xs w-auto sm:w-full" title="เวรเช้า (08:30-16:30)">
+              <span class="text-xs sm:text-sm leading-none">☀️</span>
+              <span class="hidden sm:inline font-bold">เช้า</span>
+            </span>
+          `;
+        }
+        if (s === 'A') {
+          shiftBadges += `
+            <span class="shift-tag shift-a py-0.5 px-1 sm:py-1 sm:px-2 rounded-md sm:rounded-xl text-xs sm:text-sm font-black flex items-center justify-center gap-1 shadow-2xs w-auto sm:w-full" title="เวรบ่าย (16:30-00:30)">
+              <span class="text-xs sm:text-sm leading-none">⛅</span>
+              <span class="hidden sm:inline font-bold">บ่าย</span>
+            </span>
+          `;
+        }
+        if (s === 'N' && shiftMode === 3) {
+          shiftBadges += `
+            <span class="shift-tag shift-n py-0.5 px-1 sm:py-1 sm:px-2 rounded-md sm:rounded-xl text-xs sm:text-sm font-black flex items-center justify-center gap-1 shadow-2xs w-auto sm:w-full" title="เวรดึก (00:30-08:30)">
+              <span class="text-xs sm:text-sm leading-none">🌙</span>
+              <span class="hidden sm:inline font-bold">ดึก</span>
+            </span>
+          `;
+        }
+      });
+      shiftBadges += `</div>`;
+    }
 
     let dayCardStyle = 'glass-card hover:border-blue-400';
-    let dateColor = 'text-slate-900';
-    let badgeClass = 'bg-slate-100 text-slate-700';
+    let dateColor = 'text-slate-900 dark:text-slate-100';
+    let badgeClass = 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300';
 
     if (isSunday) {
-      dayCardStyle = 'bg-rose-50/70 border-rose-200/90 hover:border-rose-400';
-      dateColor = 'text-rose-600';
-      badgeClass = 'bg-rose-100 text-rose-700';
+      dayCardStyle = 'bg-rose-50/70 dark:bg-rose-950/20 border-rose-200/90 dark:border-rose-900/60 hover:border-rose-400';
+      dateColor = 'text-rose-600 dark:text-rose-400';
+      badgeClass = 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300';
     } else if (isSaturday) {
-      dayCardStyle = 'bg-purple-50/75 border-purple-200/90 hover:border-purple-400';
-      dateColor = 'text-purple-700';
-      badgeClass = 'bg-purple-100 text-purple-700';
+      dayCardStyle = 'bg-purple-50/75 dark:bg-purple-950/20 border-purple-200/90 dark:border-purple-900/60 hover:border-purple-400';
+      dateColor = 'text-purple-700 dark:text-purple-400';
+      badgeClass = 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300';
     }
 
     let clickAttr = '';
     let emptySlotText = '';
     if (isConfirmed) {
       clickAttr = `onclick="window.showToast('🔒 ตารางเวรประจำเดือนนี้ได้รับการยืนยันทางการแล้ว ปิดรับการแก้ไขหรือจองเพิ่ม')"`;
-      emptySlotText = `<span class="text-xs text-slate-300 font-medium italic block text-center py-2">-</span>`;
+      emptySlotText = `<span class="text-[10px] sm:text-xs text-slate-300 dark:text-slate-600 font-medium block text-center py-1">-</span>`;
     } else {
       clickAttr = `onclick="openCellEditor('${nurseId}', ${d})"`;
-      emptySlotText = `<span class="text-xs text-slate-400 font-medium italic block text-center py-2 hover:text-blue-600">+ แตะเลือกเวร</span>`;
+      emptySlotText = `
+        <span class="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 font-medium block text-center py-0.5 sm:py-1 hover:text-blue-600">
+          <span class="sm:hidden font-black text-xs text-blue-500/70">+</span>
+          <span class="hidden sm:inline italic">+ แตะเลือกเวร</span>
+        </span>
+      `;
     }
 
     calHtml += `
-      <div class="calendar-day-cell rounded-2xl border p-3 md:p-3.5 flex flex-col justify-between shadow-xs transition ${dayCardStyle} ${isConfirmed ? 'cursor-default' : 'cursor-pointer'}" ${clickAttr}>
-        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
-          <span class="text-2xl md:text-3xl font-black ${dateColor}">${d}</span>
-          <span class="text-xs md:text-sm font-extrabold px-2 py-0.5 rounded-lg ${badgeClass}">
+      <div class="calendar-day-cell border p-1 sm:p-2.5 md:p-3 flex flex-col justify-between shadow-2xs transition ${dayCardStyle} ${isConfirmed ? 'cursor-default' : 'cursor-pointer'}" ${clickAttr}>
+        <div class="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+          <span class="text-xs sm:text-base md:text-xl font-black ${dateColor}">${d}</span>
+          <span class="text-[9px] sm:text-xs font-bold px-1 py-0.2 rounded ${badgeClass}">
             ${CALENDAR_HEADERS[dayOfWeek].short}
           </span>
         </div>
-        <div class="mt-2 space-y-1.5">
+        <div class="mt-1">
           ${shiftBadges || emptySlotText}
         </div>
       </div>
