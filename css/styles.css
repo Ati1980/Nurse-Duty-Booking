@@ -237,12 +237,18 @@ h1, h2, h3, h4, .font-heading {
   filter: brightness(1.03);
 }
 
-/* 1. เด่นชัดเป็นพิเศษ: เวรที่ยังไม่มีคนเลือก (0 คน) */
+/* 1. เวรที่ยังไม่มีคนเลือก (0 คน) - ปรับโทนสีให้อ่อนลง นุ่มนวล สบายตา */
 .cal-shift-unassigned {
-  background: linear-gradient(135deg, #fff1f2 0%, #fee2e2 100%) !important;
-  border-color: #f43f5e !important;
-  color: #9f1239 !important;
-  box-shadow: 0 2px 8px rgba(244, 63, 94, 0.25);
+  background: linear-gradient(135deg, #fffafa 0%, #fff1f2 100%) !important;
+  border-color: #fecdd3 !important;
+  color: #be123c !important;
+  box-shadow: 0 1px 3px rgba(225, 29, 72, 0.05) !important;
+}
+
+.cal-shift-unassigned:hover {
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe4e6 100%) !important;
+  border-color: #fda4af !important;
+  box-shadow: 0 4px 10px rgba(244, 63, 94, 0.1) !important;
 }
 
 /* 2. เวรที่มีคนเลือกแล้ว (ตามจำนวนพยาบาล) */
@@ -712,4 +718,216 @@ h1, h2, h3, h4, .font-heading {
   opacity: 1;
   transform: translateY(0);
 }
+
+/* ==========================================================================
+   DARK MODE SYSTEM & MOBILE-FIRST ERGONOMICS
+   ========================================================================== */
+
+/* Dark Mode Transitions */
+html {
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+html.dark body {
+  background: radial-gradient(circle at 10% 10%, #0e1726 0%, #080d1a 50%, #03060f 100%) !important;
+  color: #f1f5f9 !important;
+}
+
+/* Ambient glow subtle adjustment in dark mode */
+html.dark .ambient-glow-1 {
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.16) 0%, rgba(37, 99, 235, 0.08) 50%, transparent 75%);
+}
+html.dark .ambient-glow-2 {
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.14) 0%, rgba(59, 130, 246, 0.08) 50%, transparent 75%);
+}
+html.dark .ambient-glow-3 {
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.1) 0%, transparent 70%);
+}
+
+/* Dark Glass Containers & Cards */
+html.dark .glass-container {
+  background: rgba(15, 23, 42, 0.94) !important;
+  border-color: rgba(51, 65, 85, 0.75) !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(51, 65, 85, 0.5) !important;
+  color: #f8fafc !important;
+}
+
+html.dark .glass-card {
+  background: rgba(30, 41, 59, 0.85) !important;
+  border-color: rgba(51, 65, 85, 0.8) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+  color: #f8fafc !important;
+}
+
+html.dark .glass-card:hover {
+  background: rgba(30, 41, 59, 0.98) !important;
+  border-color: rgba(96, 165, 250, 0.6) !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5) !important;
+}
+
+html.dark .glass-header {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.96) 0%, rgba(30, 58, 138, 0.9) 55%, rgba(15, 23, 42, 0.96) 100%) !important;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.7) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45) !important;
+}
+
+html.dark .glass-input {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border-color: rgba(71, 85, 105, 0.8) !important;
+  color: #f8fafc !important;
+}
+
+html.dark .glass-input:focus {
+  background: #0f172a !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3) !important;
+}
+
+html.dark .glass-modal {
+  background: rgba(15, 23, 42, 0.98) !important;
+  border-color: rgba(51, 65, 85, 0.9) !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8) !important;
+  color: #f8fafc !important;
+}
+
+/* Dark Mode Main Calendar Cells */
+html.dark .main-cal-day-cell {
+  background: rgba(15, 23, 42, 0.8) !important;
+  border-color: rgba(51, 65, 85, 0.75) !important;
+  color: #f8fafc !important;
+}
+
+html.dark .main-cal-empty-cell {
+  background: rgba(15, 23, 42, 0.4) !important;
+  border-color: rgba(51, 65, 85, 0.4) !important;
+}
+
+html.dark .cal-shift-assigned {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.35) 0%, rgba(15, 23, 42, 0.7) 100%) !important;
+  border-color: rgba(59, 130, 246, 0.6) !important;
+  color: #bfdbfe !important;
+}
+
+html.dark .cal-shift-unassigned {
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.12) 0%, rgba(159, 18, 57, 0.08) 100%) !important;
+  border-color: rgba(251, 113, 133, 0.35) !important;
+  color: #fecdd3 !important;
+  box-shadow: none !important;
+}
+
+html.dark .cal-shift-unassigned:hover {
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.18) 0%, rgba(159, 18, 57, 0.12) 100%) !important;
+  border-color: rgba(251, 113, 133, 0.5) !important;
+}
+
+/* Dark Mode Date Buttons in Quick Booking Modal */
+html.dark .booking-date-btn {
+  background: rgba(30, 41, 59, 0.8) !important;
+  border-color: rgba(71, 85, 105, 0.8) !important;
+  color: #f8fafc !important;
+}
+
+html.dark .booking-date-btn:hover {
+  background: rgba(51, 65, 85, 0.9) !important;
+  border-color: #60a5fa !important;
+}
+
+html.dark .booking-date-btn.selected {
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%) !important;
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+}
+
+/* Dark Mode Form Selects & Options */
+html.dark select option {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+/* Dark Mode Tables in Excel & Admin View */
+html.dark table {
+  color: #f8fafc;
+}
+
+html.dark th {
+  background-color: #1e293b;
+  border-color: #334155 !important;
+  color: #f1f5f9;
+}
+
+html.dark td {
+  border-color: #334155 !important;
+}
+
+html.dark .bg-slate-50 {
+  background-color: rgba(30, 41, 59, 0.6) !important;
+}
+
+html.dark .bg-slate-100 {
+  background-color: rgba(30, 41, 59, 0.9) !important;
+}
+
+html.dark .bg-white {
+  background-color: #0f172a !important;
+  color: #f8fafc;
+}
+
+html.dark .text-slate-800,
+html.dark .text-slate-900,
+html.dark .text-blue-950 {
+  color: #f8fafc !important;
+}
+
+html.dark .text-slate-700,
+html.dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+html.dark .border-slate-200,
+html.dark .border-blue-200 {
+  border-color: rgba(51, 65, 85, 0.7) !important;
+}
+
+/* Dark Mode Toast */
+html.dark .app-toast {
+  background: rgba(30, 41, 59, 0.96) !important;
+  border-color: rgba(71, 85, 105, 0.7) !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.7) !important;
+}
+
+/* Mobile Slide-Up Bottom Sheet Animations */
+@media (max-width: 639px) {
+  .modal-sheet-panel {
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    animation: slideUpSheet 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+@keyframes slideUpSheet {
+  from {
+    transform: translateY(100%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Safe Area Inset Utility */
+.safe-area-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* Mobile Touch Target Standards */
+.mobile-tap-target {
+  min-height: 48px;
+  min-width: 48px;
+}
+
 

@@ -86,8 +86,126 @@ function saveNurses() {
 // Initial nurse load
 loadNurses();
 
+// 1. Core Shift & Calendar Definitions
 // Shift Mode: 2 = 2 เวร/วัน (เช้า, บ่าย), 3 = 3 เวร/วัน (เช้า, บ่าย, ดึก)
 let shiftMode = parseInt(localStorage.getItem('nurse_shift_mode') || '3');
+
+const SHIFTS = {
+  M: { id: 'M', code: 'ช', name: 'เวรเช้า', time: '08:30 - 16:30 น.', hours: 8, badge: 'shift-m', icon: '☀️' },
+  A: { id: 'A', code: 'บ', name: 'เวรบ่าย', time: '16:30 - 00:30 น.', hours: 8, badge: 'shift-a', icon: '⛅' },
+  N: { id: 'N', code: 'ด', name: 'เวรดึก', time: '00:30 - 08:30 น.', hours: 8, badge: 'shift-n', icon: '🌙' }
+};
+
+const THAI_MONTHS = [
+  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+];
+
+// ลำดับวันตามปฏิทินสากล เริ่มจากวันอาทิตย์ (Sunday) ตัวอักษรใหญ่ชัดเจน
+const CALENDAR_HEADERS = [
+  { th: "อาทิตย์", short: "อา.", en: "Sun", isWeekend: true, headerClass: "bg-rose-100/90 text-rose-800 border-rose-300" },
+  { th: "จันทร์", short: "จ.", en: "Mon", isWeekend: false, headerClass: "bg-blue-50/90 text-slate-800 border-slate-200" },
+  { th: "อังคาร", short: "อ.", en: "Tue", isWeekend: false, headerClass: "bg-blue-50/90 text-slate-800 border-slate-200" },
+  { th: "พุธ", short: "พ.", en: "Wed", isWeekend: false, headerClass: "bg-blue-50/90 text-slate-800 border-slate-200" },
+  { th: "พฤหัสบดี", short: "พฤ.", en: "Thu", isWeekend: false, headerClass: "bg-blue-50/90 text-slate-800 border-slate-200" },
+  { th: "ศุกร์", short: "ศ.", en: "Fri", isWeekend: false, headerClass: "bg-blue-50/90 text-slate-800 border-slate-200" },
+  { th: "เสาร์", short: "ส.", en: "Sat", isWeekend: true, headerClass: "bg-purple-100/90 text-purple-800 border-purple-300" }
+];
+
+// 2. Application State & Dynamic Start Month (ปีเริ่มต้น 2569 / 2026 ถึง 2575 / 2032)
+const now = new Date();
+let defaultMonth = now.getMonth() + 1; // เดือนปัจจุบัน + 1
+let defaultYear = now.getFullYear();
+if (defaultMonth > 11) {
+  defaultMonth = 0;
+  defaultYear++;
+}
+// Clamp defaultYear to range 2026 - 2032 per requirements
+if (defaultYear < 2026) defaultYear = 2026;
+if (defaultYear > 2032) defaultYear = 2032;
+
+let currentUser = null;
+let currentYear = defaultYear;
+let currentMonth = defaultMonth;
+let activeView = 'dashboard'; // 'dashboard', 'personal', 'admin', 'excel'
+let adminActiveSubView = 'matrix'; // 'matrix', 'daily', 'summary', 'vacancies'
+let dashboardShiftFilter = 'ALL'; // 'ALL', 'UNASSIGNED', 'M', 'A', 'N'
+let searchQuery = '';
+
+let monthState = {
+  round: 1,
+  round1: {},
+  round2: {},
+  roster: {},
+  isConfirmed: false
+};
+
+let activeEditNurseId = null;
+let activeEditDay = null;
+
+// Context for shift clicked before login
+let pendingShiftSelection = null;
+
+// Context for shift quick action modal
+let activeModalShiftContext = null;
+
+// Calendar View Mode: 'daily' vs 'grid'
+let calendarViewMode = (typeof window !== 'undefined' && window.innerWidth < 768) ? 'daily' : 'grid';
+try {
+  const savedCalView = localStorage.getItem('nurse_cal_view_mode');
+  if (savedCalView) calendarViewMode = savedCalView;
+} catch (e) {}
+
+// ==================== THEME MANAGEMENT (DARK MODE) ====================
+function initTheme() {
+  try {
+    const saved = localStorage.getItem('nurse_roster_theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const isDark = saved ? (saved === 'dark') : prefersDark;
+    applyTheme(isDark);
+  } catch (e) {
+    applyTheme(false);
+  }
+}
+
+window.toggleTheme = function() {
+  const isDark = document.documentElement.classList.contains('dark');
+  applyTheme(!isDark);
+};
+
+function applyTheme(isDark) {
+  if (isDark) {
+    document.documentElement.classList.add('dark');
+    try { localStorage.setItem('nurse_roster_theme', 'dark'); } catch (e) {}
+  } else {
+    document.documentElement.classList.remove('dark');
+    try { localStorage.setItem('nurse_roster_theme', 'light'); } catch (e) {}
+  }
+
+  const icon = isDark ? '☀️' : '🌙';
+  const title = isDark ? 'เปลี่ยนเป็นโหมดสว่าง (Light Mode)' : 'เปลี่ยนเป็นโหมดมืด (Dark Mode)';
+
+  const btnMobile = document.getElementById('themeToggleBtnMobile');
+  if (btnMobile) {
+    btnMobile.innerText = icon;
+    btnMobile.title = title;
+  }
+  const btnDesktop = document.getElementById('themeToggleBtnDesktop');
+  if (btnDesktop) {
+    btnDesktop.innerText = icon;
+    btnDesktop.title = title;
+  }
+
+  // Refresh admin duty chart if currently rendered in admin view
+  try {
+    if (activeView === 'admin' && typeof renderDutyChart === 'function') {
+      renderDutyChart();
+    }
+  } catch (e) {}
+}
+
+// Immediately apply theme
+initTheme();
 
 function getActiveShifts() {
   return shiftMode === 2 ? ['M', 'A'] : ['M', 'A', 'N'];
@@ -207,65 +325,6 @@ function updateRealTimeClock() {
   dateEl.textContent = `${dayName}ที่ ${dayNum} ${monthName} ${yearBE}`;
   timeEl.textContent = `${hh}:${mm}:${ss} น.`;
 }
-
-const SHIFTS = {
-  M: { id: 'M', code: 'ช', name: 'เวรเช้า', time: '08:30 - 16:30 น.', hours: 8, badge: 'shift-m', icon: '☀️' },
-  A: { id: 'A', code: 'บ', name: 'เวรบ่าย', time: '16:30 - 00:30 น.', hours: 8, badge: 'shift-a', icon: '⛅' },
-  N: { id: 'N', code: 'ด', name: 'เวรดึก', time: '00:30 - 08:30 น.', hours: 8, badge: 'shift-n', icon: '🌙' }
-};
-
-const THAI_MONTHS = [
-  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
-];
-
-// ลำดับวันตามปฏิทินสากล เริ่มจากวันอาทิตย์ (Sunday) ตัวอักษรใหญ่ชัดเจน
-const CALENDAR_HEADERS = [
-  { th: "อาทิตย์", short: "อา.", en: "Sun", isWeekend: true, headerClass: "bg-rose-100/90 text-rose-800 border-rose-300" },
-  { th: "จันทร์", short: "จ.", en: "Mon", isWeekend: false, headerClass: "bg-blue-50/90 text-slate-800 border-slate-200" },
-  { th: "อังคาร", short: "อ.", en: "Tue", isWeekend: false, headerClass: "bg-blue-50/90 text-slate-800 border-slate-200" },
-  { th: "พุธ", short: "พ.", en: "Wed", isWeekend: false, headerClass: "bg-blue-50/90 text-slate-800 border-slate-200" },
-  { th: "พฤหัสบดี", short: "พฤ.", en: "Thu", isWeekend: false, headerClass: "bg-blue-50/90 text-slate-800 border-slate-200" },
-  { th: "ศุกร์", short: "ศ.", en: "Fri", isWeekend: false, headerClass: "bg-blue-50/90 text-slate-800 border-slate-200" },
-  { th: "เสาร์", short: "ส.", en: "Sat", isWeekend: true, headerClass: "bg-purple-100/90 text-purple-800 border-purple-300" }
-];
-
-// 2. Application State & Dynamic Start Month (ปีเริ่มต้น 2569 / 2026 ถึง 2575 / 2032)
-const now = new Date();
-let defaultMonth = now.getMonth() + 1; // เดือนปัจจุบัน + 1
-let defaultYear = now.getFullYear();
-if (defaultMonth > 11) {
-  defaultMonth = 0;
-  defaultYear++;
-}
-// Clamp defaultYear to range 2026 - 2032 per requirements
-if (defaultYear < 2026) defaultYear = 2026;
-if (defaultYear > 2032) defaultYear = 2032;
-
-let currentUser = null;
-let currentYear = defaultYear;
-let currentMonth = defaultMonth;
-let activeView = 'dashboard'; // 'dashboard', 'personal', 'admin'
-let adminActiveSubView = 'matrix'; // 'matrix', 'daily', 'summary', 'vacancies'
-let dashboardShiftFilter = 'ALL'; // 'ALL', 'UNASSIGNED', 'M', 'A', 'N'
-let searchQuery = '';
-
-let monthState = {
-  round: 1,
-  round1: {},
-  round2: {},
-  roster: {},
-  isConfirmed: false
-};
-
-let activeEditNurseId = null;
-let activeEditDay = null;
-
-// Context for shift clicked before login
-let pendingShiftSelection = null;
-
-// Context for shift quick action modal
-let activeModalShiftContext = null;
 
 // 3. Helper Functions
 function getDaysCount(year, month) {
@@ -569,6 +628,24 @@ function updateNavSwitcher(viewName) {
       `;
     }
   });
+
+  // Sync Fixed Mobile Bottom Navigation Bar (Thumb Zone)
+  const bottomNavItems = [
+    { id: 'bottomNavDashboardBtn', target: 'dashboard' },
+    { id: 'bottomNavPersonalBtn', target: 'personal' },
+    { id: 'bottomNavExcelBtn', target: 'excel' },
+    { id: 'bottomNavAdminBtn', target: 'admin' }
+  ];
+  bottomNavItems.forEach(({ id, target }) => {
+    const bBtn = document.getElementById(id);
+    if (!bBtn) return;
+    const isTargetActive = (viewName === target);
+    if (isTargetActive) {
+      bBtn.className = "flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition text-blue-600 dark:text-blue-400 font-black bg-blue-50/80 dark:bg-blue-950/60 shadow-2xs active:scale-95 cursor-pointer";
+    } else {
+      bBtn.className = "flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition text-slate-500 dark:text-slate-400 font-semibold hover:text-slate-700 dark:hover:text-slate-200 active:scale-95 cursor-pointer";
+    }
+  });
 }
 
 // 5. Global View Switching
@@ -626,8 +703,10 @@ window.setDashboardFilter = function(filter) {
     if (btn) {
       if (f === filter) {
         btn.className = "px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-700 text-white shadow-xs transition";
+      } else if (f === 'UNASSIGNED') {
+        btn.className = "px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition flex items-center gap-1";
       } else {
-        btn.className = "px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 transition";
+        btn.className = "px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition";
       }
     }
   });
@@ -731,10 +810,10 @@ function renderPublicDashboard() {
       let subText = '';
 
       if (isUnassigned) {
-        // ส่วนเวรใหนที่ยังไม่มีคนเลือกให้แสดงเด่นชัด
+        // ส่วนเวรใหนที่ยังไม่มีคนเลือก: ปรับโทนสีให้อ่อนลง นุ่มนวล สบายตา
         rowClass += ' cal-shift-unassigned';
-        statusBadge = `<span class="bg-rose-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black shadow-xs">🚨 ยังไม่มีคนเลือก (0 คน)</span>`;
-        subText = `<div class="text-[10px] text-rose-800 font-bold mt-0.5 flex items-center justify-between"><span>⚠️ ยังไม่มีคนเลือก</span><span class="underline">คลิกเพื่อเลือกเวรนี้ ➔</span></div>`;
+        statusBadge = `<span class="bg-rose-100/90 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-[10px] px-2 py-0.5 rounded-full font-bold">ยังไม่มีคนเลือก (0 คน)</span>`;
+        subText = `<div class="text-[10px] text-rose-600/90 dark:text-rose-400 font-medium mt-0.5 flex items-center justify-between"><span>เวรว่าง (0 คน)</span><span class="underline text-rose-500 hover:text-rose-700">คลิกเพื่อเลือกเวร ➔</span></div>`;
       } else {
         // แสดงตามจำนวนพยาบาลที่เลือก
         rowClass += ' cal-shift-assigned';
@@ -787,7 +866,7 @@ function renderPublicDashboard() {
               </span>
             </div>
             <div>
-              ${dayHasUnassigned ? '<span class="text-[10px] font-black bg-rose-500 text-white px-1.5 py-0.5 rounded-full shadow-xs">🚨 มีเวรว่าง</span>' : '<span class="text-[10px] font-bold text-slate-400 font-mono">' + d + '/' + (currentMonth+1) + '</span>'}
+              ${dayHasUnassigned ? '<span class="text-[10px] font-bold bg-rose-100/90 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 px-1.5 py-0.5 rounded-full">มีเวรว่าง</span>' : '<span class="text-[10px] font-bold text-slate-400 font-mono">' + d + '/' + (currentMonth+1) + '</span>'}
             </div>
           </div>
 
@@ -811,7 +890,201 @@ function renderPublicDashboard() {
   document.getElementById('dashStatUnassigned').innerText = `${unassignedShiftsCount} เวร`;
   document.getElementById('dashStatAssigned').innerText = `${assignedShiftsCount} เวร`;
   document.getElementById('dashStatBookings').innerText = `${totalBookingsCount} ครั้ง`;
+
+  // Render Mobile Agenda Cards (มุมมองรายวัน - Matches Image 3)
+  renderPublicDashboardDailyCards(activeShifts);
+
+  // Sync Calendar View Mode (รายวัน vs ตาราง 7 วัน)
+  updateCalendarViewDisplay();
 }
+
+// ==================== CALENDAR VIEW SWITCHER (รายวัน vs ตาราง 7 วัน) ====================
+window.setCalendarViewMode = function(mode) {
+  calendarViewMode = mode;
+  try {
+    localStorage.setItem('nurse_cal_view_mode', mode);
+  } catch (e) {}
+  updateCalendarViewDisplay();
+};
+
+function updateCalendarViewDisplay() {
+  const dailyBtn = document.getElementById('calViewDailyBtn');
+  const gridBtn = document.getElementById('calViewGridBtn');
+  const dailyCont = document.getElementById('mainCalendarDailyContainer');
+  const gridCont = document.getElementById('mainCalendarGridContainer');
+
+  if (calendarViewMode === 'daily') {
+    if (dailyBtn) dailyBtn.className = "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black bg-blue-700 text-white shadow-xs transition cursor-pointer";
+    if (gridBtn) gridBtn.className = "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-700 dark:hover:text-blue-400 transition cursor-pointer";
+    if (dailyCont) dailyCont.classList.remove('hidden');
+    if (gridCont) gridCont.classList.add('hidden');
+  } else {
+    if (gridBtn) gridBtn.className = "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black bg-blue-700 text-white shadow-xs transition cursor-pointer";
+    if (dailyBtn) dailyBtn.className = "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-700 dark:hover:text-blue-400 transition cursor-pointer";
+    if (gridCont) gridCont.classList.remove('hidden');
+    if (dailyCont) dailyCont.classList.add('hidden');
+  }
+}
+
+// Render Mobile Agenda Cards (มุมมองรายวัน - Matches Image 3)
+function renderPublicDashboardDailyCards(activeShifts) {
+  const dailyContainer = document.getElementById('mainCalendarDailyContainer');
+  if (!dailyContainer) return;
+
+  const daysCount = getDaysCount(currentYear, currentMonth);
+  let html = '';
+
+  for (let d = 1; d <= daysCount; d++) {
+    const dt = new Date(currentYear, currentMonth, d);
+    const dayOfWeek = dt.getDay();
+    const dayName = CALENDAR_HEADERS[dayOfWeek].th;
+    const isSunday = (dayOfWeek === 0);
+    const isSaturday = (dayOfWeek === 6);
+
+    let dayCardBorder = 'border-slate-200/90 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60';
+    let dateBadgeBg = 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border-slate-200 dark:border-slate-700';
+    let dayTitleColor = 'text-slate-900 dark:text-white';
+    let dayBadge = '';
+
+    if (isSunday) {
+      dayCardBorder = 'border-rose-200/90 dark:border-rose-900/60 bg-rose-50/20 dark:bg-rose-950/10';
+      dateBadgeBg = 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800';
+      dayTitleColor = 'text-rose-600 dark:text-rose-400';
+      dayBadge = '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">อาทิตย์</span>';
+    } else if (isSaturday) {
+      dayCardBorder = 'border-purple-200/90 dark:border-purple-900/60 bg-purple-50/20 dark:bg-purple-950/10';
+      dateBadgeBg = 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-800';
+      dayTitleColor = 'text-purple-700 dark:text-purple-400';
+      dayBadge = '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">เสาร์</span>';
+    }
+
+    // Build shift rows for this day
+    let shiftRowsHtml = '';
+    let visibleShiftsCount = 0;
+
+    activeShifts.forEach(s => {
+      const shiftObj = SHIFTS[s];
+      const assigned = [];
+      NURSES.forEach(n => {
+        const shifts = (monthState.roster[n.id] && monthState.roster[n.id][d]) || [];
+        if (shifts.includes(s)) assigned.push(n);
+      });
+
+      const count = assigned.length;
+      const isUnassigned = (count === 0);
+
+      // Check Dashboard Filter
+      if (dashboardShiftFilter === 'UNASSIGNED' && !isUnassigned) return;
+      if (dashboardShiftFilter === 'M' && s !== 'M') return;
+      if (dashboardShiftFilter === 'A' && s !== 'A') return;
+      if (dashboardShiftFilter === 'N' && s !== 'N') return;
+
+      visibleShiftsCount++;
+
+      // Shift row styling
+      let rowBorder = 'border-slate-200/90 dark:border-slate-700/80 bg-white dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800';
+      let nurseBadgesHtml = '';
+
+      if (isUnassigned) {
+        rowBorder = 'border-rose-200 dark:border-rose-900/60 bg-rose-50/35 dark:bg-rose-950/20 hover:bg-rose-50/70 dark:hover:bg-rose-950/40';
+        nurseBadgesHtml = `
+          <span class="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 px-2 py-0.5 rounded-lg border border-rose-200 dark:border-rose-900/70">
+            <span>○</span>
+            <span>เวรว่าง (แตะเพื่อจอง)</span>
+          </span>
+        `;
+      } else {
+        nurseBadgesHtml = assigned.map(n => {
+          const nurseNum = n.id.replace(/\D/g, '') || n.id;
+          const cleanName = n.name.replace(/^พว\.\s*/, '');
+          const badgeBg = n.color || '#2563eb';
+          return `
+            <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-xl text-white shadow-2xs transition transform hover:scale-105"
+                  style="background-color: ${badgeBg};">
+              <span class="opacity-90 font-mono">#${nurseNum}</span>
+              <span>${cleanName}</span>
+            </span>
+          `;
+        }).join('');
+      }
+
+      // Person count badge
+      const countBadge = isUnassigned
+        ? `<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60">0 คน</span>`
+        : `<span class="px-2.5 py-1 rounded-xl text-xs font-black bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-600">${count} คน</span>`;
+
+      // Shift time display
+      let timeStr = '08:30';
+      if (s === 'A') timeStr = '16:30';
+      if (s === 'N') timeStr = '00:30';
+
+      shiftRowsHtml += `
+        <div class="flex items-center justify-between p-3 sm:p-3.5 rounded-2xl border ${rowBorder} transition cursor-pointer gap-2 shadow-2xs"
+             onclick="handleShiftClick(${d}, '${s}')" title="แตะเพื่อดูรายชื่อหรือเลือกจองเวรนี้">
+          <div class="flex items-center gap-2.5 flex-wrap flex-1 min-w-0">
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span class="text-xl sm:text-2xl">${shiftObj.icon}</span>
+              <span class="font-black text-xs sm:text-sm text-slate-800 dark:text-slate-100">${shiftObj.name}</span>
+              <span class="text-[11px] text-slate-500 dark:text-slate-400 font-mono font-medium">(${timeStr})</span>
+            </div>
+
+            <!-- Nurse Badges -->
+            <div class="flex items-center gap-1.5 flex-wrap">
+              ${nurseBadgesHtml}
+            </div>
+          </div>
+
+          <div class="shrink-0">
+            ${countBadge}
+          </div>
+        </div>
+      `;
+    });
+
+    if (visibleShiftsCount === 0 && dashboardShiftFilter !== 'ALL') {
+      continue;
+    }
+
+    html += `
+      <div class="glass-card rounded-3xl p-4 sm:p-5 border ${dayCardBorder} shadow-sm space-y-3">
+        <!-- Day Card Header -->
+        <div class="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl ${dateBadgeBg} border flex items-center justify-center font-black text-lg sm:text-xl shadow-inner shrink-0">
+              ${d}
+            </div>
+            <div>
+              <div class="font-black text-base sm:text-lg ${dayTitleColor} font-heading flex items-center gap-2">
+                <span>${dayName}</span>
+                ${dayBadge}
+              </div>
+              <div class="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                ${d} ${THAI_MONTHS[currentMonth]} ${currentYear + 543}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shift Rows -->
+        <div class="space-y-2 pt-0.5">
+          ${shiftRowsHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  if (!html) {
+    html = `
+      <div class="glass-card rounded-3xl p-8 text-center border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">
+        <div class="text-3xl mb-2">🔍</div>
+        <div class="font-bold text-sm">ไม่พบเวรที่ตรงกับตัวกรองที่เลือก</div>
+      </div>
+    `;
+  }
+
+  dailyContainer.innerHTML = html;
+}
+
 
 // 7. SHIFT CLICK & POPUP MODAL (ระบุรายชื่อพยาบาลเฉพาะใน popup และแสดงตามจำนวนพยาบาล)
 window.handleShiftClick = function(day, shift) {
@@ -835,17 +1108,17 @@ window.handleShiftClick = function(day, shift) {
 
       const bodyEl = document.getElementById('shiftModalBody');
       bodyEl.innerHTML = `
-        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+        <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs space-y-2">
           <div class="flex justify-between items-center">
-            <span class="text-slate-600 font-medium">จำนวนพยาบาลที่เลือกเวรนี้:</span>
-            <span class="font-black text-sm ${assigned.length === 0 ? 'text-rose-600' : 'text-blue-900'}">${assigned.length} ท่าน</span>
+            <span class="text-slate-600 dark:text-slate-300 font-medium">จำนวนพยาบาลที่เลือกเวรนี้:</span>
+            <span class="font-black text-sm ${assigned.length === 0 ? 'text-rose-500 dark:text-rose-400' : 'text-blue-900 dark:text-blue-300'}">${assigned.length} ท่าน</span>
           </div>
           ${assigned.length === 0 ? `
-            <div class="p-2.5 text-center bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs rounded-xl">
-              🚨 ยังไม่มีพยาบาลเลือกเวรนี้
+            <div class="p-2.5 text-center bg-rose-50/70 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-300 font-bold text-xs rounded-xl">
+              เวรว่าง (ยังไม่มีพยาบาลเลือกเวรนี้)
             </div>
           ` : `
-            <div class="p-2.5 text-center bg-sky-50 border border-sky-200 text-sky-800 font-semibold text-xs rounded-xl">
+            <div class="p-2.5 text-center bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900/60 text-sky-800 dark:text-sky-300 font-semibold text-xs rounded-xl">
               ✓ มีพยาบาลเลือกเวรนี้แล้ว ${assigned.length} ท่าน
             </div>
           `}
@@ -911,17 +1184,17 @@ window.handleShiftClick = function(day, shift) {
 
     const bodyEl = document.getElementById('shiftModalBody');
     bodyEl.innerHTML = `
-      <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+      <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs space-y-2">
         <div class="flex justify-between items-center">
-          <span class="text-slate-600 font-medium">จำนวนพยาบาลที่เลือกเวรนี้:</span>
-          <span class="font-black text-sm ${assigned.length === 0 ? 'text-rose-600' : 'text-blue-900'}">${assigned.length} ท่าน</span>
+          <span class="text-slate-600 dark:text-slate-300 font-medium">จำนวนพยาบาลที่เลือกเวรนี้:</span>
+          <span class="font-black text-sm ${assigned.length === 0 ? 'text-rose-500 dark:text-rose-400' : 'text-blue-900 dark:text-blue-300'}">${assigned.length} ท่าน</span>
         </div>
         ${assigned.length === 0 ? `
-          <div class="p-2.5 text-center bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs rounded-xl">
-            🚨 ยังไม่มีพยาบาลเลือกเวรนี้
+          <div class="p-2.5 text-center bg-rose-50/70 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-300 font-bold text-xs rounded-xl">
+            เวรว่าง (ยังไม่มีพยาบาลเลือกเวรนี้)
           </div>
         ` : `
-          <div class="p-2.5 text-center bg-sky-50 border border-sky-200 text-sky-800 font-semibold text-xs rounded-xl">
+          <div class="p-2.5 text-center bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900/60 text-sky-800 dark:text-sky-300 font-semibold text-xs rounded-xl">
             ✓ มีพยาบาลเลือกเวรนี้แล้ว ${assigned.length} ท่าน
           </div>
         `}
@@ -2758,6 +3031,7 @@ function renderDutyChart() {
     }
 
     const ctx = canvas.getContext('2d');
+    const isDark = document.documentElement.classList.contains('dark');
     dutyChartInstance = new Chart(ctx, {
       data: {
         labels: chartLabels,
@@ -2775,7 +3049,7 @@ function renderDutyChart() {
             display: false // Handled via our custom top badge legend
           },
           tooltip: {
-            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+            backgroundColor: isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(15, 23, 42, 0.95)',
             padding: 12,
             cornerRadius: 12,
             titleFont: { size: 13, weight: 'bold' },
@@ -2790,20 +3064,20 @@ function renderDutyChart() {
         scales: {
           x: {
             stacked: chartIsStacked,
-            grid: { color: 'rgba(226, 232, 240, 0.7)' },
+            grid: { color: isDark ? 'rgba(51, 65, 85, 0.6)' : 'rgba(226, 232, 240, 0.7)' },
             ticks: {
               font: { weight: 'bold', size: 11 },
-              color: '#334155'
+              color: isDark ? '#cbd5e1' : '#334155'
             }
           },
           y: {
             stacked: chartIsStacked,
             beginAtZero: true,
-            grid: { color: 'rgba(226, 232, 240, 0.7)' },
+            grid: { color: isDark ? 'rgba(51, 65, 85, 0.6)' : 'rgba(226, 232, 240, 0.7)' },
             ticks: {
               precision: 0,
               font: { weight: 'bold', size: 11 },
-              color: '#334155',
+              color: isDark ? '#cbd5e1' : '#334155',
               callback: function(v) { return v + ' เวร'; }
             }
           }
@@ -4536,9 +4810,11 @@ window.handleSaveNurse = function(e) {
 
 // 14. EVENT LISTENERS INITIALIZATION
 document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
   loadMonthState();
   initAuth();
   updateShiftModeUI();
+  updateCalendarViewDisplay();
   updateRealTimeClock();
   setInterval(updateRealTimeClock, 1000);
 
