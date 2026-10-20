@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="th" class="overflow-x-hidden max-w-full">
+<html lang="th">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ระบบตาราง Booking เวรพยาบาล</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -15,14 +15,12 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="min-h-screen text-slate-900 font-sans selection:bg-blue-500 selection:text-white overflow-x-hidden w-full max-w-full">
+<body class="min-h-screen text-slate-900 font-sans selection:bg-blue-500 selection:text-white">
 
-  <!-- Ambient Glowing Orbs (Contained to prevent mobile horizontal blowout) -->
-  <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
-    <div class="ambient-glow-1"></div>
-    <div class="ambient-glow-2"></div>
-    <div class="ambient-glow-3"></div>
-  </div>
+  <!-- Ambient Glowing Orbs for Modern Glassmorphism -->
+  <div class="ambient-glow-1"></div>
+  <div class="ambient-glow-2"></div>
+  <div class="ambient-glow-3"></div>
 
   <!-- Print Header -->
   <div class="print-header hidden">
@@ -30,90 +28,64 @@
     <p class="text-xs text-slate-600">เวรเช้า: 08:30 - 16:30 น. | เวรบ่าย: 16:30 - 00:30 น. | เวรดึก: 00:30 - 08:30 น.</p>
   </div>
 
-  <!-- Main Application Wrapper (pb-28 for Fixed Bottom Navigation Bar) -->
-  <div class="relative z-10 w-full max-w-[1760px] mx-auto p-2.5 sm:p-4 md:p-6 pb-28 md:pb-8 min-h-screen flex flex-col min-w-0">
+  <!-- Main Application Wrapper (pb-24 for Fixed Bottom Navigation Bar) -->
+  <div class="relative z-10 max-w-[1760px] mx-auto p-2 sm:p-4 md:p-6 pb-24 md:pb-8 min-h-screen flex flex-col">
 
     <!-- ==================== TOP NAVIGATION HEADER (SOFT & VIBRANT BLUE GLASS) ==================== -->
-    <header class="glass-header rounded-2xl sm:rounded-3xl p-3 sm:p-5 md:p-6 mb-4 sm:mb-5 text-white shadow-xl border border-white/30 w-full max-w-full min-w-0">
-      <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-2.5 sm:gap-4">
+    <header class="glass-header rounded-3xl p-5 md:p-6 mb-5 text-white shadow-xl border border-white/30">
+      <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
         
-        <!-- Row 1: Hospital Branding & Mobile Top Actions (Theme Toggle & Unauth Icons) -->
-        <div class="flex items-center justify-between xl:justify-start gap-2 sm:gap-3.5 w-full xl:w-auto">
-          <div class="flex items-center gap-2 sm:gap-3.5 cursor-pointer min-w-0 flex-1 sm:flex-initial" onclick="switchView('dashboard')">
-            <div class="w-9 h-9 sm:w-12 sm:h-12 md:w-13 md:h-13 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-md text-lg sm:text-2xl md:text-3xl shrink-0">
+        <!-- Left: Hospital Department Branding & Mobile Theme Toggle (Matches Image 1) -->
+        <div class="flex items-center justify-between xl:justify-start gap-3.5 w-full xl:w-auto">
+          <div class="flex items-center gap-3.5 cursor-pointer" onclick="switchView('dashboard')">
+            <div class="w-12 h-12 sm:w-13 sm:h-13 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-md text-2xl sm:text-3xl">
               🏥
             </div>
-            <div class="min-w-0">
-              <h1 class="text-xs sm:text-lg md:text-2xl font-black tracking-tight font-heading text-white truncate">ระบบจองและจัดตารางเวรพยาบาล</h1>
+            <div>
+              <h1 class="text-lg sm:text-xl md:text-2xl font-black tracking-tight font-heading text-white">ระบบจองและจัดตารางเวรพยาบาล</h1>
             </div>
           </div>
 
-          <!-- Mobile Top Right Actions: Unauth Icons & Theme Toggle (Header) -->
-          <div class="flex items-center gap-1.5 xl:hidden shrink-0">
-            <!-- Unauth Icon Buttons on Mobile -->
-            <div id="unauthButtonsMobile" class="flex items-center gap-1.5">
-              <!-- จองเวร (Icon Button on Mobile) -->
-              <button onclick="openNurseLoginModal()" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 border border-white/40 shadow-sm flex items-center justify-center text-base sm:text-lg transition transform active:scale-95 text-white cursor-pointer" title="จองตารางเวร (เข้าสู่ระบบพยาบาล)">
-                👩‍⚕️
-              </button>
-              <!-- Admin (Icon Button on Mobile) -->
-              <button onclick="openAdminLoginModal()" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-r from-slate-900 to-indigo-950 hover:from-slate-800 hover:to-indigo-900 border border-white/30 shadow-sm flex items-center justify-center text-base sm:text-lg transition transform active:scale-95 text-white cursor-pointer" title="เข้าสู่ระบบ Admin">
-                🛡️
-              </button>
-            </div>
-
-            <!-- Mobile Theme Toggle Button -->
-            <button id="themeToggleBtnMobile" onclick="toggleTheme()" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/20 hover:bg-white/30 border border-white/30 flex items-center justify-center text-base sm:text-lg shadow-sm transition transform hover:scale-105 active:scale-95 cursor-pointer text-white shrink-0" title="สลับโหมดสว่าง/มืด (Dark Mode)">
-              🌙
-            </button>
-          </div>
-        </div>
-
-        <!-- Row 2: Mobile Authenticated Profile & Logout Bar (ดึงลงมาข้างล่าง แสดงชื่อครบทั้งหมด ไม่ตัดทอน) -->
-        <div id="authControlsMobile" class="hidden xl:hidden w-full flex items-center justify-between gap-2.5 p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-white/20 border border-white/30 backdrop-blur-md shadow-xs">
-          <div id="userProfileBadgeMobile" class="flex items-center gap-2 min-w-0 flex-1">
-            <!-- Dynamically populated with Full Nurse Name & Staff ID -->
-          </div>
-          <button onclick="handleLogout()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 border border-rose-300/60 text-white font-bold text-xs shadow-xs transition transform active:scale-95 cursor-pointer shrink-0" title="ออกจากระบบ">
-            <span>🚪</span>
-            <span>ออกจากระบบ</span>
+          <!-- Mobile Theme Toggle Button on Top Right (Matches Image 1) -->
+          <button id="themeToggleBtnMobile" onclick="toggleTheme()" class="xl:hidden w-11 h-11 rounded-2xl bg-white/20 hover:bg-white/30 border border-white/30 flex items-center justify-center text-xl shadow-md transition transform hover:scale-105 active:scale-95 cursor-pointer text-white" title="สลับโหมดสว่าง/มืด (Dark Mode)">
+            🌙
           </button>
         </div>
 
-        <!-- Row 3: Shift Legend Pills (ขยับลงมาข้างล่าง Fit mobile screen width, NO SLIDE) -->
-        <div id="headerShiftPillsContainer" class="grid grid-cols-3 sm:flex sm:items-center gap-1 sm:gap-2 bg-white/15 p-1 sm:p-2 rounded-2xl border border-white/20 backdrop-blur-md shadow-xs w-full xl:w-auto max-w-full min-w-0">
-          <div class="flex items-center justify-center sm:justify-start gap-1 sm:gap-2 bg-sky-500/25 border border-white/30 px-1 py-1 sm:px-3 sm:py-1.5 rounded-xl min-w-0">
-            <span class="text-sm sm:text-xl shrink-0">☀️</span>
-            <div class="min-w-0 text-center sm:text-left">
-              <div class="font-bold text-white text-[10px] sm:text-xs truncate leading-tight">เช้า <span class="hidden sm:inline">(M)</span></div>
-              <div class="text-[8px] sm:text-[10px] text-blue-100 font-mono leading-tight whitespace-nowrap">08:30-16:30</div>
+        <!-- Middle: Shift Legend Pills with Enlarged Icons (แสดงตามโหมดเวรที่เลือก - สไตล์เท่าเทียมกันทุกการ์ด) -->
+        <div id="headerShiftPillsContainer" class="flex items-center gap-2 bg-white/15 p-1.5 sm:p-2 rounded-2xl border border-white/20 backdrop-blur-md shadow-xs overflow-x-auto max-w-full">
+          <div class="flex items-center gap-2 bg-sky-500/25 border border-white/30 px-3 py-1.5 rounded-xl shrink-0">
+            <span class="text-xl shrink-0">☀️</span>
+            <div>
+              <div class="font-bold text-white text-xs whitespace-nowrap">เวรเช้า (M)</div>
+              <div class="text-[10px] text-blue-100 font-mono whitespace-nowrap">08:30 - 16:30 น.</div>
             </div>
           </div>
-          <div class="flex items-center justify-center sm:justify-start gap-1 sm:gap-2 bg-amber-500/25 border border-white/30 px-1 py-1 sm:px-3 sm:py-1.5 rounded-xl min-w-0">
-            <span class="text-sm sm:text-xl shrink-0">⛅</span>
-            <div class="min-w-0 text-center sm:text-left">
-              <div class="font-bold text-white text-[10px] sm:text-xs truncate leading-tight">บ่าย <span class="hidden sm:inline">(A)</span></div>
-              <div class="text-[8px] sm:text-[10px] text-amber-100 font-mono leading-tight whitespace-nowrap">16:30-00:30</div>
+          <div class="flex items-center gap-2 bg-amber-500/25 border border-white/30 px-3 py-1.5 rounded-xl shrink-0">
+            <span class="text-xl shrink-0">⛅</span>
+            <div>
+              <div class="font-bold text-white text-xs whitespace-nowrap">เวรบ่าย (A)</div>
+              <div class="text-[10px] text-amber-100 font-mono whitespace-nowrap">16:30 - 00:30 น.</div>
             </div>
           </div>
-          <div id="headerShiftNPill" class="flex items-center justify-center sm:justify-start gap-1 sm:gap-2 bg-purple-500/25 border border-white/30 px-1 py-1 sm:px-3 sm:py-1.5 rounded-xl min-w-0">
-            <span class="text-sm sm:text-xl shrink-0">🌙</span>
-            <div class="min-w-0 text-center sm:text-left">
-              <div class="font-bold text-white text-[10px] sm:text-xs truncate leading-tight">ดึก <span class="hidden sm:inline">(N)</span></div>
-              <div class="text-[8px] sm:text-[10px] text-purple-100 font-mono leading-tight whitespace-nowrap">00:30-08:30</div>
+          <div id="headerShiftNPill" class="flex items-center gap-2 bg-purple-500/25 border border-white/30 px-3 py-1.5 rounded-xl shrink-0">
+            <span class="text-xl shrink-0">🌙</span>
+            <div>
+              <div class="font-bold text-white text-xs whitespace-nowrap">เวรดึก (N)</div>
+              <div class="text-[10px] text-purple-100 font-mono whitespace-nowrap">00:30 - 08:30 น.</div>
             </div>
           </div>
         </div>
 
-        <!-- Desktop Right: Actions & Login Buttons (Visible on desktop xl) -->
-        <div class="hidden xl:flex items-center gap-2.5 sm:gap-3 flex-wrap w-full xl:w-auto">
+        <!-- Right: Actions & Separate Login Buttons (ตัดคำว่าปุ่มออก) -->
+        <div class="flex items-center gap-3 flex-wrap">
           
           <!-- Desktop Theme Toggle Button (Moon / Sun) -->
-          <button id="themeToggleBtnDesktop" onclick="toggleTheme()" class="w-10 h-10 rounded-2xl bg-white/20 hover:bg-white/30 border border-white/30 flex items-center justify-center text-xl shadow-md transition transform hover:scale-105 active:scale-95 cursor-pointer text-white" title="สลับโหมดสว่าง/มืด (Dark Mode)">
+          <button id="themeToggleBtnDesktop" onclick="toggleTheme()" class="hidden xl:flex w-10 h-10 rounded-2xl bg-white/20 hover:bg-white/30 border border-white/30 items-center justify-center text-xl shadow-md transition transform hover:scale-105 active:scale-95 cursor-pointer text-white" title="สลับโหมดสว่าง/มืด (Dark Mode)">
             🌙
           </button>
 
-          <!-- Segmented Pill Group for Desktop Views -->
+          <!-- Segmented Pill Group for Views (Active Indicator - Matches Image 333) -->
           <div id="navSegmentedPillGroup" class="flex items-center p-1 bg-black/20 backdrop-blur-md rounded-2xl border border-white/25 gap-1.5 shadow-inner">
             <button id="navDashboardBtn" onclick="switchView('dashboard')" 
                     class="nav-tab-btn nav-tab-btn-inactive">
@@ -137,31 +109,31 @@
             </button>
           </div>
 
-          <!-- When Unauthenticated (Desktop view with text) -->
-          <div id="unauthButtons" class="flex items-center gap-2">
+          <!-- When Unauthenticated: "จองตารางเวร" & "Admin" Buttons -->
+          <div id="unauthButtons" class="flex items-center gap-2 sm:gap-3">
             <!-- จองตารางเวร (พยาบาล) -->
             <button id="btnOpenNurseLogin" onclick="openNurseLoginModal()" 
-                    class="group flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-blue-600 via-sky-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 border border-white/40 shadow-md shadow-sky-600/30 transition transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer">
-              <span class="text-lg group-hover:scale-110 transition transform">👩‍⚕️</span>
-              <span class="tracking-wide">จองตารางเวร</span>
+                    class="group flex items-center gap-2 px-3.5 sm:px-5 py-2.5 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-blue-600 via-sky-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 border border-white/40 shadow-md shadow-sky-600/30 transition transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer" title="จองตารางเวร (สำหรับพยาบาล)">
+              <span class="text-xl group-hover:scale-110 transition transform">👩‍⚕️</span>
+              <span class="tracking-wide hidden sm:inline">จองตารางเวร</span>
             </button>
 
             <!-- Admin -->
             <button id="btnOpenAdminLogin" onclick="openAdminLoginModal()" 
-                    class="group flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 hover:from-slate-800 hover:to-indigo-900 border border-white/30 shadow-md shadow-indigo-950/40 transition transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer">
-              <span class="text-lg group-hover:scale-110 transition transform">🛡️</span>
-              <span class="tracking-wide">Admin</span>
+                    class="group flex items-center gap-2 px-3.5 sm:px-5 py-2.5 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 hover:from-slate-800 hover:to-indigo-900 border border-white/30 shadow-md shadow-indigo-950/40 transition transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer" title="เข้าสู่ระบบ Admin">
+              <span class="text-xl group-hover:scale-110 transition transform">🛡️</span>
+              <span class="tracking-wide hidden sm:inline">Admin</span>
             </button>
           </div>
 
-          <!-- When Authenticated: Profile Badge & Pinned Logout Button -->
-          <div id="authControls" class="hidden items-center gap-2">
+          <!-- When Authenticated: Profile Badge & Pinned Logout Button on Far Right -->
+          <div id="authControls" class="hidden flex items-center gap-2 sm:gap-3 flex-wrap">
             <div id="userProfileBadge"></div>
 
-            <!-- ปุ่ม ออกจากระบบ -->
-            <button onclick="handleLogout()" class="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 border border-rose-300/60 text-white rounded-xl text-xs font-black shadow-md shadow-rose-950/30 transition transform hover:scale-105 active:scale-95 cursor-pointer shrink-0" title="ออกจากระบบ">
+            <!-- ย้ายปุ่ม ออกจากระบบ ไปขอบขวา ของ header ตามความต้องการ -->
+            <button onclick="handleLogout()" class="ml-1 sm:ml-2 flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 border border-rose-300/60 text-white rounded-xl text-xs font-black shadow-md shadow-rose-950/30 transition transform hover:scale-105 active:scale-95 cursor-pointer" title="ออกจากระบบ">
               <span class="text-base">🚪</span>
-              <span id="headerLogoutBtnText">ออกจากระบบ</span>
+              <span id="headerLogoutBtnText" class="hidden sm:inline">ออกจากระบบ</span>
             </button>
           </div>
 
@@ -171,15 +143,15 @@
     </header>
 
     <!-- ==================== MONTH NAVIGATOR & REAL-TIME CLOCK BAR ==================== -->
-    <div class="glass-card rounded-2xl p-3 sm:px-5 sm:py-3.5 mb-4 sm:mb-5 flex flex-wrap items-center justify-between gap-3 sm:gap-4 border border-white/60 shadow-md w-full max-w-full min-w-0">
-      <div class="flex items-center justify-between sm:justify-start gap-2 sm:gap-3 w-full sm:w-auto">
-        <button id="prevMonthBtn" class="p-2 sm:p-2.5 bg-white dark:bg-slate-800 hover:bg-blue-50 border border-blue-200 dark:border-slate-700 rounded-xl shadow-xs text-blue-900 dark:text-blue-300 transition font-black text-sm shrink-0" title="เดือนก่อนหน้า">
+    <div class="glass-card rounded-2xl px-5 py-3.5 mb-5 flex flex-wrap items-center justify-between gap-4 border border-white/60 shadow-md">
+      <div class="flex items-center gap-3">
+        <button id="prevMonthBtn" class="p-2.5 bg-white hover:bg-blue-50 border border-blue-200 rounded-xl shadow-xs text-blue-900 transition font-black text-sm" title="เดือนก่อนหน้า">
           ◀
         </button>
         
-        <div class="flex-1 sm:flex-none flex items-center justify-center bg-white/95 dark:bg-slate-800/95 border border-blue-200 dark:border-slate-700 rounded-xl shadow-xs px-2.5 sm:px-4 py-2 gap-1.5 sm:gap-2.5">
-          <span class="text-base sm:text-xl shrink-0">📅</span>
-          <select id="monthSelect" class="font-black text-slate-800 dark:text-slate-100 bg-transparent border-none outline-none cursor-pointer text-xs sm:text-sm md:text-base">
+        <div class="flex items-center bg-white/95 border border-blue-200 rounded-xl shadow-xs px-4 py-2 gap-2.5">
+          <span class="text-xl">📅</span>
+          <select id="monthSelect" class="font-black text-slate-800 bg-transparent border-none outline-none cursor-pointer text-sm md:text-base">
             <option value="0">มกราคม</option>
             <option value="1">กุมภาพันธ์</option>
             <option value="2">มีนาคม</option>
@@ -194,7 +166,7 @@
             <option value="11">ธันวาคม</option>
           </select>
           <span class="text-blue-400 font-black">/</span>
-          <select id="yearSelect" class="font-black text-slate-800 dark:text-slate-100 bg-transparent border-none outline-none cursor-pointer text-xs sm:text-sm md:text-base">
+          <select id="yearSelect" class="font-black text-slate-800 bg-transparent border-none outline-none cursor-pointer text-sm md:text-base">
             <option value="2026">2569 (2026)</option>
             <option value="2027">2570 (2027)</option>
             <option value="2028">2571 (2028)</option>
@@ -205,23 +177,23 @@
           </select>
         </div>
 
-        <button id="nextMonthBtn" class="p-2 sm:p-2.5 bg-white dark:bg-slate-800 hover:bg-blue-50 border border-blue-200 dark:border-slate-700 rounded-xl shadow-xs text-blue-900 dark:text-blue-300 transition font-black text-sm shrink-0" title="เดือนถัดไป">
+        <button id="nextMonthBtn" class="p-2.5 bg-white hover:bg-blue-50 border border-blue-200 rounded-xl shadow-xs text-blue-900 transition font-black text-sm" title="เดือนถัดไป">
           ▶
         </button>
       </div>
 
       <!-- Real-Time Date and Time Display in Center of Bar 2 (แสดงวันที่ เวลา ทุกหน้า ตรงกลาง กรอบที่ 2) -->
-      <div id="realTimeClockContainer" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-white/90 dark:bg-slate-800/90 border border-blue-200/90 dark:border-slate-700 px-3 sm:px-4 py-2 rounded-xl text-xs shadow-xs backdrop-blur-md">
-        <span class="text-sm sm:text-base text-blue-600 dark:text-blue-400 shrink-0">🕒</span>
+      <div id="realTimeClockContainer" class="flex items-center gap-2.5 bg-white/90 border border-blue-200/90 px-4 py-2 rounded-xl text-xs shadow-xs backdrop-blur-md">
+        <span class="text-base text-blue-600">🕒</span>
         <div class="text-center font-mono flex items-center gap-2">
-          <span id="realTimeClockDate" class="font-extrabold text-slate-800 dark:text-slate-200 text-xs sm:text-sm">--</span>
-          <span class="text-slate-300 dark:text-slate-600 font-bold">|</span>
-          <span id="realTimeClockTime" class="font-black text-blue-900 dark:text-blue-300 text-xs sm:text-sm">--:--:-- น.</span>
+          <span id="realTimeClockDate" class="font-extrabold text-slate-800 text-xs sm:text-sm">--</span>
+          <span class="text-slate-300 font-bold">|</span>
+          <span id="realTimeClockTime" class="font-black text-blue-900 text-xs sm:text-sm">--:--:-- น.</span>
         </div>
       </div>
 
-      <div class="w-full sm:w-auto flex items-center justify-center">
-        <div id="viewStatusBadge" class="w-full sm:w-auto text-center text-[11px] sm:text-xs text-blue-950 dark:text-blue-200 bg-blue-100/80 dark:bg-blue-950/60 px-3 py-1.5 rounded-xl border border-blue-200 dark:border-blue-900 font-bold">
+      <div class="flex items-center gap-3">
+        <div id="viewStatusBadge" class="text-xs text-blue-950 bg-blue-100/80 px-3.5 py-1.5 rounded-xl border border-blue-200 font-bold">
           ⚡ พยาบาลวิชาชีพ | สามารถคลิกเลือกได้ทุกเวร
         </div>
       </div>
@@ -229,144 +201,150 @@
 
 
     <!-- ==================== VIEW 1: หน้า MAIN ในปฏิทิน (แสดงทุกวัน ทุกเวร เลือกได้ทุกเวร) ==================== -->
-    <section id="publicDashboardSection" class="glass-container rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 md:p-8 shadow-2xl border border-white/60 mb-8 flex-1 w-full max-w-full min-w-0 overflow-hidden">
+    <section id="publicDashboardSection" class="glass-container rounded-3xl p-5 md:p-8 shadow-2xl border border-white/60 mb-8 flex-1">
       
       <!-- Dashboard Title Banner (Matches Image 1) -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 sm:pb-6 mb-4 sm:mb-6 border-b border-slate-200/80 dark:border-slate-800">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 mb-6 border-b border-slate-200/80 dark:border-slate-800">
         <div>
-          <div class="flex items-center gap-2.5 sm:gap-3">
-            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 flex items-center justify-center text-xl sm:text-2xl border border-blue-200 dark:border-blue-800 shadow-sm shrink-0">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 flex items-center justify-center text-2xl border border-blue-200 dark:border-blue-800 shadow-sm">
               🗓️
             </div>
             <div>
-              <h2 class="text-lg sm:text-xl md:text-2xl font-black text-blue-950 dark:text-white font-heading">ปฏิทินจองเวรประจำเดือน</h2>
-              <p id="dashCalendarSubtitle" class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">ประจำเดือน ตุลาคม 2569 | คลิกเลือกดูหรือจองเวรได้ทันที</p>
+              <h2 class="text-xl md:text-2xl font-black text-blue-950 dark:text-white font-heading">ปฏิทินจองเวรประจำเดือน</h2>
+              <p id="dashCalendarSubtitle" class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">ประจำเดือน ตุลาคม 2569 | คลิกเลือกดูหรือจองเวรได้ทันที</p>
             </div>
           </div>
         </div>
 
         <!-- Quick Action on Dashboard (Matches Image 1) -->
-        <div class="flex items-center gap-2 sm:gap-2.5 flex-wrap">
-          <button id="dashExcelShortcutBtn" onclick="switchView('excel')" class="px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+        <div class="flex items-center gap-2.5 flex-wrap">
+          <button id="dashExcelShortcutBtn" onclick="switchView('excel')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 shadow-xs transition flex items-center gap-1.5 cursor-pointer">
             <span class="text-base">📋</span>
             <span>ตารางเลข</span>
           </button>
-          <button onclick="openPersonalBookingModal()" class="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md transition flex items-center gap-1.5 sm:gap-2 cursor-pointer">
+          <button onclick="openPersonalBookingModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md transition flex items-center gap-2 cursor-pointer">
             <span class="text-base">✍️</span>
             <span>จองหลายวันพร้อมกัน</span>
           </button>
         </div>
       </div>
 
-      <!-- 4 Stat Cards (Responsive Grid on Mobile) -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mb-4 sm:mb-6">
+      <!-- 4 Stat Cards (เปลี่ยนจาก กะ เป็น เวร) -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         
         <!-- Total Shifts in Month -->
-        <div class="glass-card p-3 sm:p-4 md:p-5 rounded-2xl border border-blue-200 shadow-sm flex items-center gap-2.5 sm:gap-4">
-          <div class="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-blue-100/90 text-blue-700 flex items-center justify-center font-black text-xl sm:text-3xl shadow-inner border border-blue-200 shrink-0">
+        <div class="glass-card p-4 md:p-5 rounded-2xl border border-blue-200 shadow-sm flex items-center gap-4">
+          <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-blue-100/90 text-blue-700 flex items-center justify-center font-black text-3xl md:text-4xl shadow-inner border border-blue-200">
             📋
           </div>
-          <div class="min-w-0">
-            <div class="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider truncate">เวรทั้งหมดในเดือนนี้</div>
-            <div id="dashStatTotal" class="text-base sm:text-2xl md:text-3xl font-black text-blue-950 font-heading">0 เวร</div>
+          <div>
+            <div class="text-xs text-slate-500 font-bold uppercase tracking-wider">เวรทั้งหมดในเดือนนี้</div>
+            <div id="dashStatTotal" class="text-2xl md:text-3xl font-black text-blue-950 font-heading">0 เวร</div>
           </div>
         </div>
 
-        <!-- Unassigned Shifts (0 People) - Soft Pastel Rose Styling -->
-        <div class="glass-card p-3 sm:p-4 md:p-5 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/35 dark:bg-rose-950/20 shadow-xs flex items-center gap-2.5 sm:gap-4">
-          <div class="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-rose-100/90 dark:bg-rose-900/30 text-rose-600 dark:text-rose-300 flex items-center justify-center font-black text-xl sm:text-3xl shadow-inner border border-rose-200 dark:border-rose-800 shrink-0">
-            📋
+        <!-- Unassigned Shifts (0 People) - Highlighted Prominently -->
+        <div class="glass-card p-4 md:p-5 rounded-2xl border-2 border-rose-400 bg-rose-50/50 shadow-md flex items-center gap-4">
+          <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-rose-500 text-white flex items-center justify-center font-black text-3xl md:text-4xl shadow-md border border-rose-300">
+            🚨
           </div>
-          <div class="min-w-0">
-            <div class="text-[10px] sm:text-xs text-rose-700 dark:text-rose-300 font-bold uppercase tracking-wider truncate">ยังไม่มีคนเลือก (0 คน)</div>
-            <div id="dashStatUnassigned" class="text-base sm:text-2xl md:text-3xl font-black text-rose-600 dark:text-rose-400 font-heading">0 เวร</div>
+          <div>
+            <div class="text-xs text-rose-800 font-black uppercase tracking-wider">ยังไม่มีคนเลือก (0 คน)</div>
+            <div id="dashStatUnassigned" class="text-2xl md:text-3xl font-black text-rose-600 font-heading">0 เวร</div>
           </div>
         </div>
 
         <!-- Assigned Shifts -->
-        <div class="glass-card p-3 sm:p-4 md:p-5 rounded-2xl border border-sky-200 shadow-sm flex items-center gap-2.5 sm:gap-4">
-          <div class="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-sky-100/90 text-sky-700 flex items-center justify-center font-black text-xl sm:text-3xl shadow-inner border border-sky-200 shrink-0">
+        <div class="glass-card p-4 md:p-5 rounded-2xl border border-sky-200 shadow-sm flex items-center gap-4">
+          <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-sky-100/90 text-sky-700 flex items-center justify-center font-black text-3xl md:text-4xl shadow-inner border border-sky-200">
             👥
           </div>
-          <div class="min-w-0">
-            <div class="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider truncate">เวรที่มีคนเลือกแล้ว</div>
-            <div id="dashStatAssigned" class="text-base sm:text-2xl md:text-3xl font-black text-sky-950 font-heading">0 เวร</div>
+          <div>
+            <div class="text-xs text-slate-500 font-bold uppercase tracking-wider">เวรที่มีคนเลือกแล้ว</div>
+            <div id="dashStatAssigned" class="text-2xl md:text-3xl font-black text-sky-950 font-heading">0 เวร</div>
           </div>
         </div>
 
         <!-- Total Nurse Bookings -->
-        <div class="glass-card p-3 sm:p-4 md:p-5 rounded-2xl border border-emerald-200 shadow-sm flex items-center gap-2.5 sm:gap-4">
-          <div class="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-emerald-100/90 text-emerald-700 flex items-center justify-center font-black text-xl sm:text-3xl shadow-inner border border-emerald-200 shrink-0">
+        <div class="glass-card p-4 md:p-5 rounded-2xl border border-emerald-200 shadow-sm flex items-center gap-4">
+          <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-emerald-100/90 text-emerald-700 flex items-center justify-center font-black text-3xl md:text-4xl shadow-inner border border-emerald-200">
             👩‍⚕️
           </div>
-          <div class="min-w-0">
-            <div class="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider truncate">ยอดการเลือกเวรรวม</div>
-            <div id="dashStatBookings" class="text-base sm:text-2xl md:text-3xl font-black text-emerald-900 font-heading">0 ครั้ง</div>
+          <div>
+            <div class="text-xs text-slate-500 font-bold uppercase tracking-wider">ยอดการเลือกเวรรวม</div>
+            <div id="dashStatBookings" class="text-2xl md:text-3xl font-black text-emerald-900 font-heading">0 ครั้ง</div>
           </div>
         </div>
 
       </div>
 
-      <!-- Quick Legend & Filter Bar (Horizontally scrollable on mobile) -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 mb-4 sm:mb-6 backdrop-blur-sm w-full max-w-full min-w-0">
+      <!-- Quick Legend & Filter Bar (เปลี่ยนคำว่า กะ เป็น เวร) -->
+      <div class="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-slate-100/80 border border-slate-200 mb-6 backdrop-blur-sm">
         
-        <!-- Filter Tabs (Scrollable strip on phone) -->
-        <div class="flex items-center gap-1.5 overflow-x-auto w-full max-w-full no-scrollbar pb-1" id="dashFilterButtons">
-          <span class="text-xs font-bold text-slate-700 dark:text-slate-300 mr-1 shrink-0">กรอง:</span>
-          <button onclick="setDashboardFilter('ALL')" id="filterBtnALL" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-700 text-white shadow-xs transition shrink-0">
-            🌟 ทุกเวร
+        <!-- Filter Tabs -->
+        <div class="flex items-center gap-2 flex-wrap" id="dashFilterButtons">
+          <span class="text-xs font-bold text-slate-700 mr-1">กรองแสดง:</span>
+          <button onclick="setDashboardFilter('ALL')" id="filterBtnALL" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-700 text-white shadow-xs transition">
+            🌟 ทุกเวร (เช้า/บ่าย/ดึก)
           </button>
-          <button onclick="setDashboardFilter('UNASSIGNED')" id="filterBtnUNASSIGNED" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition flex items-center gap-1 shrink-0">
-            <span>เฉพาะเวรที่ยังไม่มีคนเลือก</span>
+          <button onclick="setDashboardFilter('UNASSIGNED')" id="filterBtnUNASSIGNED" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-rose-700 border border-rose-300 hover:bg-rose-50 transition flex items-center gap-1">
+            <span>🚨 เฉพาะเวรที่ยังไม่มีคนเลือก</span>
           </button>
-          <button onclick="setDashboardFilter('M')" id="filterBtnM" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 text-sky-800 dark:text-sky-300 border border-sky-300 dark:border-sky-800 hover:bg-sky-50 dark:hover:bg-sky-950/50 transition shrink-0">
-            ☀️ เช้า (M)
+          <button onclick="setDashboardFilter('M')" id="filterBtnM" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-sky-800 border border-sky-300 hover:bg-sky-50 transition">
+            ☀️ เวรเช้า (M)
           </button>
-          <button onclick="setDashboardFilter('A')" id="filterBtnA" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/50 transition shrink-0">
-            ⛅ บ่าย (A)
+          <button onclick="setDashboardFilter('A')" id="filterBtnA" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-amber-800 border border-amber-300 hover:bg-amber-50 transition">
+            ⛅ เวรบ่าย (A)
           </button>
-          <button onclick="setDashboardFilter('N')" id="filterBtnN" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-950/50 transition shrink-0">
-            🌙 ดึก (N)
+          <button onclick="setDashboardFilter('N')" id="filterBtnN" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-purple-800 border border-purple-300 hover:bg-purple-50 transition">
+            🌙 เวรดึก (N)
           </button>
         </div>
 
         <!-- Visual Legend -->
-        <div class="flex items-center gap-3 text-xs flex-wrap font-medium shrink-0">
+        <div class="flex items-center gap-3 text-xs flex-wrap font-medium">
           <span class="flex items-center gap-1.5">
-            <span class="w-3.5 h-3.5 rounded-md bg-rose-200 dark:bg-rose-900 border border-rose-300 dark:border-rose-700 inline-block shadow-2xs"></span>
-            <span class="text-rose-700 dark:text-rose-300 font-bold">ยังไม่มีคนเลือก</span>
+            <span class="w-3.5 h-3.5 rounded-md bg-rose-500 border border-rose-600 inline-block shadow-xs"></span>
+            <span class="text-rose-900 font-bold">ยังไม่มีคนเลือก (0 คน)</span>
           </span>
           <span class="flex items-center gap-1.5">
             <span class="w-3.5 h-3.5 rounded-md bg-sky-400 border border-sky-500 inline-block"></span>
-            <span class="text-sky-900 dark:text-sky-300 font-semibold">มีคนเลือกแล้ว</span>
+            <span class="text-sky-900 font-semibold">มีคนเลือกแล้ว</span>
           </span>
+          <span class="text-blue-700 font-bold">👆 คลิกที่เวรเพื่อดูรายชื่อหรือเลือกจอง</span>
         </div>
 
       </div>
 
-      <!-- View Mode Selector: 7-Column Grid vs Daily Cards -->
-      <div class="flex items-center justify-between mb-3 sm:mb-4 flex-wrap gap-2 w-full max-w-full">
+      <!-- View Mode Selector: Daily Cards vs 7-Column Grid (Matches Image 2 & 3) -->
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div class="inline-flex rounded-2xl bg-slate-200/90 dark:bg-slate-800 p-1 border border-slate-300 dark:border-slate-700 shadow-inner">
-          <button id="calViewGridBtn" onclick="setCalendarViewMode('grid')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-blue-700 text-white shadow-xs transition cursor-pointer">
-            <span>📅</span>
-            <span>ตาราง 7 วัน</span>
-          </button>
-          <button id="calViewDailyBtn" onclick="setCalendarViewMode('daily')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-700 dark:hover:text-blue-400 transition cursor-pointer">
+          <button id="calViewDailyBtn" onclick="setCalendarViewMode('daily')" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black bg-blue-700 text-white shadow-xs transition cursor-pointer">
             <span>📑</span>
             <span>รายวัน</span>
           </button>
+          <button id="calViewGridBtn" onclick="setCalendarViewMode('grid')" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-700 dark:hover:text-blue-400 transition cursor-pointer">
+            <span>📅</span>
+            <span>ตาราง 7 วัน</span>
+          </button>
         </div>
-        <div class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-semibold">
-          <span>📱 แตะที่เวรเพื่อดูรายชื่อหรือเลือกจอง</span>
+        <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold">
+          <span class="hidden sm:inline">📱 มุมมองรายวันเหมาะกับสมาร์ตโฟน | แตะที่เวรเพื่อเลือกจองหรือดูรายละเอียด</span>
         </div>
       </div>
 
-      <!-- 1. TRADITIONAL 7-COLUMN MONTHLY CALENDAR GRID (Fit to mobile width, NO SLIDE) -->
-      <div id="mainCalendarGridContainer" class="glass-card p-1.5 sm:p-4 md:p-6 rounded-2xl sm:rounded-3xl border border-blue-200 dark:border-slate-800 shadow-sm w-full max-w-full min-w-0 overflow-hidden mb-6">
-        <div class="w-full max-w-full min-w-0">
+      <!-- 1. MOBILE AGENDA VIEW (Daily Cards - Matches Image 3) -->
+      <div id="mainCalendarDailyContainer" class="space-y-3.5 mb-6">
+        <!-- Dynamically rendered by renderPublicDashboard() -->
+      </div>
+
+      <!-- 2. TRADITIONAL 7-COLUMN MONTHLY CALENDAR GRID (Matches Image 2) -->
+      <div id="mainCalendarGridContainer" class="glass-card p-5 md:p-6 rounded-3xl border border-blue-200 dark:border-slate-800 shadow-sm overflow-x-auto">
+        <div class="min-w-[1050px]">
           
           <!-- 7-Column Day Header (Sun to Sat) with Larger Weekdays -->
-          <div id="mainCalendarHeader" class="calendar-grid-header mb-1.5 sm:mb-3">
+          <div id="mainCalendarHeader" class="calendar-grid-header mb-3">
             <!-- Dynamically rendered: Sun, Mon, Tue, Wed, Thu, Fri, Sat -->
           </div>
 
@@ -378,16 +356,11 @@
         </div>
       </div>
 
-      <!-- 2. MOBILE AGENDA VIEW (Daily Cards) -->
-      <div id="mainCalendarDailyContainer" class="space-y-3 mb-6 w-full max-w-full hidden">
-        <!-- Dynamically rendered by renderPublicDashboard() -->
-      </div>
-
     </section>
 
 
     <!-- ==================== VIEW 2: ตารางเวรของฉัน (PAGE หน้า USER จะมองเห็นเฉพาะ USER เลือก) ==================== -->
-    <section id="nursePersonalSection" class="glass-container rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 md:p-8 shadow-2xl border border-white/60 mb-8 hidden flex-1 w-full max-w-full min-w-0 overflow-hidden">
+    <section id="nursePersonalSection" class="glass-container rounded-3xl p-5 md:p-8 shadow-2xl border border-white/60 mb-8 hidden flex-1">
       
       <!-- Status Banner -->
       <div id="nurseRoundStatusBanner"></div>
@@ -427,46 +400,44 @@
         </div>
       </div>
 
-      <!-- TRUE CALENDAR GRID SECTION (มองเห็นเฉพาะเวรที่ User เลือก - Fit to Mobile, NO SLIDE) -->
-      <div class="glass-card p-2 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl border border-blue-200 dark:border-slate-800 shadow-sm mb-8 w-full max-w-full overflow-hidden">
-        <div class="w-full max-w-full min-w-0">
-          
-          <!-- Top Bar: Title & Action Buttons (กรอบบน แบบ fit ไม่ล้น ไม่ตกขอบ) -->
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 sm:pb-4 mb-3 sm:mb-4 border-b border-slate-100 dark:border-slate-800 gap-2.5 sm:gap-3 w-full max-w-full min-w-0">
-            <div class="min-w-0">
-              <h3 class="text-sm sm:text-lg md:text-xl font-black text-blue-950 dark:text-white font-heading flex items-center gap-1.5 sm:gap-2">
-                <span class="text-lg sm:text-2xl shrink-0">📅</span>
-                <span id="nurseCalendarSectionTitle" class="truncate">ตารางเวรของฉัน</span>
+      <!-- TRUE CALENDAR GRID SECTION (มองเห็นเฉพาะเวรที่ User เลือก) -->
+      <div class="glass-card p-3 sm:p-5 md:p-6 rounded-3xl border border-blue-200 shadow-sm mb-8">
+        <div class="w-full">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-100 gap-3">
+            <div>
+              <h3 class="text-xl font-black text-blue-950 font-heading flex items-center gap-2">
+                <span class="text-2xl">📅</span>
+                <span id="nurseCalendarSectionTitle">ตารางเวรประจำเดือนของฉัน (My Duty Calendar)</span>
               </h3>
-              <p class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">แสดงเฉพาะเวรที่คุณเลือกเข้าเวร (คลิกที่ช่องวันที่เพื่อจองหรือปรับเปลี่ยน)</p>
+              <p class="text-xs text-slate-500 mt-0.5">แสดงเฉพาะเวรที่คุณเลือกเข้าเวร (คลิกที่ช่องวันที่เพื่อเลือกหรือปรับเปลี่ยนเวรของคุณ)</p>
             </div>
-            
-            <div class="grid grid-cols-2 gap-2 sm:flex sm:items-center w-full sm:w-auto">
-              <button onclick="switchView('dashboard')" class="px-2.5 sm:px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 transition flex items-center justify-center gap-1 text-center cursor-pointer">
-                <span>📊</span>
-                <span class="truncate">ดูปฏิทินหลัก</span>
+            <div class="flex items-center gap-2 flex-wrap">
+              <button onclick="switchView('dashboard')" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 transition">
+                ดูปฏิทินหลัก ➔
               </button>
-              
-              <button id="personalExcelShortcutBtn" onclick="switchView('excel')" class="hidden px-2.5 sm:px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center justify-center gap-1 cursor-pointer">
+              <button id="nurseChangePinBtn" onclick="openNurseChangePasswordModal()" class="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center gap-1.5 cursor-pointer" title="เปลี่ยนรหัสผ่าน (PIN) ส่วนตัว">
+                <span>🔑</span>
+                <span>เปลี่ยน PIN</span>
+              </button>
+              <button id="personalExcelShortcutBtn" onclick="switchView('excel')" class="hidden px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center gap-1.5 cursor-pointer">
                 <span>📋</span>
-                <span class="truncate">ตารางเลข</span>
+                <span>ตารางตามหมายเลข</span>
               </button>
-              
-              <div id="personalBookingBtnContainer" class="flex-1 sm:flex-initial">
-                <button id="personalBookingBtn" onclick="openPersonalBookingModal()" class="w-full px-2.5 sm:px-5 py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition flex items-center justify-center gap-1.5 cursor-pointer text-center">
-                  <span class="text-sm sm:text-lg">✍️</span>
-                  <span class="truncate">จองหลายวัน</span>
+              <div id="personalBookingBtnContainer">
+                <button id="personalBookingBtn" onclick="openPersonalBookingModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition flex items-center gap-1.5 cursor-pointer">
+                  <span class="text-base sm:text-lg">✍️</span>
+                  <span>จองหลายวันพร้อมกัน</span>
                 </button>
               </div>
             </div>
           </div>
 
-          <!-- 7-Column Day Header (Sun to Sat) -->
-          <div id="nurseCalendarHeader" class="calendar-grid-header mb-1.5 sm:mb-3">
+          <!-- 7-Column Day Header (Sun to Sat) with Larger Weekdays -->
+          <div id="nurseCalendarHeader" class="calendar-grid-header mb-3">
             <!-- Dynamically rendered -->
           </div>
 
-          <!-- 7-Column Grid Body (Only User's selected shifts, displayed as Icons on mobile) -->
+          <!-- 7-Column Grid Body with Larger Date Numbers (Only User's selected shifts) -->
           <div id="nurseCalendarGrid" class="calendar-grid-body">
             <!-- Dynamically rendered -->
           </div>
@@ -477,7 +448,7 @@
 
 
     <!-- ==================== VIEW 4: ตารางตามหมายเลข (EXCEL VIEW สำหรับ USER - เห็นเมื่อยืนยันแล้วเท่านั้น) ==================== -->
-    <section id="userExcelViewSection" class="glass-container rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border border-white/60 mb-8 hidden flex-1 flex flex-col p-3.5 sm:p-5 md:p-6 space-y-4 sm:space-y-5 w-full max-w-full min-w-0">
+    <section id="userExcelViewSection" class="glass-container rounded-3xl overflow-hidden shadow-2xl border border-white/60 mb-8 hidden flex-1 flex flex-col p-5 md:p-6 space-y-5">
       <!-- Top Bar with Back buttons and Excel/Print actions -->
       <div class="flex items-center justify-between pb-3.5 border-b border-slate-200 flex-wrap gap-3">
         <div class="flex items-center gap-3">
@@ -522,58 +493,66 @@
 
 
     <!-- ==================== VIEW 3: ระบบผู้ดูแลระบบ (ADMIN MASTER SECTION) ==================== -->
-    <section id="adminSection" class="glass-container rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border border-white/60 mb-8 hidden flex-1 flex flex-col w-full max-w-full min-w-0">
+    <section id="adminSection" class="glass-container rounded-3xl overflow-hidden shadow-2xl border border-white/60 mb-8 hidden flex-1 flex flex-col">
       
       <!-- Admin Controls Section -->
-      <div id="adminControlsSection" class="p-3 sm:p-5 bg-slate-100/90 dark:bg-slate-800/90 border-b border-slate-200 dark:border-slate-700 space-y-3.5 backdrop-blur-md w-full max-w-full min-w-0">
+      <div id="adminControlsSection" class="p-4 md:p-5 bg-slate-100/90 border-b border-slate-200 space-y-4 backdrop-blur-md">
         
         <!-- Admin Title Banner & Quick Exit / Logout Buttons -->
-        <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-700 flex-wrap gap-2.5">
-          <div class="flex items-center gap-2.5">
-            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-indigo-950 to-blue-900 text-white flex items-center justify-center font-bold text-lg shadow-md border border-white/20 shrink-0">
+        <div class="flex items-center justify-between pb-3.5 border-b border-slate-200 flex-wrap gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-950 to-blue-900 text-white flex items-center justify-center font-bold text-xl shadow-md border border-white/20">
               🛡️
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h2 class="text-sm sm:text-base md:text-lg font-black text-slate-900 dark:text-white font-heading">พื้นที่ผู้ดูแลระบบ (Admin)</h2>
-                <span class="text-[10px] font-black bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <h2 class="text-base md:text-lg font-black text-slate-900 font-heading">พื้นที่ผู้ดูแลระบบ (Admin Portal)</h2>
+                <span class="text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                   <span>กำลังใช้งาน</span>
                 </span>
               </div>
-              <p class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">จัดการตารางเวรทั้งแผนก และระบบจัดตารางเวรอัตโนมัติ</p>
+              <p class="text-xs text-slate-500">จัดการตารางเวรทั้งแผนก รายชื่อพยาบาล และระบบจัดตารางเวรอัตโนมัติ</p>
             </div>
           </div>
           
-          <div class="flex items-center gap-2">
-            <button onclick="switchView('dashboard')" class="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-xl text-xs font-bold shadow-2xs transition" title="ดูปฏิทินหลักโดยไม่ล็อกเอาท์">
+          <div class="flex items-center gap-2 flex-wrap">
+            <button onclick="openAdminChangePasswordModal()" class="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-xl text-xs font-bold shadow-2xs transition cursor-pointer" title="เปลี่ยนรหัสผ่าน Admin">
+              <span>🔑</span>
+              <span>เปลี่ยนรหัสผ่าน Admin</span>
+            </button>
+            <button onclick="switchView('dashboard')" class="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold shadow-2xs transition" title="ดูปฏิทินหลักโดยไม่ล็อกเอาท์">
+              <span>📊</span>
+              <span>ดูปฏิทินหลัก</span>
+            </button>
+          </div>
               <span>📊</span>
               <span>ดูปฏิทินหลัก</span>
             </button>
           </div>
         </div>
 
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 w-full max-w-full min-w-0">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           
-          <!-- View Tabs for Admin (Scrollable on Mobile) -->
-          <div class="flex items-center gap-1.5 p-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xs overflow-x-auto w-full max-w-full no-scrollbar">
-            <button id="viewMatrixBtn" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-700 text-white shadow-xs transition shrink-0 whitespace-nowrap">
+          <!-- View Tabs for Admin (including new Excel-style Number View) -->
+          <div class="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-xs flex-wrap">
+            <button id="viewMatrixBtn" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-blue-700 text-white shadow-xs transition">
               ตารางรวม 14 ท่าน (Matrix)
             </button>
-            <button id="viewExcelBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-700 transition shrink-0 whitespace-nowrap">
-              📋 ตารางตามหมายเลข
+            <button id="viewExcelBtn" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-blue-700 transition">
+              📋 ตารางตามหมายเลข (Excel View)
             </button>
-            <button id="viewDailyBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-700 transition shrink-0 whitespace-nowrap">
+            <button id="viewDailyBtn" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-blue-700 transition">
               ปฏิทินรายวัน
             </button>
-            <button id="viewSummaryBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-700 transition shrink-0 whitespace-nowrap">
+            <button id="viewSummaryBtn" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-blue-700 transition">
               สรุปชั่วโมงเวร
             </button>
-            <button id="viewVacanciesBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-rose-700 transition shrink-0 whitespace-nowrap">
+            <button id="viewVacanciesBtn" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-rose-700 transition">
               ⚠️ ตรวจสอบเวรที่ขาด
             </button>
-            <button id="viewChartBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-700 transition shrink-0 whitespace-nowrap">
-              📈 กราฟสรุป
+            <button id="viewChartBtn" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-blue-700 transition">
+              📈 กราฟสรุปจำนวนเข้าเวร
             </button>
           </div>
 
@@ -593,6 +572,11 @@
             <button onclick="openNurseManageModal()" class="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-purple-600 via-indigo-600 to-violet-700 hover:from-purple-700 hover:to-violet-800 text-white rounded-xl text-xs font-bold shadow-md transition transform hover:-translate-y-0.5">
               <span class="text-base">👩‍⚕️</span>
               <span>รายชื่อพยาบาล</span>
+            </button>
+            <!-- ปุ่มเปลี่ยนรหัสผ่าน Admin -->
+            <button id="adminChangePasswordBtn" onclick="openAdminChangePasswordModal()" class="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-xl text-xs font-bold shadow-md transition transform hover:-translate-y-0.5 cursor-pointer" title="เปลี่ยนรหัสผ่าน Admin">
+              <span class="text-base">🔑</span>
+              <span>เปลี่ยนรหัส Admin</span>
             </button>
             <button id="openBookingModalBtn" class="flex items-center gap-1 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition">
               <span>+ จองเวร</span>
@@ -957,6 +941,172 @@
       <div id="shiftModalFooter" class="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
         <!-- Action buttons rendered dynamically -->
       </div>
+    </div>
+  </div>
+
+
+  <!-- ==================== ADMIN CHANGE PASSWORD MODAL ==================== -->
+  <div id="adminChangePasswordModal" class="fixed inset-0 bg-slate-950/70 z-50 flex items-end sm:items-center justify-center hidden backdrop-blur-md p-0 sm:p-4">
+    <div class="glass-modal modal-sheet-panel rounded-t-3xl sm:rounded-3xl max-w-sm w-full p-5 sm:p-6 md:p-7 border border-white/80 dark:border-slate-700 shadow-2xl animate-in fade-in zoom-in duration-150 max-h-[90vh] overflow-y-auto">
+      <div class="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto mb-3 sm:hidden shrink-0"></div>
+      
+      <div class="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center text-2xl font-bold shadow-inner border border-amber-200 dark:border-amber-800">
+            🔑
+          </div>
+          <div>
+            <h3 class="text-base md:text-lg font-black text-slate-900 dark:text-white font-heading">เปลี่ยนรหัสผ่าน Admin</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">สำหรับผู้ดูแลระบบ</p>
+          </div>
+        </div>
+        <button onclick="closeAdminChangePasswordModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <form id="adminChangePasswordForm" onsubmit="handleAdminChangePassword(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">รหัสผ่านปัจจุบัน</label>
+          <div class="relative">
+            <input type="password" id="adminCurrentPassword" required placeholder="กรอกรหัสผ่านเดิม" 
+                   class="w-full glass-input rounded-xl p-2.5 pr-10 text-sm outline-none font-mono text-slate-800 dark:text-slate-100">
+            <button type="button" onclick="togglePasswordVisibility('adminCurrentPassword', 'adminCurrentEyeIcon')" 
+                   class="absolute right-2.5 top-2.5 text-slate-400 hover:text-amber-600 p-0.5" title="แสดง/ซ่อนรหัสผ่าน">
+              <svg id="adminCurrentEyeIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">รหัสผ่านใหม่ (อย่างน้อย 4 ตัวอักษร)</label>
+          <div class="relative">
+            <input type="password" id="adminNewPassword" required minlength="4" placeholder="กรอกรหัสผ่านใหม่" 
+                   class="w-full glass-input rounded-xl p-2.5 pr-10 text-sm outline-none font-mono text-slate-800 dark:text-slate-100">
+            <button type="button" onclick="togglePasswordVisibility('adminNewPassword', 'adminNewEyeIcon')" 
+                   class="absolute right-2.5 top-2.5 text-slate-400 hover:text-amber-600 p-0.5" title="แสดง/ซ่อนรหัสผ่าน">
+              <svg id="adminNewEyeIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">ยืนยันรหัสผ่านใหม่</label>
+          <div class="relative">
+            <input type="password" id="adminConfirmPassword" required minlength="4" placeholder="ยืนยันรหัสผ่านใหม่อีกครั้ง" 
+                   class="w-full glass-input rounded-xl p-2.5 pr-10 text-sm outline-none font-mono text-slate-800 dark:text-slate-100">
+            <button type="button" onclick="togglePasswordVisibility('adminConfirmPassword', 'adminConfirmEyeIcon')" 
+                   class="absolute right-2.5 top-2.5 text-slate-400 hover:text-amber-600 p-0.5" title="แสดง/ซ่อนรหัสผ่าน">
+              <svg id="adminConfirmEyeIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="adminPasswordErrorMsg" class="text-xs text-rose-600 dark:text-rose-400 font-bold hidden"></div>
+
+        <div class="pt-2 flex items-center gap-2">
+          <button type="button" onclick="closeAdminChangePasswordModal()" 
+                  class="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition">
+            ยกเลิก
+          </button>
+          <button type="submit" 
+                  class="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer">
+            บันทึกรหัสใหม่
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ==================== NURSE CHANGE PASSWORD / PIN MODAL ==================== -->
+  <div id="nurseChangePasswordModal" class="fixed inset-0 bg-slate-950/70 z-50 flex items-end sm:items-center justify-center hidden backdrop-blur-md p-0 sm:p-4">
+    <div class="glass-modal modal-sheet-panel rounded-t-3xl sm:rounded-3xl max-w-sm w-full p-5 sm:p-6 md:p-7 border border-white/80 dark:border-slate-700 shadow-2xl animate-in fade-in zoom-in duration-150 max-h-[90vh] overflow-y-auto">
+      <div class="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto mb-3 sm:hidden shrink-0"></div>
+      
+      <div class="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-400 flex items-center justify-center text-2xl font-bold shadow-inner border border-sky-200 dark:border-sky-800">
+            🔑
+          </div>
+          <div>
+            <h3 class="text-base md:text-lg font-black text-slate-900 dark:text-white font-heading">เปลี่ยนรหัสผ่าน (PIN)</h3>
+            <p id="nurseChangePinSubTitle" class="text-xs text-slate-500 dark:text-slate-400">สำหรับเข้าใช้งานส่วนตัว</p>
+          </div>
+        </div>
+        <button onclick="closeNurseChangePasswordModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <form id="nurseChangePasswordForm" onsubmit="handleNurseChangePassword(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">รหัส PIN ปัจจุบัน</label>
+          <div class="relative">
+            <input type="password" id="nurseCurrentPin" required placeholder="กรอก PIN เดิม 4 ตัว" 
+                   class="w-full glass-input rounded-xl p-2.5 pr-10 text-sm outline-none font-mono text-slate-800 dark:text-slate-100">
+            <button type="button" onclick="togglePasswordVisibility('nurseCurrentPin', 'nurseCurrentEyeIcon')" 
+                   class="absolute right-2.5 top-2.5 text-slate-400 hover:text-sky-600 p-0.5" title="แสดง/ซ่อนรหัสผ่าน">
+              <svg id="nurseCurrentEyeIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">รหัส PIN ใหม่ (อย่างน้อย 4 ตัว)</label>
+          <div class="relative">
+            <input type="password" id="nurseNewPin" required minlength="4" placeholder="กรอก PIN ใหม่" 
+                   class="w-full glass-input rounded-xl p-2.5 pr-10 text-sm outline-none font-mono text-slate-800 dark:text-slate-100">
+            <button type="button" onclick="togglePasswordVisibility('nurseNewPin', 'nurseNewEyeIcon')" 
+                   class="absolute right-2.5 top-2.5 text-slate-400 hover:text-sky-600 p-0.5" title="แสดง/ซ่อนรหัสผ่าน">
+              <svg id="nurseNewEyeIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">ยืนยัน PIN ใหม่อีกครั้ง</label>
+          <div class="relative">
+            <input type="password" id="nurseConfirmPin" required minlength="4" placeholder="ยืนยัน PIN ใหม่" 
+                   class="w-full glass-input rounded-xl p-2.5 pr-10 text-sm outline-none font-mono text-slate-800 dark:text-slate-100">
+            <button type="button" onclick="togglePasswordVisibility('nurseConfirmPin', 'nurseConfirmEyeIcon')" 
+                   class="absolute right-2.5 top-2.5 text-slate-400 hover:text-sky-600 p-0.5" title="แสดง/ซ่อนรหัสผ่าน">
+              <svg id="nurseConfirmEyeIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="nursePasswordErrorMsg" class="text-xs text-rose-600 dark:text-rose-400 font-bold hidden"></div>
+
+        <div class="pt-2 flex items-center gap-2">
+          <button type="button" onclick="closeNurseChangePasswordModal()" 
+                  class="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition">
+            ยกเลิก
+          </button>
+          <button type="submit" 
+                  class="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer">
+            บันทึก PIN ใหม่
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 

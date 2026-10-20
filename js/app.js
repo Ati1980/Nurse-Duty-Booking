@@ -11,6 +11,22 @@ const ADMIN_CREDENTIALS = {
   password: "1234"
 };
 
+function getAdminPassword() {
+  try {
+    return localStorage.getItem('nurse_admin_password') || ADMIN_CREDENTIALS.password;
+  } catch (e) {
+    return ADMIN_CREDENTIALS.password;
+  }
+}
+
+function setAdminPassword(newPassword) {
+  try {
+    localStorage.setItem('nurse_admin_password', newPassword);
+  } catch (e) {
+    console.error('Failed to save admin password:', e);
+  }
+}
+
 const DEFAULT_NURSES = [
   { id: "6100001", num: 1, name: "น.ส.ภิญญดา คำผาเชื้อ", pin: "0001", order: 1, color: "#c026d3", textColor: "#ffffff", bgSoft: "#fae8ff", border: "#f0abfc" }, // สีม่วงมาเจนต้า สดใส ชัดเจน
   { id: "6100002", num: 2, name: "น.ส.จำปา สิมมา", pin: "0002", order: 2, color: "#dc2626", textColor: "#ffffff", bgSoft: "#fee2e2", border: "#fca5a5" }, // สีแดงสดใส แตกต่างจากเลข 1 อย่างชัดเจน
@@ -523,7 +539,7 @@ function loginAsAdmin(password) {
     alert('กรุณากรอกรหัสผ่าน Admin');
     return false;
   }
-  if (password === ADMIN_CREDENTIALS.password) {
+  if (password === getAdminPassword()) {
     currentUser = {
       role: 'admin',
       name: 'ผู้ดูแลระบบ (Admin)'
@@ -537,6 +553,156 @@ function loginAsAdmin(password) {
   alert('รหัสผ่าน Admin ไม่ถูกต้อง');
   return false;
 }
+
+// ==================== ADMIN PASSWORD CHANGE ====================
+window.openAdminChangePasswordModal = function() {
+  const modal = document.getElementById('adminChangePasswordModal');
+  if (!modal) return;
+  const curInp = document.getElementById('adminCurrentPassword');
+  const newInp = document.getElementById('adminNewPassword');
+  const confInp = document.getElementById('adminConfirmPassword');
+  if (curInp) curInp.value = '';
+  if (newInp) newInp.value = '';
+  if (confInp) confInp.value = '';
+  const errorMsg = document.getElementById('adminPasswordErrorMsg');
+  if (errorMsg) {
+    errorMsg.innerText = '';
+    errorMsg.classList.add('hidden');
+  }
+  modal.classList.remove('hidden');
+  setTimeout(() => { curInp?.focus(); }, 100);
+};
+
+window.closeAdminChangePasswordModal = function() {
+  const modal = document.getElementById('adminChangePasswordModal');
+  if (modal) modal.classList.add('hidden');
+};
+
+window.handleAdminChangePassword = function(e) {
+  if (e) e.preventDefault();
+  const currentPass = document.getElementById('adminCurrentPassword')?.value || '';
+  const newPass = document.getElementById('adminNewPassword')?.value || '';
+  const confirmPass = document.getElementById('adminConfirmPassword')?.value || '';
+  const errorMsg = document.getElementById('adminPasswordErrorMsg');
+
+  const showError = (msg) => {
+    if (errorMsg) {
+      errorMsg.innerText = msg;
+      errorMsg.classList.remove('hidden');
+    } else {
+      alert(msg);
+    }
+  };
+
+  if (currentPass !== getAdminPassword()) {
+    showError('❌ รหัสผ่านเดิมไม่ถูกต้อง');
+    return false;
+  }
+
+  if (newPass.length < 4) {
+    showError('❌ รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 4 ตัวอักษร');
+    return false;
+  }
+
+  if (newPass !== confirmPass) {
+    showError('❌ ยืนยันรหัสผ่านใหม่ไม่ตรงกัน');
+    return false;
+  }
+
+  setAdminPassword(newPass);
+  closeAdminChangePasswordModal();
+  if (typeof window.showToast === 'function') {
+    window.showToast('✓ เปลี่ยนรหัสผ่าน Admin เรียบร้อยแล้ว');
+  } else {
+    alert('✓ เปลี่ยนรหัสผ่าน Admin เรียบร้อยแล้ว');
+  }
+  return true;
+};
+
+// ==================== NURSE PASSWORD (PIN) CHANGE ====================
+window.openNurseChangePasswordModal = function() {
+  if (!currentUser || currentUser.role !== 'nurse') {
+    alert('กรุณาเข้าสู่ระบบในฐานะพยาบาลก่อนเปลี่ยนรหัสผ่าน (PIN)');
+    return;
+  }
+  const modal = document.getElementById('nurseChangePasswordModal');
+  if (!modal) return;
+  const nurse = NURSES.find(n => n.id === currentUser.nurseId);
+  const subTitle = document.getElementById('nurseChangePinSubTitle');
+  if (subTitle && nurse) {
+    subTitle.innerText = `สำหรับคุณ ${nurse.name} (รหัส ${nurse.id})`;
+  }
+  const curInp = document.getElementById('nurseCurrentPin');
+  const newInp = document.getElementById('nurseNewPin');
+  const confInp = document.getElementById('nurseConfirmPin');
+  if (curInp) curInp.value = '';
+  if (newInp) newInp.value = '';
+  if (confInp) confInp.value = '';
+  const errorMsg = document.getElementById('nursePasswordErrorMsg');
+  if (errorMsg) {
+    errorMsg.innerText = '';
+    errorMsg.classList.add('hidden');
+  }
+  modal.classList.remove('hidden');
+  setTimeout(() => { curInp?.focus(); }, 100);
+};
+
+window.closeNurseChangePasswordModal = function() {
+  const modal = document.getElementById('nurseChangePasswordModal');
+  if (modal) modal.classList.add('hidden');
+};
+
+window.handleNurseChangePassword = function(e) {
+  if (e) e.preventDefault();
+  if (!currentUser || currentUser.role !== 'nurse') {
+    alert('กรุณาเข้าสู่ระบบในฐานะพยาบาลก่อน');
+    return false;
+  }
+  const nurse = NURSES.find(n => n.id === currentUser.nurseId);
+  if (!nurse) {
+    alert('ไม่พบข้อมูลพยาบาลในระบบ');
+    return false;
+  }
+
+  const currentPin = document.getElementById('nurseCurrentPin')?.value || '';
+  const newPin = document.getElementById('nurseNewPin')?.value || '';
+  const confirmPin = document.getElementById('nurseConfirmPin')?.value || '';
+  const errorMsg = document.getElementById('nursePasswordErrorMsg');
+
+  const showError = (msg) => {
+    if (errorMsg) {
+      errorMsg.innerText = msg;
+      errorMsg.classList.remove('hidden');
+    } else {
+      alert(msg);
+    }
+  };
+
+  if (currentPin.trim() !== nurse.pin) {
+    showError('❌ รหัส PIN เดิมไม่ถูกต้อง');
+    return false;
+  }
+
+  if (newPin.trim().length < 4) {
+    showError('❌ รหัส PIN ใหม่ต้องมีความยาวอย่างน้อย 4 ตัว');
+    return false;
+  }
+
+  if (newPin !== confirmPin) {
+    showError('❌ ยืนยัน PIN ใหม่ไม่ตรงกัน');
+    return false;
+  }
+
+  nurse.pin = newPin.trim();
+  saveNurses();
+  closeNurseChangePasswordModal();
+  if (typeof window.showToast === 'function') {
+    window.showToast(`✓ เปลี่ยน PIN สำหรับ ${nurse.name} สำเร็จแล้ว`);
+  } else {
+    alert(`✓ เปลี่ยน PIN สำหรับ ${nurse.name} สำเร็จแล้ว`);
+  }
+  return true;
+};
 
 window.handleLogout = function() {
   currentUser = null;
@@ -587,17 +753,27 @@ function updateAuthUI() {
           <div class="flex items-center gap-2 bg-indigo-900/60 border border-white/30 px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
             <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/40"></span>
             <span class="font-bold text-white">🛡️ ผู้ดูแลระบบ (Admin)</span>
+            <button onclick="openAdminChangePasswordModal()" class="ml-1 px-2 py-0.5 bg-amber-400/25 hover:bg-amber-400/45 border border-amber-300/50 rounded-lg text-amber-100 hover:text-white font-bold text-[10px] sm:text-[11px] transition flex items-center gap-1 cursor-pointer" title="เปลี่ยนรหัสผ่าน Admin">
+              <span>🔑</span>
+              <span class="hidden sm:inline">เปลี่ยนรหัส</span>
+            </button>
           </div>
         `;
       }
       if (userProfileBadgeMobile) {
         userProfileBadgeMobile.innerHTML = `
-          <div class="flex items-center gap-2 text-xs sm:text-sm font-bold text-white min-w-0 flex-1">
-            <span class="text-base sm:text-lg shrink-0">🛡️</span>
-            <div class="min-w-0">
-              <div class="font-black tracking-tight leading-tight">ผู้ดูแลระบบ (Admin)</div>
-              <div class="text-[10px] text-blue-100 font-mono font-normal">สิทธิ์ผู้ดูแลระบบ</div>
+          <div class="flex items-center justify-between gap-2 text-xs sm:text-sm font-bold text-white min-w-0 flex-1">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-base sm:text-lg shrink-0">🛡️</span>
+              <div class="min-w-0">
+                <div class="font-black tracking-tight leading-tight">ผู้ดูแลระบบ (Admin)</div>
+                <div class="text-[10px] text-blue-100 font-mono font-normal">สิทธิ์ผู้ดูแลระบบ</div>
+              </div>
             </div>
+            <button onclick="openAdminChangePasswordModal()" class="px-2.5 py-1 bg-amber-400/30 hover:bg-amber-400/50 border border-amber-300/50 rounded-lg text-white font-bold text-xs shrink-0 flex items-center gap-1 cursor-pointer">
+              <span>🔑</span>
+              <span>เปลี่ยนรหัส</span>
+            </button>
           </div>
         `;
       }
@@ -609,17 +785,27 @@ function updateAuthUI() {
             <span class="w-2.5 h-2.5 rounded-full bg-emerald-300 ring-2 ring-emerald-300/40"></span>
             <span class="font-bold text-white">👩‍⚕️ ${currentUser.name}</span>
             <span class="font-mono text-blue-100">(${currentUser.nurseId})</span>
+            <button onclick="openNurseChangePasswordModal()" class="ml-1 px-2 py-0.5 bg-amber-400/25 hover:bg-amber-400/45 border border-amber-300/50 rounded-lg text-amber-100 hover:text-white font-bold text-[10px] sm:text-[11px] transition flex items-center gap-1 cursor-pointer" title="เปลี่ยนรหัสผ่าน / PIN">
+              <span>🔑</span>
+              <span class="hidden sm:inline">เปลี่ยน PIN</span>
+            </button>
           </div>
         `;
       }
       if (userProfileBadgeMobile) {
         userProfileBadgeMobile.innerHTML = `
-          <div class="flex items-center gap-2 text-xs sm:text-sm font-bold text-white min-w-0 flex-1">
-            <span class="text-base sm:text-lg shrink-0">👩‍⚕️</span>
-            <div class="min-w-0">
-              <div class="font-black tracking-tight leading-tight whitespace-normal">${currentUser.name}</div>
-              <div class="text-[10px] text-blue-100 font-mono font-normal">รหัสพยาบาล: ${currentUser.nurseId}</div>
+          <div class="flex items-center justify-between gap-2 text-xs sm:text-sm font-bold text-white min-w-0 flex-1">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-base sm:text-lg shrink-0">👩‍⚕️</span>
+              <div class="min-w-0">
+                <div class="font-black tracking-tight leading-tight whitespace-normal">${currentUser.name}</div>
+                <div class="text-[10px] text-blue-100 font-mono font-normal">รหัสพยาบาล: ${currentUser.nurseId}</div>
+              </div>
             </div>
+            <button onclick="openNurseChangePasswordModal()" class="px-2.5 py-1 bg-amber-400/30 hover:bg-amber-400/50 border border-amber-300/50 rounded-lg text-white font-bold text-xs shrink-0 flex items-center gap-1 cursor-pointer">
+              <span>🔑</span>
+              <span>เปลี่ยน PIN</span>
+            </button>
           </div>
         `;
       }
