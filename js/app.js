@@ -750,10 +750,10 @@ function updateAuthUI() {
       if (headerLogoutText) headerLogoutText.innerText = 'ออกจากหน้า Admin';
       if (userProfileBadge) {
         userProfileBadge.innerHTML = `
-          <div class="flex items-center gap-2 bg-indigo-900/60 border border-white/30 px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
-            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/40"></span>
-            <span class="font-bold text-white">🛡️ ผู้ดูแลระบบ (Admin)</span>
-            <button onclick="openAdminChangePasswordModal()" class="ml-1 px-2 py-0.5 bg-amber-400/25 hover:bg-amber-400/45 border border-amber-300/50 rounded-lg text-amber-100 hover:text-white font-bold text-[10px] sm:text-[11px] transition flex items-center gap-1 cursor-pointer" title="เปลี่ยนรหัสผ่าน Admin">
+          <div class="flex items-center gap-1.5 sm:gap-2 bg-indigo-900/60 border border-white/30 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm min-w-0">
+            <span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/40 shrink-0"></span>
+            <span class="font-bold text-white truncate">🛡️ ผู้ดูแลระบบ (Admin)</span>
+            <button onclick="openAdminChangePasswordModal()" class="ml-1 px-1.5 py-0.5 bg-amber-400/25 hover:bg-amber-400/45 border border-amber-300/50 rounded-lg text-amber-100 hover:text-white font-bold text-[10px] sm:text-[11px] transition flex items-center gap-1 cursor-pointer shrink-0" title="เปลี่ยนรหัสผ่าน Admin">
               <span>🔑</span>
               <span class="hidden sm:inline">เปลี่ยนรหัส</span>
             </button>
@@ -781,11 +781,11 @@ function updateAuthUI() {
       if (headerLogoutText) headerLogoutText.innerText = 'ออกจากระบบ';
       if (userProfileBadge) {
         userProfileBadge.innerHTML = `
-          <div class="flex items-center gap-2 bg-white/20 border border-white/30 px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
-            <span class="w-2.5 h-2.5 rounded-full bg-emerald-300 ring-2 ring-emerald-300/40"></span>
-            <span class="font-bold text-white">👩‍⚕️ ${currentUser.name}</span>
-            <span class="font-mono text-blue-100">(${currentUser.nurseId})</span>
-            <button onclick="openNurseChangePasswordModal()" class="ml-1 px-2 py-0.5 bg-amber-400/25 hover:bg-amber-400/45 border border-amber-300/50 rounded-lg text-amber-100 hover:text-white font-bold text-[10px] sm:text-[11px] transition flex items-center gap-1 cursor-pointer" title="เปลี่ยนรหัสผ่าน / PIN">
+          <div class="flex items-center gap-1.5 sm:gap-2 bg-white/20 border border-white/30 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm min-w-0">
+            <span class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-300 ring-2 ring-emerald-300/40 shrink-0"></span>
+            <span class="font-bold text-white truncate">👩‍⚕️ ${currentUser.name}</span>
+            <span class="font-mono text-blue-100 text-[10px] sm:text-xs shrink-0">(${currentUser.nurseId})</span>
+            <button onclick="openNurseChangePasswordModal()" class="ml-1 px-1.5 py-0.5 bg-amber-400/25 hover:bg-amber-400/45 border border-amber-300/50 rounded-lg text-amber-100 hover:text-white font-bold text-[10px] sm:text-[11px] transition flex items-center gap-1 cursor-pointer shrink-0" title="เปลี่ยนรหัสผ่าน / PIN">
               <span>🔑</span>
               <span class="hidden sm:inline">เปลี่ยน PIN</span>
             </button>
@@ -828,7 +828,7 @@ function updateNavSwitcher(viewName) {
   const configs = [
     { el: dashBtn, target: 'dashboard', label: 'ปฏิทินหลัก', icon: '📊', isAllowed: true },
     { el: personalBtn, target: 'personal', label: 'ตารางเวรของฉัน', icon: '📅', isAllowed: isNurse },
-    { el: excelBtn, target: 'excel', label: 'ตารางตามหมายเลข', icon: '📋', isAllowed: true },
+    { el: excelBtn, target: 'excel', label: 'สรุปตารางเวร', icon: '📋', isAllowed: true },
     { el: adminBtn, target: 'admin', label: `ตารางรวม ${NURSES.length} ท่าน`, icon: '🛡️', isAllowed: isAdmin }
   ];
 
@@ -918,7 +918,7 @@ window.switchView = function(viewName) {
       userExcelSection.classList.remove('hidden');
       const uSecTitle = document.getElementById('userExcelSectionTitle');
       if (uSecTitle) {
-        uSecTitle.innerText = `ตารางเวรตามหมายเลข ประจำเดือน ${THAI_MONTHS[currentMonth]} ${currentYear + 543}`;
+        uSecTitle.innerText = `สรุปตารางเวร ประจำเดือน ${THAI_MONTHS[currentMonth]} ${currentYear + 543}`;
       }
       renderExcelView('userExcelViewContent');
     }
@@ -1050,15 +1050,15 @@ function renderPublicDashboard() {
       const opacityClass = isVisible ? 'opacity-100' : 'opacity-25 grayscale pointer-events-none';
 
       shiftRowsHtml += `
-        <div class="${rowClass} ${opacityClass} mb-1 last:mb-0" onclick="handleShiftClick(${d}, '${s}')" title="${shiftObj.name}: ${count} คน (แตะเพื่อดูรายละเอียด/จอง)">
+        <div class="${rowClass} ${opacityClass} mb-0.5 sm:mb-1 last:mb-0" onclick="handleShiftClick(${d}, '${s}')" title="${shiftObj.name}: ${count} คน (แตะเพื่อดูรายละเอียด/จอง)">
           <div class="flex items-center justify-center sm:justify-between gap-0.5 sm:gap-1">
             <div class="flex items-center gap-0.5 sm:gap-1 font-bold text-[10px] sm:text-xs min-w-0">
-              <span class="text-[10px] sm:text-sm shrink-0 leading-none">${shiftObj.icon}</span>
+              <span class="text-[9px] sm:text-sm shrink-0 leading-none">${shiftObj.icon}</span>
               <span class="hidden md:inline font-bold text-slate-800 dark:text-slate-100">${shiftObj.name}</span>
               <span class="hidden sm:inline md:hidden font-bold text-slate-800 dark:text-slate-100">${shiftObj.code}</span>
             </div>
-            <span class="font-black text-[9px] sm:text-xs tracking-tight shrink-0 ${isUnassigned ? 'text-rose-600 dark:text-rose-300' : 'text-sky-800 dark:text-sky-200'}">
-              ${count} คน
+            <span class="font-black text-[8px] sm:text-xs tracking-tighter shrink-0 ${isUnassigned ? 'text-rose-600 dark:text-rose-300' : 'text-sky-800 dark:text-sky-200'}">
+              ${count}<span class="text-[7.5px] sm:text-xs font-normal">คน</span>
             </span>
           </div>
         </div>
@@ -1518,7 +1518,7 @@ function renderNurseCalendar() {
           </div>
           <button onclick="switchView('excel')" class="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer">
             <span>📋</span>
-            <span>ดูตารางตามหมายเลข (Excel View)</span>
+            <span>สรุปตารางเวร</span>
           </button>
         </div>
       `;

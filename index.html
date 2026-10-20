@@ -52,60 +52,60 @@
           </button>
         </div>
 
-        <!-- Middle: Shift Legend Pills with Enlarged Icons (แสดงตามโหมดเวรที่เลือก - สไตล์เท่าเทียมกันทุกการ์ด) -->
-        <div id="headerShiftPillsContainer" class="flex items-center gap-2 bg-white/15 p-1.5 sm:p-2 rounded-2xl border border-white/20 backdrop-blur-md shadow-xs overflow-x-auto max-w-full">
-          <div class="flex items-center gap-2 bg-sky-500/25 border border-white/30 px-3 py-1.5 rounded-xl shrink-0">
-            <span class="text-xl shrink-0">☀️</span>
-            <div>
-              <div class="font-bold text-white text-xs whitespace-nowrap">เวรเช้า (M)</div>
-              <div class="text-[10px] text-blue-100 font-mono whitespace-nowrap">08:30 - 16:30 น.</div>
+        <!-- Middle: Shift Legend Pills with Enlarged Icons (แสดงตามโหมดเวรที่เลือก - สไตล์เท่าเทียมกันทุกการ์ด พอดีหน้าจอมือถือไม่ slide) -->
+        <div id="headerShiftPillsContainer" class="grid grid-cols-3 gap-1 sm:gap-2 bg-white/15 p-1 sm:p-2 rounded-2xl border border-white/20 backdrop-blur-md shadow-xs w-full max-w-full">
+          <div class="flex items-center gap-1 sm:gap-2 bg-sky-500/25 border border-white/30 p-1 sm:px-3 sm:py-1.5 rounded-xl min-w-0">
+            <span class="text-base sm:text-xl shrink-0 leading-none">☀️</span>
+            <div class="min-w-0 overflow-hidden">
+              <div class="font-bold text-white text-[10px] sm:text-xs leading-tight truncate">เวรเช้า (M)</div>
+              <div class="text-[8px] sm:text-[10px] text-blue-100 font-mono leading-tight truncate">08:30-16:30</div>
             </div>
           </div>
-          <div class="flex items-center gap-2 bg-amber-500/25 border border-white/30 px-3 py-1.5 rounded-xl shrink-0">
-            <span class="text-xl shrink-0">⛅</span>
-            <div>
-              <div class="font-bold text-white text-xs whitespace-nowrap">เวรบ่าย (A)</div>
-              <div class="text-[10px] text-amber-100 font-mono whitespace-nowrap">16:30 - 00:30 น.</div>
+          <div class="flex items-center gap-1 sm:gap-2 bg-amber-500/25 border border-white/30 p-1 sm:px-3 sm:py-1.5 rounded-xl min-w-0">
+            <span class="text-base sm:text-xl shrink-0 leading-none">⛅</span>
+            <div class="min-w-0 overflow-hidden">
+              <div class="font-bold text-white text-[10px] sm:text-xs leading-tight truncate">เวรบ่าย (A)</div>
+              <div class="text-[8px] sm:text-[10px] text-amber-100 font-mono leading-tight truncate">16:30-00:30</div>
             </div>
           </div>
-          <div id="headerShiftNPill" class="flex items-center gap-2 bg-purple-500/25 border border-white/30 px-3 py-1.5 rounded-xl shrink-0">
-            <span class="text-xl shrink-0">🌙</span>
-            <div>
-              <div class="font-bold text-white text-xs whitespace-nowrap">เวรดึก (N)</div>
-              <div class="text-[10px] text-purple-100 font-mono whitespace-nowrap">00:30 - 08:30 น.</div>
+          <div id="headerShiftNPill" class="flex items-center gap-1 sm:gap-2 bg-purple-500/25 border border-white/30 p-1 sm:px-3 sm:py-1.5 rounded-xl min-w-0">
+            <span class="text-base sm:text-xl shrink-0 leading-none">🌙</span>
+            <div class="min-w-0 overflow-hidden">
+              <div class="font-bold text-white text-[10px] sm:text-xs leading-tight truncate">เวรดึก (N)</div>
+              <div class="text-[8px] sm:text-[10px] text-purple-100 font-mono leading-tight truncate">00:30-08:30</div>
             </div>
           </div>
         </div>
 
         <!-- Right: Actions & Separate Login Buttons (ตัดคำว่าปุ่มออก) -->
-        <div class="flex items-center gap-3 flex-wrap">
+        <div class="flex items-center gap-2 sm:gap-3 flex-wrap w-full xl:w-auto">
           
           <!-- Desktop Theme Toggle Button (Moon / Sun) -->
           <button id="themeToggleBtnDesktop" onclick="toggleTheme()" class="hidden xl:flex w-10 h-10 rounded-2xl bg-white/20 hover:bg-white/30 border border-white/30 items-center justify-center text-xl shadow-md transition transform hover:scale-105 active:scale-95 cursor-pointer text-white" title="สลับโหมดสว่าง/มืด (Dark Mode)">
             🌙
           </button>
 
-          <!-- Segmented Pill Group for Views (Active Indicator - Matches Image 333) -->
-          <div id="navSegmentedPillGroup" class="flex items-center p-1 bg-black/20 backdrop-blur-md rounded-2xl border border-white/25 gap-1.5 shadow-inner">
+          <!-- Segmented Pill Group for Views (Active Indicator - Fits mobile 100%) -->
+          <div id="navSegmentedPillGroup" class="flex items-center p-1 bg-black/20 backdrop-blur-md rounded-2xl border border-white/25 gap-1 shadow-inner w-full sm:w-auto max-w-full">
             <button id="navDashboardBtn" onclick="switchView('dashboard')" 
                     class="nav-tab-btn nav-tab-btn-inactive">
               <span class="text-base sm:text-lg">📊</span>
-              <span>ปฏิทินหลัก</span>
+              <span class="truncate">ปฏิทินหลัก</span>
             </button>
             <button id="navMyScheduleBtn" onclick="switchView('personal')" 
                     class="nav-tab-btn nav-tab-btn-inactive hidden">
               <span class="text-base sm:text-lg">📅</span>
-              <span>ตารางเวรของฉัน</span>
+              <span class="truncate">ตารางเวรของฉัน</span>
             </button>
             <button id="navExcelViewBtn" onclick="switchView('excel')" 
                     class="nav-tab-btn nav-tab-btn-inactive">
               <span class="text-base sm:text-lg">📋</span>
-              <span>ตารางตามหมายเลข</span>
+              <span class="truncate">สรุปตารางเวร</span>
             </button>
             <button id="navAdminPortalBtn" onclick="switchView('admin')" 
                     class="nav-tab-btn nav-tab-btn-inactive hidden">
               <span class="text-base sm:text-lg">🛡️</span>
-              <span>พื้นที่ Admin</span>
+              <span class="truncate">พื้นที่ Admin</span>
             </button>
           </div>
 
@@ -143,15 +143,15 @@
     </header>
 
     <!-- ==================== MONTH NAVIGATOR & REAL-TIME CLOCK BAR ==================== -->
-    <div class="glass-card rounded-2xl px-5 py-3.5 mb-5 flex flex-wrap items-center justify-between gap-4 border border-white/60 shadow-md">
-      <div class="flex items-center gap-3">
-        <button id="prevMonthBtn" class="p-2.5 bg-white hover:bg-blue-50 border border-blue-200 rounded-xl shadow-xs text-blue-900 transition font-black text-sm" title="เดือนก่อนหน้า">
+    <div class="glass-card rounded-2xl p-2.5 sm:px-5 sm:py-3.5 mb-4 flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-4 border border-white/60 shadow-md w-full max-w-full overflow-hidden">
+      <div class="flex items-center justify-between gap-1.5 sm:gap-3 w-full sm:w-auto">
+        <button id="prevMonthBtn" class="w-9 h-9 sm:w-10 sm:h-10 bg-white dark:bg-slate-800 hover:bg-blue-50 border border-blue-200 dark:border-slate-700 rounded-xl shadow-xs text-blue-900 dark:text-blue-300 transition font-black text-sm flex items-center justify-center shrink-0 cursor-pointer" title="เดือนก่อนหน้า">
           ◀
         </button>
         
-        <div class="flex items-center bg-white/95 border border-blue-200 rounded-xl shadow-xs px-4 py-2 gap-2.5">
-          <span class="text-xl">📅</span>
-          <select id="monthSelect" class="font-black text-slate-800 bg-transparent border-none outline-none cursor-pointer text-sm md:text-base">
+        <div class="flex items-center justify-center flex-1 sm:flex-initial bg-white/95 dark:bg-slate-800 border border-blue-200 dark:border-slate-700 rounded-xl shadow-xs px-2 sm:px-4 py-1.5 sm:py-2 gap-1.5 sm:gap-2.5 min-w-0">
+          <span class="text-base sm:text-xl shrink-0">📅</span>
+          <select id="monthSelect" class="font-black text-slate-800 dark:text-slate-100 bg-transparent border-none outline-none cursor-pointer text-xs sm:text-base min-w-0">
             <option value="0">มกราคม</option>
             <option value="1">กุมภาพันธ์</option>
             <option value="2">มีนาคม</option>
@@ -165,35 +165,35 @@
             <option value="10">พฤศจิกายน</option>
             <option value="11">ธันวาคม</option>
           </select>
-          <span class="text-blue-400 font-black">/</span>
-          <select id="yearSelect" class="font-black text-slate-800 bg-transparent border-none outline-none cursor-pointer text-sm md:text-base">
-            <option value="2026">2569 (2026)</option>
-            <option value="2027">2570 (2027)</option>
-            <option value="2028">2571 (2028)</option>
-            <option value="2029">2572 (2029)</option>
-            <option value="2030">2573 (2030)</option>
-            <option value="2031">2574 (2031)</option>
-            <option value="2032">2575 (2032)</option>
+          <span class="text-blue-400 font-black text-xs sm:text-base">/</span>
+          <select id="yearSelect" class="font-black text-slate-800 dark:text-slate-100 bg-transparent border-none outline-none cursor-pointer text-xs sm:text-base min-w-0">
+            <option value="2026">2569</option>
+            <option value="2027">2570</option>
+            <option value="2028">2571</option>
+            <option value="2029">2572</option>
+            <option value="2030">2573</option>
+            <option value="2031">2574</option>
+            <option value="2032">2575</option>
           </select>
         </div>
 
-        <button id="nextMonthBtn" class="p-2.5 bg-white hover:bg-blue-50 border border-blue-200 rounded-xl shadow-xs text-blue-900 transition font-black text-sm" title="เดือนถัดไป">
+        <button id="nextMonthBtn" class="w-9 h-9 sm:w-10 sm:h-10 bg-white dark:bg-slate-800 hover:bg-blue-50 border border-blue-200 dark:border-slate-700 rounded-xl shadow-xs text-blue-900 dark:text-blue-300 transition font-black text-sm flex items-center justify-center shrink-0 cursor-pointer" title="เดือนถัดไป">
           ▶
         </button>
       </div>
 
       <!-- Real-Time Date and Time Display in Center of Bar 2 (แสดงวันที่ เวลา ทุกหน้า ตรงกลาง กรอบที่ 2) -->
-      <div id="realTimeClockContainer" class="flex items-center gap-2.5 bg-white/90 border border-blue-200/90 px-4 py-2 rounded-xl text-xs shadow-xs backdrop-blur-md">
-        <span class="text-base text-blue-600">🕒</span>
-        <div class="text-center font-mono flex items-center gap-2">
-          <span id="realTimeClockDate" class="font-extrabold text-slate-800 text-xs sm:text-sm">--</span>
-          <span class="text-slate-300 font-bold">|</span>
-          <span id="realTimeClockTime" class="font-black text-blue-900 text-xs sm:text-sm">--:--:-- น.</span>
+      <div id="realTimeClockContainer" class="flex items-center justify-center gap-2 bg-white/90 dark:bg-slate-800/90 border border-blue-200/90 dark:border-slate-700 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs shadow-xs backdrop-blur-md w-full sm:w-auto">
+        <span class="text-sm sm:text-base text-blue-600 dark:text-blue-400">🕒</span>
+        <div class="text-center font-mono flex items-center gap-1.5 sm:gap-2">
+          <span id="realTimeClockDate" class="font-extrabold text-slate-800 dark:text-slate-100 text-xs sm:text-sm">--</span>
+          <span class="text-slate-300 dark:text-slate-600 font-bold">|</span>
+          <span id="realTimeClockTime" class="font-black text-blue-900 dark:text-blue-300 text-xs sm:text-sm">--:--:-- น.</span>
         </div>
       </div>
 
-      <div class="flex items-center gap-3">
-        <div id="viewStatusBadge" class="text-xs text-blue-950 bg-blue-100/80 px-3.5 py-1.5 rounded-xl border border-blue-200 font-bold">
+      <div class="flex items-center justify-center w-full sm:w-auto">
+        <div id="viewStatusBadge" class="text-[11px] sm:text-xs text-blue-950 dark:text-blue-200 bg-blue-100/80 dark:bg-blue-950/60 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-xl border border-blue-200 dark:border-blue-800 font-bold text-center w-full sm:w-auto">
           ⚡ พยาบาลวิชาชีพ | สามารถคลิกเลือกได้ทุกเวร
         </div>
       </div>
@@ -201,7 +201,7 @@
 
 
     <!-- ==================== VIEW 1: หน้า MAIN ในปฏิทิน (แสดงทุกวัน ทุกเวร เลือกได้ทุกเวร) ==================== -->
-    <section id="publicDashboardSection" class="glass-container rounded-3xl p-5 md:p-8 shadow-2xl border border-white/60 mb-8 flex-1">
+    <section id="publicDashboardSection" class="glass-container rounded-3xl p-2.5 sm:p-5 md:p-8 shadow-2xl border border-white/60 mb-8 flex-1 w-full max-w-full overflow-hidden">
       
       <!-- Dashboard Title Banner (Matches Image 1) -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 mb-6 border-b border-slate-200/80 dark:border-slate-800">
@@ -221,7 +221,7 @@
         <div class="flex items-center gap-2.5 flex-wrap">
           <button id="dashExcelShortcutBtn" onclick="switchView('excel')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 shadow-xs transition flex items-center gap-1.5 cursor-pointer">
             <span class="text-base">📋</span>
-            <span>ตารางเลข</span>
+            <span>สรุปตารางเวร</span>
           </button>
           <button onclick="openPersonalBookingModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md transition flex items-center gap-2 cursor-pointer">
             <span class="text-base">✍️</span>
@@ -339,12 +339,12 @@
         <!-- Dynamically rendered by renderPublicDashboard() -->
       </div>
 
-      <!-- 2. TRADITIONAL 7-COLUMN MONTHLY CALENDAR GRID (Matches Image 2) -->
-      <div id="mainCalendarGridContainer" class="glass-card p-5 md:p-6 rounded-3xl border border-blue-200 dark:border-slate-800 shadow-sm overflow-x-auto">
-        <div class="min-w-[1050px]">
+      <!-- 2. TRADITIONAL 7-COLUMN MONTHLY CALENDAR GRID (Matches Image 2 - Fit mobile 100% no slide) -->
+      <div id="mainCalendarGridContainer" class="glass-card p-1 sm:p-4 md:p-6 rounded-2xl sm:rounded-3xl border border-blue-200 dark:border-slate-800 shadow-sm w-full overflow-hidden">
+        <div class="w-full">
           
           <!-- 7-Column Day Header (Sun to Sat) with Larger Weekdays -->
-          <div id="mainCalendarHeader" class="calendar-grid-header mb-3">
+          <div id="mainCalendarHeader" class="calendar-grid-header mb-1.5 sm:mb-3">
             <!-- Dynamically rendered: Sun, Mon, Tue, Wed, Thu, Fri, Sat -->
           </div>
 
@@ -421,7 +421,7 @@
               </button>
               <button id="personalExcelShortcutBtn" onclick="switchView('excel')" class="hidden px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center gap-1.5 cursor-pointer">
                 <span>📋</span>
-                <span>ตารางตามหมายเลข</span>
+                <span>สรุปตารางเวร</span>
               </button>
               <div id="personalBookingBtnContainer">
                 <button id="personalBookingBtn" onclick="openPersonalBookingModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition flex items-center gap-1.5 cursor-pointer">
@@ -447,7 +447,7 @@
     </section>
 
 
-    <!-- ==================== VIEW 4: ตารางตามหมายเลข (EXCEL VIEW สำหรับ USER - เห็นเมื่อยืนยันแล้วเท่านั้น) ==================== -->
+    <!-- ==================== VIEW 4: สรุปตารางเวร (EXCEL VIEW สำหรับ USER - เห็นเมื่อยืนยันแล้วเท่านั้น) ==================== -->
     <section id="userExcelViewSection" class="glass-container rounded-3xl overflow-hidden shadow-2xl border border-white/60 mb-8 hidden flex-1 flex flex-col p-5 md:p-6 space-y-5">
       <!-- Top Bar with Back buttons and Excel/Print actions -->
       <div class="flex items-center justify-between pb-3.5 border-b border-slate-200 flex-wrap gap-3">
@@ -457,7 +457,7 @@
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <h2 class="text-base md:text-lg font-black text-slate-900 font-heading" id="userExcelSectionTitle">ตารางเวรตามหมายเลข (Excel View)</h2>
+              <h2 class="text-base md:text-lg font-black text-slate-900 font-heading" id="userExcelSectionTitle">สรุปตารางเวร (Excel View)</h2>
               <span id="userExcelStatusBadge" class="text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-full flex items-center gap-1">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span>ประกาศตารางทางการแล้ว</span>
@@ -540,7 +540,7 @@
               ตารางรวม 14 ท่าน (Matrix)
             </button>
             <button id="viewExcelBtn" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-blue-700 transition">
-              📋 ตารางตามหมายเลข (Excel View)
+              📋 สรุปตารางเวร
             </button>
             <button id="viewDailyBtn" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-blue-700 transition">
               ปฏิทินรายวัน
@@ -624,35 +624,8 @@
       <!-- Master Views Section (Admin) -->
       <div id="masterMatrixSection">
         
-        <!-- Horizontal Scroll / Slider Toolbar for Matrix Table (ให้ Slide ซ้าย-ขวา เห็นวันที่ 1 ชัดเจน) -->
-        <div class="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200 text-xs">
-          <div class="flex items-center gap-1.5">
-            <button onclick="scrollMatrixTo('first')" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-blue-50 hover:text-blue-700 font-bold text-slate-700 shadow-2xs transition flex items-center gap-1" title="เลื่อนกลับมาที่วันที่ 1">
-              <span>⏮️</span>
-              <span>วันที่ 1</span>
-            </button>
-            <button onclick="scrollMatrixTo('prev')" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-blue-50 hover:text-blue-700 font-bold text-slate-700 shadow-2xs transition flex items-center gap-1" title="เลื่อนไปทางซ้าย">
-              <span>◀</span>
-              <span>เลื่อนซ้าย</span>
-            </button>
-          </div>
-
-          <div class="flex items-center gap-1.5 text-slate-600 font-bold">
-            <span>↔️</span>
-            <span>เลื่อนสไลด์ ซ้าย - ขวา เพื่อดูช่วงวันที่ 1 ถึงสิ้นเดือน</span>
-          </div>
-
-          <div class="flex items-center gap-1.5">
-            <button onclick="scrollMatrixTo('next')" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-blue-50 hover:text-blue-700 font-bold text-slate-700 shadow-2xs transition flex items-center gap-1" title="เลื่อนไปทางขวา">
-              <span>เลื่อนขวา</span>
-              <span>▶</span>
-            </button>
-            <button onclick="scrollMatrixTo('last')" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-blue-50 hover:text-blue-700 font-bold text-slate-700 shadow-2xs transition flex items-center gap-1" title="เลื่อนไปวันที่สิ้นเดือน">
-              <span>สิ้นเดือน</span>
-              <span>⏭️</span>
-            </button>
-          </div>
-        </div>
+        <!-- Horizontal Scroll / Slider Toolbar for Matrix Table (ซ่อนตามความต้องการ: วงข้างล่างไม่ต้องแสดง) -->
+        <div class="hidden"></div>
 
         <!-- 1. Matrix View with Zebra Striping and Sticky Columns -->
         <div id="matrixViewSection" class="relative overflow-x-auto border-b border-slate-200">
@@ -1408,10 +1381,10 @@
         <span class="text-xl">📅</span>
         <span class="text-[10px] tracking-tight mt-0.5">เวรของฉัน</span>
       </button>
-      <!-- 3. ตารางเลข (Excel) -->
+      <!-- 3. สรุปตารางเวร (Excel) -->
       <button id="bottomNavExcelBtn" onclick="switchView('excel')" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition text-slate-500 dark:text-slate-400 font-semibold active:scale-95 cursor-pointer">
         <span class="text-xl">📋</span>
-        <span class="text-[10px] tracking-tight mt-0.5">ตารางเลข</span>
+        <span class="text-[10px] tracking-tight mt-0.5 font-bold">สรุปตารางเวร</span>
       </button>
       <!-- 4. พื้นที่ Admin -->
       <button id="bottomNavAdminBtn" onclick="switchView('admin')" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition text-slate-500 dark:text-slate-400 font-semibold active:scale-95 cursor-pointer">
