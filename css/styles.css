@@ -199,63 +199,124 @@ h1, h2, h3, h4, .font-heading {
   box-shadow: 0 25px 60px rgba(15, 23, 42, 0.45);
 }
 
-/* ================= Calendar Grid Layout ================= */
+/* ================= Calendar Grid Layout (Responsive & Fit Mobile without slide) ================= */
 .calendar-grid-header {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 10px;
+  gap: 2.5px;
+  width: 100%;
 }
 
 .calendar-grid-body {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 10px;
+  gap: 2.5px;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .calendar-grid-header,
+  .calendar-grid-body {
+    gap: 6px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .calendar-grid-header,
+  .calendar-grid-body {
+    gap: 8px;
+  }
 }
 
 .calendar-empty-cell {
   background: rgba(241, 245, 249, 0.35);
   border: 1px dashed rgba(203, 213, 225, 0.6);
-  border-radius: 18px;
-  min-height: 120px;
+  border-radius: 10px;
+  min-height: 80px;
 }
 
 .calendar-day-cell {
-  min-height: 120px;
-  border-radius: 18px;
+  min-height: 80px;
+  border-radius: 10px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Main Calendar specific day cells (Clean & Multi-shift without names) */
 .main-cal-empty-cell {
-  background: rgba(241, 245, 249, 0.3);
-  border: 1px dashed rgba(203, 213, 225, 0.6);
-  border-radius: 20px;
-  min-height: 175px;
+  background: rgba(241, 245, 249, 0.25);
+  border: 1px dashed rgba(203, 213, 225, 0.5);
+  border-radius: 8px;
+  min-height: 80px;
+}
+@media (min-width: 640px) {
+  .main-cal-empty-cell {
+    border-radius: 14px;
+    min-height: 120px;
+  }
+}
+@media (min-width: 1024px) {
+  .main-cal-empty-cell {
+    border-radius: 18px;
+    min-height: 155px;
+  }
 }
 
 .main-cal-day-cell {
-  min-height: 175px;
-  border-radius: 20px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 80px;
+  border-radius: 8px;
+  padding: 3px 2px;
+  transition: all 0.15s ease;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
+  overflow: hidden;
 }
 
-/* Interactive shift rows inside main calendar */
+@media (min-width: 640px) {
+  .main-cal-day-cell {
+    min-height: 120px;
+    padding: 6px 4px;
+    border-radius: 14px;
+    justify-content: space-between;
+  }
+}
+
+@media (min-width: 1024px) {
+  .main-cal-day-cell {
+    min-height: 155px;
+    padding: 8px 6px;
+    border-radius: 18px;
+  }
+}
+
+/* Interactive shift rows inside main calendar (Fit to mobile, shows only count) */
 .cal-shift-row {
-  border-radius: 12px;
-  padding: 6px 10px;
-  transition: all 0.18s ease;
+  border-radius: 5px;
+  padding: 2px 2px;
+  transition: all 0.15s ease;
   cursor: pointer;
-  border-width: 1.5px;
+  border-width: 1px;
   border-style: solid;
   position: relative;
+  text-align: center;
 }
 .cal-shift-row:hover {
-  transform: translateY(-1.5px) scale(1.02);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   filter: brightness(1.03);
+}
+@media (min-width: 640px) {
+  .cal-shift-row {
+    border-radius: 8px;
+    padding: 3px 4px;
+    border-width: 1.5px;
+  }
+}
+@media (min-width: 1024px) {
+  .cal-shift-row {
+    border-radius: 10px;
+    padding: 4px 6px;
+  }
 }
 
 /* 1. เวรที่ยังไม่มีคนเลือก (0 คน) - ปรับโทนสีให้อ่อนลง นุ่มนวล สบายตา */
@@ -522,7 +583,7 @@ h1, h2, h3, h4, .font-heading {
 /* ================= Mobile & Responsive Design Enhancements ================= */
 @media (max-width: 768px) {
   .glass-header {
-    padding: 1.15rem !important;
+    padding: 0.85rem !important;
     border-radius: 1.25rem !important;
   }
   
@@ -534,12 +595,8 @@ h1, h2, h3, h4, .font-heading {
 
   .calendar-grid-header,
   .calendar-grid-body {
-    min-width: 680px;
-  }
-
-  .main-cal-day-cell {
-    min-height: 120px !important;
-    padding: 0.6rem !important;
+    min-width: 0 !important;
+    width: 100% !important;
   }
 
   .glass-modal {
@@ -554,7 +611,8 @@ h1, h2, h3, h4, .font-heading {
 @media (max-width: 480px) {
   .calendar-grid-header,
   .calendar-grid-body {
-    min-width: 620px;
+    min-width: 0 !important;
+    width: 100% !important;
   }
 
   .sticky-col-2 {

@@ -149,8 +149,8 @@ let pendingShiftSelection = null;
 // Context for shift quick action modal
 let activeModalShiftContext = null;
 
-// Calendar View Mode: 'daily' vs 'grid'
-let calendarViewMode = (typeof window !== 'undefined' && window.innerWidth < 768) ? 'daily' : 'grid';
+// Calendar View Mode: 'grid' (default: fits mobile 100% without slide) vs 'daily'
+let calendarViewMode = 'grid';
 try {
   const savedCalView = localStorage.getItem('nurse_cal_view_mode');
   if (savedCalView) calendarViewMode = savedCalView;
@@ -233,10 +233,20 @@ function updateShiftModeUI() {
     }
   }
 
-  // Header shift pills reflect active shift mode
+  // Header shift pills reflect active shift mode & fit mobile screen width without slide
   const headerNPill = document.getElementById('headerShiftNPill');
+  const headerContainer = document.getElementById('headerShiftPillsContainer');
   if (headerNPill) {
     headerNPill.style.display = (shiftMode === 2 ? 'none' : 'flex');
+  }
+  if (headerContainer) {
+    if (shiftMode === 2) {
+      headerContainer.classList.remove('grid-cols-3');
+      headerContainer.classList.add('grid-cols-2');
+    } else {
+      headerContainer.classList.remove('grid-cols-2');
+      headerContainer.classList.add('grid-cols-3');
+    }
   }
 
   // Hide or show 'N' (เวรดึก) in quick booking modal
@@ -544,12 +554,20 @@ function updateAuthUI() {
   const userProfileBadge = document.getElementById('userProfileBadge');
   const headerLogoutText = document.getElementById('headerLogoutBtnText');
 
+  const unauthButtonsMobile = document.getElementById('unauthButtonsMobile');
+  const authControlsMobile = document.getElementById('authControlsMobile');
+  const userProfileBadgeMobile = document.getElementById('userProfileBadgeMobile');
+
   if (!currentUser) {
     if (unauthButtons) unauthButtons.classList.remove('hidden');
     if (authControls) authControls.classList.add('hidden');
+    if (unauthButtonsMobile) unauthButtonsMobile.classList.remove('hidden');
+    if (authControlsMobile) authControlsMobile.classList.add('hidden');
   } else {
     if (unauthButtons) unauthButtons.classList.add('hidden');
     if (authControls) authControls.classList.remove('hidden');
+    if (unauthButtonsMobile) unauthButtonsMobile.classList.add('hidden');
+    if (authControlsMobile) authControlsMobile.classList.remove('hidden');
   }
 
   const unauthExcelBtn = document.getElementById('unauthExcelBtn');
@@ -564,21 +582,42 @@ function updateAuthUI() {
   if (currentUser) {
     if (currentUser.role === 'admin') {
       if (headerLogoutText) headerLogoutText.innerText = 'ออกจากหน้า Admin';
-      userProfileBadge.innerHTML = `
-        <div class="flex items-center gap-2 bg-indigo-900/60 border border-white/30 px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
-          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/40"></span>
-          <span class="font-bold text-white">👑 ผู้ดูแลระบบ (Admin)</span>
-        </div>
-      `;
+      if (userProfileBadge) {
+        userProfileBadge.innerHTML = `
+          <div class="flex items-center gap-2 bg-indigo-900/60 border border-white/30 px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/40"></span>
+            <span class="font-bold text-white">👑 ผู้ดูแลระบบ (Admin)</span>
+          </div>
+        `;
+      }
+      if (userProfileBadgeMobile) {
+        userProfileBadgeMobile.innerHTML = `
+          <div class="flex items-center gap-1.5 bg-indigo-950/80 border border-white/30 px-2 py-1 rounded-xl text-[10px] font-bold text-white shadow-xs">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span>Admin</span>
+          </div>
+        `;
+      }
     } else {
       if (headerLogoutText) headerLogoutText.innerText = 'ออกจากระบบ';
-      userProfileBadge.innerHTML = `
-        <div class="flex items-center gap-2 bg-white/20 border border-white/30 px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
-          <span class="w-2.5 h-2.5 rounded-full bg-emerald-300 ring-2 ring-emerald-300/40"></span>
-          <span class="font-bold text-white">👩‍⚕️ ${currentUser.name}</span>
-          <span class="font-mono text-blue-100">(${currentUser.nurseId})</span>
-        </div>
-      `;
+      if (userProfileBadge) {
+        userProfileBadge.innerHTML = `
+          <div class="flex items-center gap-2 bg-white/20 border border-white/30 px-3.5 py-1.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-300 ring-2 ring-emerald-300/40"></span>
+            <span class="font-bold text-white">👩‍⚕️ ${currentUser.name}</span>
+            <span class="font-mono text-blue-100">(${currentUser.nurseId})</span>
+          </div>
+        `;
+      }
+      if (userProfileBadgeMobile) {
+        const cleanName = currentUser.name.replace(/^พว\.\s*/, '').slice(0, 8);
+        userProfileBadgeMobile.innerHTML = `
+          <div class="flex items-center gap-1 bg-white/20 border border-white/30 px-2 py-1 rounded-xl text-[10px] font-bold text-white shadow-xs">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
+            <span class="truncate max-w-[70px]">👩‍⚕️ ${cleanName}</span>
+          </div>
+        `;
+      }
     }
   }
   updateNavSwitcher(activeView);
@@ -734,14 +773,20 @@ function renderPublicDashboard() {
     }
   }
 
-  // Render 7-Day Header
+  // Render 7-Day Header (Fit mobile without slide)
   const calHeader = document.getElementById('mainCalendarHeader');
   let hHtml = '';
   CALENDAR_HEADERS.forEach(ch => {
     hHtml += `
-      <div class="p-3 md:p-3.5 text-center rounded-2xl border ${ch.headerClass} shadow-xs bg-white/95 backdrop-blur-sm">
-        <div class="text-base md:text-lg font-black tracking-wide">${ch.th}</div>
-        <div class="text-xs md:text-sm font-bold opacity-75 font-mono">${ch.en}</div>
+      <div class="p-1 sm:p-2 md:p-2.5 text-center rounded-lg sm:rounded-2xl border ${ch.headerClass} shadow-2xs bg-white/95 dark:bg-slate-800/90 backdrop-blur-sm">
+        <div class="text-[11px] sm:text-base md:text-lg font-black tracking-tight leading-tight">
+          <span class="sm:hidden">${ch.short}</span>
+          <span class="hidden sm:inline">${ch.th}</span>
+        </div>
+        <div class="text-[8px] sm:text-xs font-bold opacity-75 font-mono leading-tight">
+          <span class="sm:hidden">${ch.en.slice(0, 2)}</span>
+          <span class="hidden sm:inline">${ch.en}</span>
+        </div>
       </div>
     `;
   });
@@ -760,8 +805,8 @@ function renderPublicDashboard() {
   // 1. Pad beginning of month
   for (let pad = 0; pad < firstDayIndex; pad++) {
     calHtml += `
-      <div class="main-cal-empty-cell p-3 flex items-start justify-end text-slate-300 select-none">
-        <span class="opacity-30 font-mono text-sm">•</span>
+      <div class="main-cal-empty-cell p-1 sm:p-2 flex items-start justify-end text-slate-300 select-none">
+        <span class="opacity-25 font-mono text-[9px] sm:text-xs">•</span>
       </div>
     `;
   }
@@ -803,36 +848,28 @@ function renderPublicDashboard() {
       if (dashboardShiftFilter === 'A' && s !== 'A') isVisible = false;
       if (dashboardShiftFilter === 'N' && s !== 'N') isVisible = false;
 
-      // Styling: [โควตาที่ต้องการ: 2 คน] เปลี่ยนเป็นแสดงตามจำนวนพยาบาลที่เลือก
-      // และ "ในปฏิทิน ไม่ต้องระบุชื่อ (ระบุเฉพาะใน popup)"
+      // Styling: ในปฏิทิน ให้แสดงแค่จำนวนคนจอง ว่ามีกี่คน ให้ fit กับขนาด mobile ไม่ต้อง slide
       let rowClass = 'cal-shift-row';
-      let statusBadge = '';
-      let subText = '';
-
       if (isUnassigned) {
-        // ส่วนเวรใหนที่ยังไม่มีคนเลือก: ปรับโทนสีให้อ่อนลง นุ่มนวล สบายตา
         rowClass += ' cal-shift-unassigned';
-        statusBadge = `<span class="bg-rose-100/90 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-[10px] px-2 py-0.5 rounded-full font-bold">ยังไม่มีคนเลือก (0 คน)</span>`;
-        subText = `<div class="text-[10px] text-rose-600/90 dark:text-rose-400 font-medium mt-0.5 flex items-center justify-between"><span>เวรว่าง (0 คน)</span><span class="underline text-rose-500 hover:text-rose-700">คลิกเพื่อเลือกเวร ➔</span></div>`;
       } else {
-        // แสดงตามจำนวนพยาบาลที่เลือก
         rowClass += ' cal-shift-assigned';
-        statusBadge = `<span class="bg-sky-100 text-sky-900 border border-sky-300 text-[10px] px-2 py-0.5 rounded-full font-black">👤 มี ${count} คน</span>`;
-        subText = `<div class="text-[10px] text-sky-800 font-medium mt-0.5 flex items-center justify-between"><span>เลือกแล้ว ${count} คน</span><span class="underline text-sky-700">คลิกเพื่อเลือกเวร ➔</span></div>`;
       }
 
       const opacityClass = isVisible ? 'opacity-100' : 'opacity-25 grayscale pointer-events-none';
 
       shiftRowsHtml += `
-        <div class="${rowClass} ${opacityClass}" onclick="handleShiftClick(${d}, '${s}')" title="คลิกเพื่อเลือกเวรนี้">
-          <div class="flex items-center justify-between gap-1">
-            <div class="flex items-center gap-1.5 font-black text-xs text-slate-800">
-              <span class="text-base">${shiftObj.icon}</span>
-              <span>${shiftObj.name}</span>
+        <div class="${rowClass} ${opacityClass} mb-1 last:mb-0" onclick="handleShiftClick(${d}, '${s}')" title="${shiftObj.name}: ${count} คน (แตะเพื่อดูรายละเอียด/จอง)">
+          <div class="flex items-center justify-center sm:justify-between gap-0.5 sm:gap-1">
+            <div class="flex items-center gap-0.5 sm:gap-1 font-bold text-[10px] sm:text-xs min-w-0">
+              <span class="text-[10px] sm:text-sm shrink-0 leading-none">${shiftObj.icon}</span>
+              <span class="hidden md:inline font-bold text-slate-800 dark:text-slate-100">${shiftObj.name}</span>
+              <span class="hidden sm:inline md:hidden font-bold text-slate-800 dark:text-slate-100">${shiftObj.code}</span>
             </div>
-            ${statusBadge}
+            <span class="font-black text-[9px] sm:text-xs tracking-tight shrink-0 ${isUnassigned ? 'text-rose-600 dark:text-rose-300' : 'text-sky-800 dark:text-sky-200'}">
+              ${count} คน
+            </span>
           </div>
-          ${subText}
         </div>
       `;
     });
@@ -841,43 +878,34 @@ function renderPublicDashboard() {
     const isSaturday = (dayOfWeek === 6);
 
     let dayCardStyle = 'glass-card hover:border-blue-400';
-    let dateNumColor = 'text-slate-900';
-    let dayBadgeClass = 'bg-slate-100 text-slate-700';
+    let dateNumColor = 'text-slate-900 dark:text-slate-100';
+    let dayBadgeClass = 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300';
 
     if (isSunday) {
-      dayCardStyle = 'bg-rose-50/70 border-rose-200/90 hover:border-rose-400';
-      dateNumColor = 'text-rose-600';
-      dayBadgeClass = 'bg-rose-100 text-rose-700';
+      dayCardStyle = 'bg-rose-50/70 dark:bg-rose-950/20 border-rose-200/90 dark:border-rose-900/60 hover:border-rose-400';
+      dateNumColor = 'text-rose-600 dark:text-rose-400';
+      dayBadgeClass = 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300';
     } else if (isSaturday) {
-      dayCardStyle = 'bg-purple-50/75 border-purple-200/90 hover:border-purple-400';
-      dateNumColor = 'text-purple-700';
-      dayBadgeClass = 'bg-purple-100 text-purple-700';
+      dayCardStyle = 'bg-purple-50/75 dark:bg-purple-950/20 border-purple-200/90 dark:border-purple-900/60 hover:border-purple-400';
+      dateNumColor = 'text-purple-700 dark:text-purple-400';
+      dayBadgeClass = 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300';
     }
 
     calHtml += `
-      <div class="main-cal-day-cell p-3.5 border ${dayCardStyle} shadow-xs">
+      <div class="main-cal-day-cell border ${dayCardStyle} shadow-2xs">
         <div>
-          <!-- Day Header: Big Date Number & Big Day Name -->
-          <div class="flex items-center justify-between pb-2 border-b border-slate-200/80 mb-2">
-            <div class="flex items-baseline gap-1.5">
-              <span class="text-2xl md:text-3xl font-black ${dateNumColor}">${d}</span>
-              <span class="text-xs md:text-sm font-extrabold px-1.5 py-0.5 rounded ${dayBadgeClass}">
-                ${CALENDAR_HEADERS[dayOfWeek].short}
-              </span>
-            </div>
-            <div>
-              ${dayHasUnassigned ? '<span class="text-[10px] font-bold bg-rose-100/90 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 px-1.5 py-0.5 rounded-full">มีเวรว่าง</span>' : '<span class="text-[10px] font-bold text-slate-400 font-mono">' + d + '/' + (currentMonth+1) + '</span>'}
-            </div>
+          <!-- Day Header: Date Number & Day Abbreviation Badge -->
+          <div class="flex items-center justify-between pb-1 border-b border-slate-200/70 dark:border-slate-800/80 mb-1">
+            <span class="text-xs sm:text-base md:text-xl font-black ${dateNumColor}">${d}</span>
+            <span class="text-[9px] sm:text-xs font-bold px-1 py-0.2 rounded ${dayBadgeClass}">
+              ${CALENDAR_HEADERS[dayOfWeek].short}
+            </span>
           </div>
 
-          <!-- All 3 Shifts in this day -->
-          <div class="space-y-1.5">
+          <!-- All Active Shifts in this day (Only Shift & Count) -->
+          <div class="space-y-0.5 sm:space-y-1">
             ${shiftRowsHtml}
           </div>
-        </div>
-
-        <div class="mt-2 pt-1 border-t border-slate-100/80 text-[10px] text-slate-400 text-center flex items-center justify-center gap-1">
-          <span>👆 คลิกเลือกได้ทุกเวร</span>
         </div>
       </div>
     `;
