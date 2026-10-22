@@ -5323,7 +5323,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GITHUB CLOUD SYNC V4 + STRICT PIN GUARD + UI FIX + SMART SHIFT OPTIMIZER
+   GITHUB CLOUD SYNC V5 + MONTH(+1) + HIDE NIGHT SHIFT (2-SHIFT MODE) + SMART OPTIMIZER
    ============================================================================ */
 (function() {
   const GITHUB_CONFIG = {
@@ -5341,27 +5341,325 @@ document.addEventListener('DOMContentLoaded', () => {
   const originalRemoveItem = localStorage.removeItem.bind(localStorage);
   const originalClear = localStorage.clear.bind(localStorage);
 
+  const THAI_MONTHS = [
+    'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+  ];
+
   /* --------------------------------------------------------------------------
-     ส่วนที่ 1: ป้องกันการปล่อยช่อง PIN / รหัสผ่านว่างแล้วกด Login ผ่าน (Strict PIN Guard)
+     ส่วนที่ 1: ตั้งค่าเริ่มต้นเป็น "เดือนปัจจุบัน + 1" และอัปเดตข้อความหัวข้อให้ตรงกับ Dropdown เสมอ
+     -------------------------------------------------------------------------- */
+  function initNextMonthDefault() {
+    if (sessionStorage.getItem('month_plus_one_initialized')) return;
+    sessionStorage.setItem('month_plus_one_initialized', '1');
+
+    const now = new Date();
+    const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const targetMonthIndex = nextMonthDate.getMonth(); // 0-11 (เช่น ต.ค.=9 -> พ.ย.=10)
+    const targetMonthName = THAI_MONTHS[targetMonthIndex];
+    const targetYearBE = String(nextMonthDate.getFullYear() + 543);
+    const targetYearAD = String(nextMonthDate.getFullYear());
+
+    const selects = document.querySelectorAll('select');
+    selects.forEach(sel => {
+      const options = Array.from(sel.options);
+      // หา Dropdown เดือน
+      const monthOpt = options.find(o => o.text.includes(targetMonthName) || String(o.value) === String(targetMonthIndex) || String(o.value) === String(targetMonthIndex + 1));
+      if (monthOpt && options.some(o => o.text.includes('มกราคม'))) {
+        if (sel.value !== monthOpt.value) {
+          sel.value = monthOpt.value;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+      // หา Dropdown ปี
+      const yearOpt = options.find(o => o.text.includes(targetYearBE) || o.value === targetYearBE || o.value === targetYearAD);
+      if (yearOpt && options.length <= 10 && !options.some(o => o.text.includes('มกราคม'))) {
+        if (sel.value !== yearOpt.value) {
+          sel.value = yearOpt.value;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+    });
+  }
+
+  function syncMonthSubtitleText() {
+    let selectedMonthName = null;
+    let selectedYearText = null;
+
+    const selects = document.querySelectorAll('select');
+    selects.forEach(sel => {
+      const selectedOpt = sel.options[sel.selectedIndex];
+      if (!selectedOpt) return;
+      const txt = selectedOpt.text.trim();
+      if (THAI_MONTHS.some(m => txt.includes(m))) {
+        selectedMonthName = THAI_MONTHS.find(m => txt.includes(m));
+      } else if (/^25\d{2}$/.test(txt) \vert{}\vert{} /^20\d{2}$/.test(txt)) {
+        selectedYearText = txt.startsWith('20') ? String(parseInt(txt, 10) + 543) : txt;
+      }
+    });
+
+    if (!selectedMonthName) {
+      const nextDate = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
+      selectedMonthName = THAI_MONTHS[nextDate.getMonth()];
+      selectedYearText = String(nextDate.getFullYear() + 543);
+    }
+
+    // แก้ข้อความ "ประจำเดือน ตุลาคม 2569 | คลิกเลือกดูหรือจองเวรได้ทันที" ให้ตรงกับเดือนที่เลือก (+1)
+    const allTextEls = document.querySelectorAll('p, span, div, h2, h3, h4');
+    allTextEls.forEach(el => {
+      if (el.children.length === 0 && el.textContent.includes('ประจำเดือน') && el.textContent.includes('คลิกเลือกดูหรือจองเวร')) {
+        const newText = `ประจำเดือน ${selectedMonthName} ${selectedYearText || '2569'} | คลิกเลือกดูหรือจองเวรได้ทันที`;
+        if (el.textContent.trim() !== newText) {
+          el.textContent = newText;
+        }
+      }
+    });
+  }
+
+  /* --------------------------------------------------------------------------
+     ส่วนที่ 2: เช็คโหมด 2 เวร/3 เวร -> ถ้าเป็นโหมด 2 เวร ให้ซ่อน "เวรดึกของฉัน" ทันที
+     -------------------------------------------------------------------------- */
+  function isTwoShiftModeActive() {
+    // 1. เช็คจาก localStorage
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = (localStorage.key(i) || '').toLowerCase();
+      const v = (localStorage.getItem(localStorage.key(i)) || '').toLowerCase();
+      if (k.includes('mode') || k.includes('shift_count') || k.includes('shiftmode') || k.includes('config') || k.includes('setting')) {
+        if (v === '2' || v.includes('"2"') || v.includes(':2') || v.includes('2 เวร')) return true;
+        if (v === '3' || v.includes('"3"') || v.includes(':3') || v.includes('3 เวร')) return false;
+      }
+    }
+    // 2. เช็คจากแถบแสดงเวรด้านบนสุด หรือปุ่มตัวกรองในหน้าเว็บว่ามี "เวรดึก (N)" แสดงอยู่หรือไม่
+    const bodyText = document.body ? document.body.innerText : '';
+    if (bodyText.includes('โหมด: 2 เวร') || bodyText.includes('2 เวร/วัน')) return true;
+    if (bodyText.includes('โหมด: 3 เวร') || bodyText.includes('3 เวร/วัน')) return false;
+
+    const hasMorningPill = bodyText.includes('เวรเช้า (M)');
+    const hasAfternoonPill = bodyText.includes('เวรบ่าย (A)');
+    const hasNightPill = bodyText.includes('เวรดึก (N)');
+    if (hasMorningPill && hasAfternoonPill && !hasNightPill) {
+      return true; // ถ้ามีแต่ป้ายเวรเช้า (M) กับเวรบ่าย (A) แปลว่าอยู่ในโหมด 2 เวร
+    }
+    return false;
+  }
+
+  function applyShiftModeAndCardVisibility() {
+    const is2Shift = isTwoShiftModeActive();
+
+    // จัดการการ์ด "เวรดึกของฉัน"
+    const elements = document.querySelectorAll('div, span, p');
+    elements.forEach(el => {
+      if (el.children.length === 0 && el.textContent.trim() === 'เวรดึกของฉัน') {
+        const textGroup = el.parentElement;
+        const card = textGroup ? textGroup.parentElement : null;
+        if (card && card.children.length >= 2) {
+          if (is2Shift) {
+            // ถ้าเป็นโหมด 2 เวร ให้ซ่อนการ์ดเวรดึกของฉันทันที!
+            card.style.setProperty('display', 'none', 'important');
+          } else {
+            // ถ้าเป็นโหมด 3 เวร ให้แสดงผลและเรียงแนวนอนเหมือน 2 การ์ดบน
+            card.style.setProperty('display', 'flex', 'important');
+            card.style.setProperty('flex-direction', 'row', 'important');
+            card.style.setProperty('align-items', 'center', 'important');
+            card.style.setProperty('justify-content', 'flex-start', 'important');
+            card.style.setProperty('gap', '16px', 'important');
+            card.style.setProperty('flex-wrap', 'nowrap', 'important');
+
+            const iconBox = card.children[0];
+            if (iconBox) {
+              iconBox.style.setProperty('flex-shrink', '0', 'important');
+              iconBox.style.setProperty('margin-bottom', '0', 'important');
+            }
+            textGroup.style.setProperty('display', 'flex', 'important');
+            textGroup.style.setProperty('flex-direction', 'column', 'important');
+            textGroup.style.setProperty('justify-content', 'center', 'important');
+            textGroup.style.setProperty('margin-top', '0', 'important');
+          }
+        }
+      }
+
+      // ปรับข้อความปุ่มกรอง "ทุกเวร (เช้า/บ่าย/ดึก)" เป็น "ทุกเวร (เช้า/บ่าย)" เมื่ออยู่ในโหมด 2 เวร
+      if (el.children.length === 0 && is2Shift && el.textContent.includes('ทุกเวร (เช้า/บ่าย/ดึก)')) {
+        el.textContent = el.textContent.replace('ทุกเวร (เช้า/บ่าย/ดึก)', 'ทุกเวร (เช้า/บ่าย)');
+      }
+    });
+  }
+
+  /* --------------------------------------------------------------------------
+     ส่วนที่ 3: แก้ไขระบบจัดตารางเวรอัตโนมัติ (ถ้า "เลือกก่อนจัด = 0 เวร" ไม่นำมาคำนวณ เช่น 14-2 = 12 คน)
+     -------------------------------------------------------------------------- */
+  function getBookedNurseIdentifiersForCurrentSchedule() {
+    const bookedIds = new Set();
+    const allNurses = window.NURSES || window.nurses || window.nurseList || [];
+    const nurseTokens = [];
+
+    if (Array.isArray(allNurses)) {
+      allNurses.forEach(n => {
+        const id = String(n.id || n.code || n.empId || '').trim();
+        const name = String(n.name || '').trim();
+        if (id || name) nurseTokens.push({ id, name, raw: n });
+      });
+    }
+
+    // 1. ตรวจสอบจากข้อมูลตารางเวรใน localStorage
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k) continue;
+      const kl = k.toLowerCase();
+      // ข้ามข้อมูลรายชื่อพยาบาลตั้งต้น ให้เช็คเฉพาะข้อมูลการจองเวร/ตารางเวรเท่านั้น
+      if (kl === 'nurses' || kl === 'nurse_list' || kl.includes('password') || kl.includes('pin')) continue;
+      if (kl.includes('shift') || kl.includes('schedule') || kl.includes('booking') || kl.includes('roster') || kl.includes('duty') || kl.includes('calendar') || kl.includes('202') || kl.includes('256')) {
+        const val = localStorage.getItem(k) || '';
+        const matches = val.match(/\b61\d{5}\b/g); // รหัสพยาบาล เช่น 6100001
+        if (matches) matches.forEach(m => bookedIds.add(m));
+        nurseTokens.forEach(nt => {
+          if (nt.id && val.includes(nt.id)) bookedIds.add(nt.id);
+          if (nt.name && val.includes(nt.name)) bookedIds.add(nt.name);
+        });
+      }
+    }
+    return bookedIds;
+  }
+
+  // ดักจับก่อนที่ฟังก์ชันจัดตารางเวรอัตโนมัติจะทำงาน เพื่อตัดคนที่เลือก 0 เวรออกจากตัวแปรพยาบาล
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('button, a, [role="button"]');
+    if (!btn) return;
+    const text = (btn.textContent || '').trim();
+    if (text.includes('จัดตารางเวรอัตโนมัติ') || text.includes('จัดเวรอัตโนมัติ') || text.includes('ประมวลผล') || text.includes('เกลี่ยเวร')) {
+      const bookedIds = getBookedNurseIdentifiersForCurrentSchedule();
+      const globalKeys = ['NURSES', 'nurses', 'nurseList', 'NURSE_DATA', 'activeNurses'];
+
+      globalKeys.forEach(gKey => {
+        if (Array.isArray(window[gKey]) && window[gKey].length > 0 && bookedIds.size > 0) {
+          if (!window['_full_' + gKey]) {
+            window['_full_' + gKey] = window[gKey].slice();
+          }
+          const fullList = window['_full_' + gKey];
+          const activeBookedList = fullList.filter(n => {
+            const id = String(n.id || n.code || n.empId || '');
+            const name = String(n.name || '');
+            return (id && bookedIds.has(id)) || (name && bookedIds.has(name));
+          });
+
+          if (activeBookedList.length > 0 && activeBookedList.length < fullList.length) {
+            window[gKey] = activeBookedList;
+            setTimeout(() => {
+              window[gKey] = fullList;
+            }, 2500);
+          }
+        }
+      });
+    }
+  }, true);
+
+  // ปรับแก้หน้าต่าง "ผลการประมวลผลจัดตารางเวรอัตโนมัติ" กรณีโค้ดหลักคำนวณติดคนที่มี "เลือกก่อนจัด 0 เวร" มาด้วย
+  function fixOptimizerModalResult() {
+    const headers = Array.from(document.querySelectorAll('h1, h2, h3, h4, div, span')).filter(
+      el => el.children.length === 0 && el.textContent.trim() === 'ผลการประมวลผลจัดตารางเวรอัตโนมัติ'
+    );
+    if (headers.length === 0) return;
+
+    const modal = headers[0].closest('div[class*="modal" i], div[class*="dialog" i], div[class*="popup" i]') || headers[0].parentElement.parentElement.parentElement;
+    if (!modal || modal.dataset.zeroFiltered === 'true') return;
+
+    // ค้นหาแถวในตารางสรุปการเกลี่ยเวร
+    const rows = Array.from(modal.querySelectorAll('tr, div')).filter(row => {
+      const txt = row.textContent || '';
+      return /\[61\d{5}\]/.test(txt) && txt.includes('เวร') && txt.includes('ชม.');
+    });
+
+    if (rows.length === 0) return;
+
+    let totalRows = 0;
+    let zeroBookedCount = 0;
+    const activeNurseRows = [];
+
+    // แยกแถวของพยาบาลที่ "เลือกก่อนจัด = 0 เวร"
+    rows.forEach(row => {
+      // ป้องกันการนับ div ซ้อนกัน ให้เอาเฉพาะแถวระดับในสุดของตาราง
+      if (row.querySelector('tr')) return;
+      const txt = (row.textContent || '').replace(/\s+/g, ' ');
+      if (!/\[61\d{5}\]/.test(txt)) return;
+
+      totalRows++;
+      // เช็คว่าคอลัมน์เลือกก่อนจัดเป็น "0 เวร" หรือไม่
+      if (/\]\s*0\s*เวร/.test(txt)) {
+        zeroBookedCount++;
+        // ซ่อนหรือปรับแถวของคนที่ไม่ได้เลือกเวร (0 เวร) ไม่ให้นำมาคิดรวม
+        row.style.setProperty('opacity', '0.45', 'important');
+        row.style.setProperty('background', '#f8fafc', 'important');
+        // ปรับยอดจัดจริงของคนที่ไม่ได้จองให้เป็น 0 เวร (ไม่นำมาคำนวณ)
+        const cells = row.querySelectorAll('td, div, span');
+        cells.forEach(c => {
+          if (c.children.length === 0 && /\d+\s*เวร\s*\(\d+\s*ชม\.\)/.test(c.textContent)) {
+            c.textContent = '0 เวร (0 ชม.)';
+          }
+          if (c.children.length === 0 && (c.textContent.includes('สมดุล') || /^[+-]\d+(\.\d+)?$/.test(c.textContent.trim()))) {
+            c.textContent = 'ไม่ร่วมคำนวณ (0 เวร)';
+          }
+        });
+      } else {
+        activeNurseRows.push(row);
+      }
+    });
+
+    const activeCount = totalRows - zeroBookedCount;
+    if (zeroBookedCount > 0 && activeCount > 0) {
+      modal.dataset.zeroFiltered = 'true';
+
+      // ดึงจำนวนเวรรวมทั้งเดือน (เช่น 60 เวร) และจำนวนวัน (เช่น 30 วัน)
+      const modalText = modal.innerText || '';
+      const totalShiftsMatch = modalText.match(/จำนวนเวรรวมทั้งเดือน\s*(\d+)\s*เวร/);
+      const totalDaysMatch = modalText.match(/จำนวนวันในเดือน\s*(\d+)\s*วัน/);
+      const totalShifts = totalShiftsMatch ? parseInt(totalShiftsMatch[1], 10) : 60;
+      const totalDays = totalDaysMatch ? parseInt(totalDaysMatch[1], 10) : 30;
+      const shiftsPerDay = Math.round(totalShifts / totalDays) || 2;
+      const newAvg = (totalShifts / activeCount).toFixed(2);
+      const minTarget = Math.floor(totalShifts / activeCount);
+      const maxTarget = Math.ceil(totalShifts / activeCount);
+
+      // อัปเดตตัวเลขในการ์ด "จำนวนพยาบาล" และ "ค่าเฉลี่ยเป้าหมาย" และ "สูตรคำนวณ"
+      const allEls = modal.querySelectorAll('div, span, p, strong, b, h3, h4');
+      allEls.forEach(el => {
+        if (el.children.length === 0) {
+          const t = el.textContent.trim();
+          if (t === `${totalRows} ท่าน`) {
+            el.textContent = `${activeCount} ท่าน (จาก ${totalRows})`;
+          } else if (/^\d+(\.\d+)?\s*เวร\/คน$/.test(t)) {
+            el.textContent = `${newAvg} เวร/คน`;
+          } else if (t.includes('ตารางสรุปการเกลี่ยเวรของพยาบาลทั้ง')) {
+            el.textContent = `📊 ตารางสรุปการเกลี่ยเวรของพยาบาลที่จองเวร ${activeCount} ท่าน (ไม่เลือกเวร ${zeroBookedCount} ท่าน):`;
+          } else if (t.startsWith('เป้าหมาย: ~')) {
+            el.textContent = `เป้าหมาย: ~${minTarget}-${maxTarget} เวร/คน`;
+          }
+        }
+        if (el.textContent.includes('สูตรคำนวณ:') && el.children.length <= 3) {
+          el.innerHTML = el.innerHTML
+            .replace(new RegExp(`÷\\s*${totalRows}\\s*พยาบาล`, 'g'), `÷ ${activeCount} พยาบาล (หักไม่เลือกเวร ${zeroBookedCount} คน)`)
+            .replace(/\d+\.\d+\s*เวร\/ท่าน/g, `${newAvg} เวร/ท่าน`);
+        }
+      });
+    }
+  }
+
+  /* --------------------------------------------------------------------------
+     ส่วนที่ 4: บล็อกการปล่อยช่อง PIN ว่างแล้วกดเข้าสู่ระบบ (Strict PIN Guard)
      -------------------------------------------------------------------------- */
   function validatePinBeforeLogin(e, targetContainer) {
-    // ค้นหาช่องกรอกรหัสผ่าน/PIN ที่อยู่ในหน้าต่างหรือฟอร์มที่กำลังแสดงผลอยู่
     const inputs = Array.from(document.querySelectorAll('input[type="password"], input[placeholder*="PIN"], input[placeholder*="รหัส"], input[id*="pin" i], input[id*="pass" i]'))
-      .filter(el => el.offsetParent !== null); // เฉพาะช่องที่แสดงอยู่บนหน้าจอขณะนั้น
+      .filter(el => el.offsetParent !== null);
 
     if (inputs.length > 0) {
       for (const pinInput of inputs) {
-        // เช็คว่าปุ่มที่กดอยู่ในกล่อง Modal เดียวกับช่องกรอก PIN นี้หรือไม่
         const modal = pinInput.closest('div[class*="modal" i], div[class*="dialog" i], div[class*="popup" i], form') || pinInput.parentElement.parentElement.parentElement;
         if (!targetContainer || (modal && modal.contains(targetContainer)) || inputs.length === 1) {
           const val = (pinInput.value || '').trim();
           if (!val) {
-            // ถ้าปล่อยว่าง ให้บล็อกการเข้าสู่ระบบทันที!
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
 
-            // แสดงกรอบสีแดงเตือนที่ช่องกรอก PIN
             pinInput.style.setProperty('border', '2px solid #ef4444', 'important');
             pinInput.style.setProperty('background-color', '#fef2f2', 'important');
             pinInput.focus();
@@ -5380,7 +5678,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return true;
   }
 
-  // ดักจับทั้งการคลิกปุ่ม "เข้าสู่ระบบจองเวร" และการกดปุ่ม Enter บนคีย์บอร์ด (Capture Phase ทำงานก่อนโค้ดเดิมเสมอ)
   document.addEventListener('click', function(e) {
     const btn = e.target.closest('button, input[type="submit"], a, [role="button"]');
     if (!btn) return;
@@ -5399,114 +5696,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, true);
 
-  document.addEventListener('submit', function(e) {
-    validatePinBeforeLogin(e, e.target);
-  }, true);
-
   /* --------------------------------------------------------------------------
-     ส่วนที่ 2: แก้ไข Layout การ์ด "เวรดึกของฉัน" ให้อยู่ด้านข้างไอคอนเหมือน 2 การ์ดบน
-     -------------------------------------------------------------------------- */
-  function fixNightShiftCardLayout() {
-    const elements = document.querySelectorAll('div, span, p');
-    elements.forEach(el => {
-      if (el.children.length === 0 && el.textContent.trim() === 'เวรดึกของฉัน') {
-        const textGroup = el.parentElement;
-        const card = textGroup ? textGroup.parentElement : null;
-        if (card && card.children.length >= 2) {
-          card.style.setProperty('display', 'flex', 'important');
-          card.style.setProperty('flex-direction', 'row', 'important');
-          card.style.setProperty('align-items', 'center', 'important');
-          card.style.setProperty('justify-content', 'flex-start', 'important');
-          card.style.setProperty('gap', '16px', 'important');
-          card.style.setProperty('flex-wrap', 'nowrap', 'important');
-
-          const iconBox = card.children[0];
-          if (iconBox) {
-            iconBox.style.setProperty('flex-shrink', '0', 'important');
-            iconBox.style.setProperty('margin-bottom', '0', 'important');
-          }
-          textGroup.style.setProperty('display', 'flex', 'important');
-          textGroup.style.setProperty('flex-direction', 'column', 'important');
-          textGroup.style.setProperty('justify-content', 'center', 'important');
-          textGroup.style.setProperty('margin-top', '0', 'important');
-        }
-      }
-    });
-  }
-
-  const uiObserver = new MutationObserver(() => fixNightShiftCardLayout());
-  window.addEventListener('DOMContentLoaded', () => {
-    fixNightShiftCardLayout();
-    uiObserver.observe(document.body, { childList: true, subtree: true });
-  });
-  setTimeout(fixNightShiftCardLayout, 500);
-
-  /* --------------------------------------------------------------------------
-     ส่วนที่ 3: กรองรายชื่อเฉพาะคนที่จองเวรเข้ามา สำหรับปุ่ม "จัดตารางเวรอัตโนมัติ" (ไม่ Fix 14 คน)
-     -------------------------------------------------------------------------- */
-  function getBookedNurseIdentifiers() {
-    const bookedSet = new Set();
-    const allNurses = window.NURSES || window.nurses || window.nurseList || [];
-    const nurseIds = [];
-    if (Array.isArray(allNurses)) {
-      allNurses.forEach(n => {
-        if (n.id) nurseIds.push(String(n.id));
-        if (n.code) nurseIds.push(String(n.code));
-        if (n.empId) nurseIds.push(String(n.empId));
-        if (n.name) nurseIds.push(String(n.name));
-      });
-    }
-
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (!k) continue;
-      const kl = k.toLowerCase();
-      if (kl.includes('shift') || kl.includes('schedule') || kl.includes('booking') || kl.includes('roster') || kl.includes('duty') || kl.includes('data')) {
-        const val = localStorage.getItem(k) || '';
-        nurseIds.forEach(id => {
-          if (id && val.includes(id)) bookedSet.add(id);
-        });
-        const matches = val.match(/\b\d{6,8}\b/g);
-        if (matches) matches.forEach(m => bookedSet.add(m));
-      }
-    }
-    return bookedSet;
-  }
-
-  document.addEventListener('click', function(e) {
-    const btn = e.target.closest('button, a, [role="button"]');
-    if (!btn) return;
-    const text = (btn.textContent || '').trim();
-    if (text.includes('จัดตารางเวรอัตโนมัติ') || text.includes('จัดเวรอัตโนมัติ') || text.includes('Auto') || text.includes('Optimizer')) {
-      const bookedIds = getBookedNurseIdentifiers();
-      const globalKeys = ['NURSES', 'nurses', 'nurseList', 'NURSE_DATA', 'activeNurses'];
-      
-      globalKeys.forEach(gKey => {
-        if (Array.isArray(window[gKey]) && window[gKey].length > 0 && bookedIds.size > 0) {
-          const originalList = window['_orig_' + gKey] || window[gKey].slice();
-          window['_orig_' + gKey] = originalList;
-
-          const filtered = originalList.filter(n => {
-            return bookedIds.has(String(n.id)) ||
-                   bookedIds.has(String(n.code)) ||
-                   bookedIds.has(String(n.empId)) ||
-                   bookedIds.has(String(n.name));
-          });
-
-          if (filtered.length > 0) {
-            window[gKey] = filtered;
-            showSyncStatus(`⚡ คำนวณจัดเวรเฉพาะผู้ที่จองเข้ามา (${filtered.length} คน)`, 'rgba(124, 58, 237, 0.9)', true);
-            setTimeout(() => {
-              window[gKey] = originalList;
-            }, 3000);
-          }
-        }
-      });
-    }
-  }, true);
-
-  /* --------------------------------------------------------------------------
-     ส่วนที่ 4: ระบบซิงค์และดึงข้อมูลอัตโนมัติแบบ Real-time (ไม่ซิงค์สถานะ Login ข้ามเครื่อง)
+     ส่วนที่ 5: ระบบซิงค์และดึงข้อมูลอัตโนมัติ (Real-time Auto-Sync)
      -------------------------------------------------------------------------- */
   function isPrivateSessionKey(key, val) {
     if (!key) return true;
@@ -5567,6 +5758,23 @@ document.addEventListener('DOMContentLoaded', () => {
     return decodeURIComponent(Array.prototype.map.call(atob(str.replace(/\s/g, '')), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
   }
 
+  function runAllUIFixes() {
+    syncMonthSubtitleText();
+    applyShiftModeAndCardVisibility();
+    fixOptimizerModalResult();
+  }
+
+  const uiObserver = new MutationObserver(() => runAllUIFixes());
+  window.addEventListener('DOMContentLoaded', () => {
+    initNextMonthDefault();
+    runAllUIFixes();
+    uiObserver.observe(document.body, { childList: true, subtree: true });
+  });
+  setTimeout(() => {
+    initNextMonthDefault();
+    runAllUIFixes();
+  }, 500);
+
   function triggerSoftRefresh() {
     const renderFns = ['render', 'renderAll', 'renderCalendar', 'updateUI', 'refreshUI', 'init', 'loadData', 'renderMainCalendar', 'renderUserCalendar'];
     let rendered = false;
@@ -5576,7 +5784,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
     window.dispatchEvent(new Event('storage'));
-    fixNightShiftCardLayout();
+    runAllUIFixes();
 
     if (!rendered && (!document.activeElement || !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName))) {
       location.reload();
@@ -5690,6 +5898,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   localStorage.setItem = function(key, value) {
     originalSetItem(key, value);
+    runAllUIFixes();
     if (!isSyncing && !isPrivateSessionKey(key, value)) {
       clearTimeout(syncTimeout);
       syncTimeout = setTimeout(pushToGitHub, 800);
@@ -5698,6 +5907,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   localStorage.removeItem = function(key) {
     originalRemoveItem(key, '');
+    runAllUIFixes();
     if (!isSyncing && !isPrivateSessionKey(key, '')) {
       clearTimeout(syncTimeout);
       syncTimeout = setTimeout(pushToGitHub, 800);
@@ -5714,11 +5924,8 @@ document.addEventListener('DOMContentLoaded', () => {
     pullFromGitHub(false);
   }
 
-  // เช็คข้อมูลใหม่อัตโนมัติทุกๆ 10 วินาที
   setInterval(() => {
-    if (!document.hidden) {
-      pullFromGitHub(true);
-    }
+    if (!document.hidden) pullFromGitHub(true);
   }, 10000);
 
   window.addEventListener('focus', () => pullFromGitHub(true));
