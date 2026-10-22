@@ -1,6 +1,6 @@
 {
   "nurse_admin_password": "2910",
-  "nurse_shift_mode": "3",
+  "nurse_shift_mode": "2",
   "nurse_roster_theme": "light",
   "loglevel": "ERROR",
   "nurse_system_2026_10": "{\"round\":1,\"round1\":{},\"round2\":{},\"roster\":{\"6100001\":{\"1\":[\"M\"],\"3\":[\"M\"],\"5\":[\"M\"],\"7\":[\"M\"]},\"6100074\":{\"1\":[\"M\",\"A\"],\"3\":[\"M\",\"A\"],\"4\":[\"M\",\"A\"],\"6\":[\"M\",\"A\"],\"7\":[\"M\",\"A\"]}},\"isConfirmed\":false}",
