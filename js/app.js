@@ -5323,7 +5323,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GITHUB CLOUD SYNC V3 + UI FIX + AUTO-REFRESH + SMART SHIFT OPTIMIZER
+   GITHUB CLOUD SYNC V4 + STRICT PIN GUARD + UI FIX + SMART SHIFT OPTIMIZER
    ============================================================================ */
 (function() {
   const GITHUB_CONFIG = {
@@ -5342,7 +5342,69 @@ document.addEventListener('DOMContentLoaded', () => {
   const originalClear = localStorage.clear.bind(localStorage);
 
   /* --------------------------------------------------------------------------
-     ส่วนที่ 1: แก้ไข Layout การ์ด "เวรดึกของฉัน" ให้อยู่ด้านข้างไอคอนเหมือน 2 การ์ดบน
+     ส่วนที่ 1: ป้องกันการปล่อยช่อง PIN / รหัสผ่านว่างแล้วกด Login ผ่าน (Strict PIN Guard)
+     -------------------------------------------------------------------------- */
+  function validatePinBeforeLogin(e, targetContainer) {
+    // ค้นหาช่องกรอกรหัสผ่าน/PIN ที่อยู่ในหน้าต่างหรือฟอร์มที่กำลังแสดงผลอยู่
+    const inputs = Array.from(document.querySelectorAll('input[type="password"], input[placeholder*="PIN"], input[placeholder*="รหัส"], input[id*="pin" i], input[id*="pass" i]'))
+      .filter(el => el.offsetParent !== null); // เฉพาะช่องที่แสดงอยู่บนหน้าจอขณะนั้น
+
+    if (inputs.length > 0) {
+      for (const pinInput of inputs) {
+        // เช็คว่าปุ่มที่กดอยู่ในกล่อง Modal เดียวกับช่องกรอก PIN นี้หรือไม่
+        const modal = pinInput.closest('div[class*="modal" i], div[class*="dialog" i], div[class*="popup" i], form') || pinInput.parentElement.parentElement.parentElement;
+        if (!targetContainer || (modal && modal.contains(targetContainer)) || inputs.length === 1) {
+          const val = (pinInput.value || '').trim();
+          if (!val) {
+            // ถ้าปล่อยว่าง ให้บล็อกการเข้าสู่ระบบทันที!
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+
+            // แสดงกรอบสีแดงเตือนที่ช่องกรอก PIN
+            pinInput.style.setProperty('border', '2px solid #ef4444', 'important');
+            pinInput.style.setProperty('background-color', '#fef2f2', 'important');
+            pinInput.focus();
+            setTimeout(() => {
+              pinInput.style.removeProperty('border');
+              pinInput.style.removeProperty('background-color');
+            }, 2500);
+
+            showSyncStatus('⚠️ กรุณากรอกรหัสผ่าน / PIN ก่อนเข้าสู่ระบบ', 'rgba(220, 38, 38, 0.95)', true);
+            alert('กรุณากรอกรหัสผ่าน / PIN ให้ครบถ้วน (ห้ามเว้นว่าง)');
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  // ดักจับทั้งการคลิกปุ่ม "เข้าสู่ระบบจองเวร" และการกดปุ่ม Enter บนคีย์บอร์ด (Capture Phase ทำงานก่อนโค้ดเดิมเสมอ)
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('button, input[type="submit"], a, [role="button"]');
+    if (!btn) return;
+    const text = (btn.textContent || btn.value || '').trim();
+    if (text.includes('เข้าสู่ระบบ') || text.toLowerCase().includes('login') || text.includes('ยืนยันรหัส')) {
+      validatePinBeforeLogin(e, btn);
+    }
+  }, true);
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      const active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'SELECT')) {
+        validatePinBeforeLogin(e, active);
+      }
+    }
+  }, true);
+
+  document.addEventListener('submit', function(e) {
+    validatePinBeforeLogin(e, e.target);
+  }, true);
+
+  /* --------------------------------------------------------------------------
+     ส่วนที่ 2: แก้ไข Layout การ์ด "เวรดึกของฉัน" ให้อยู่ด้านข้างไอคอนเหมือน 2 การ์ดบน
      -------------------------------------------------------------------------- */
   function fixNightShiftCardLayout() {
     const elements = document.querySelectorAll('div, span, p');
@@ -5372,7 +5434,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // คอยตรวจจับและจัดตำแหน่งการ์ดเวรดึกทันทีเมื่อสลับหน้าแท็บ
   const uiObserver = new MutationObserver(() => fixNightShiftCardLayout());
   window.addEventListener('DOMContentLoaded', () => {
     fixNightShiftCardLayout();
@@ -5381,11 +5442,10 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(fixNightShiftCardLayout, 500);
 
   /* --------------------------------------------------------------------------
-     ส่วนที่ 2: ระบบกรองรายชื่อเฉพาะคนที่จองเวรเข้ามา สำหรับปุ่ม "จัดตารางเวรอัตโนมัติ"
+     ส่วนที่ 3: กรองรายชื่อเฉพาะคนที่จองเวรเข้ามา สำหรับปุ่ม "จัดตารางเวรอัตโนมัติ" (ไม่ Fix 14 คน)
      -------------------------------------------------------------------------- */
   function getBookedNurseIdentifiers() {
     const bookedSet = new Set();
-    // ดึงรายชื่อพยาบาลทั้งหมดในระบบเพื่อนำรหัส/ชื่อมาเทียบกับข้อมูลการจองใน localStorage
     const allNurses = window.NURSES || window.nurses || window.nurseList || [];
     const nurseIds = [];
     if (Array.isArray(allNurses)) {
@@ -5397,7 +5457,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // กวาดดูข้อมูลตารางเวรใน localStorage ว่ามีรหัสหรือชื่อพยาบาลคนไหนจองเข้ามาแล้วบ้าง
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (!k) continue;
@@ -5407,7 +5466,6 @@ document.addEventListener('DOMContentLoaded', () => {
         nurseIds.forEach(id => {
           if (id && val.includes(id)) bookedSet.add(id);
         });
-        // ดึงรหัสตัวเลข 6-8 หลักที่ปรากฏในข้อมูลตารางเวร
         const matches = val.match(/\b\d{6,8}\b/g);
         if (matches) matches.forEach(m => bookedSet.add(m));
       }
@@ -5415,7 +5473,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return bookedSet;
   }
 
-  // ดักจับการคลิกปุ่ม "จัดตารางเวรอัตโนมัติ" เพื่อกรองเฉพาะคนที่จองเวรเข้ามา
   document.addEventListener('click', function(e) {
     const btn = e.target.closest('button, a, [role="button"]');
     if (!btn) return;
@@ -5429,7 +5486,6 @@ document.addEventListener('DOMContentLoaded', () => {
           const originalList = window['_orig_' + gKey] || window[gKey].slice();
           window['_orig_' + gKey] = originalList;
 
-          // กรองเฉพาะพยาบาลที่มีข้อมูลการจองเวรเข้ามาแล้ว
           const filtered = originalList.filter(n => {
             return bookedIds.has(String(n.id)) ||
                    bookedIds.has(String(n.code)) ||
@@ -5440,7 +5496,6 @@ document.addEventListener('DOMContentLoaded', () => {
           if (filtered.length > 0) {
             window[gKey] = filtered;
             showSyncStatus(`⚡ คำนวณจัดเวรเฉพาะผู้ที่จองเข้ามา (${filtered.length} คน)`, 'rgba(124, 58, 237, 0.9)', true);
-            // คืนค่ารายชื่อเต็มกลับหลังคำนวณเสร็จ
             setTimeout(() => {
               window[gKey] = originalList;
             }, 3000);
@@ -5451,7 +5506,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }, true);
 
   /* --------------------------------------------------------------------------
-     ส่วนที่ 3: ระบบซิงค์และดึงข้อมูลอัตโนมัติแบบ Real-time (ไม่ต้องกด Refresh เอง)
+     ส่วนที่ 4: ระบบซิงค์และดึงข้อมูลอัตโนมัติแบบ Real-time (ไม่ซิงค์สถานะ Login ข้ามเครื่อง)
      -------------------------------------------------------------------------- */
   function isPrivateSessionKey(key, val) {
     if (!key) return true;
@@ -5512,7 +5567,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return decodeURIComponent(Array.prototype.map.call(atob(str.replace(/\s/g, '')), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
   }
 
-  // ฟังก์ชันสั่งให้หน้าเว็บวาดตารางเวรใหม่ทันทีโดยไม่ต้องรีเฟรชทั้งหน้า (ถ้ามีฟังก์ชัน render ในแอป)
   function triggerSoftRefresh() {
     const renderFns = ['render', 'renderAll', 'renderCalendar', 'updateUI', 'refreshUI', 'init', 'loadData', 'renderMainCalendar', 'renderUserCalendar'];
     let rendered = false;
@@ -5521,17 +5575,14 @@ document.addEventListener('DOMContentLoaded', () => {
         try { window[fnName](); rendered = true; } catch (e) {}
       }
     });
-    // ส่ง Event แจ้งเตือน Storage เปลี่ยนแปลง
     window.dispatchEvent(new Event('storage'));
     fixNightShiftCardLayout();
 
-    // ถ้าแอปไม่ได้เปิดฟังก์ชัน render ไว้ที่ window ให้รีเฟรชหน้าจออัตโนมัติเมื่อไม่ได้กำลังพิมพ์ข้อมูลอยู่
     if (!rendered && (!document.activeElement || !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName))) {
       location.reload();
     }
   }
 
-  // ดึงข้อมูลจาก GitHub (รองรับโหมดเช็คเบื้องหลังเงียบๆ ทุก 10 วินาที)
   async function pullFromGitHub(isBackgroundCheck = false) {
     if (isSyncing) return;
     try {
@@ -5553,8 +5604,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) return;
 
       const fileData = await res.json();
-
-      // ถ้าเป็นโหมดเช็คอัตโนมัติ แล้วรหัสไฟล์ (sha) เหมือนเดิม แปลว่ายังไม่มีใครแก้ไขข้อมูล ให้จบการทำงานทันที (ไม่เปลืองเน็ต)
       if (isBackgroundCheck && fileSha && fileData.sha === fileSha) {
         return;
       }
@@ -5659,21 +5708,19 @@ document.addEventListener('DOMContentLoaded', () => {
     originalClear();
   };
 
-  // 1. ดึงข้อมูลทันทีเมื่อเปิดเว็บ
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => pullFromGitHub(false));
   } else {
     pullFromGitHub(false);
   }
 
-  // 2. ตั้งเวลาเช็คข้อมูลใหม่อัตโนมัติทุกๆ 10 วินาที (เมื่อเปิดหน้าเว็บค้างไว้)
+  // เช็คข้อมูลใหม่อัตโนมัติทุกๆ 10 วินาที
   setInterval(() => {
     if (!document.hidden) {
       pullFromGitHub(true);
     }
   }, 10000);
 
-  // 3. เช็คข้อมูลใหม่ทันทีที่ผู้ใช้สลับหน้าต่างกลับมาที่หน้าเว็บ
   window.addEventListener('focus', () => pullFromGitHub(true));
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) pullFromGitHub(true);
