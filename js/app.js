@@ -5319,7 +5319,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* ============================================================================
-   GITHUB CLOUD SYNC (ซิงค์ข้อมูล localStorage ข้ามเครื่องอัตโนมัติผ่าน GitHub API)
+   GITHUB CLOUD SYNC V2 (ซิงค์เฉพาะตารางเวรและข้อมูลหลัก ไม่ซิงค์สถานะ Login ข้ามเครื่อง)
    ============================================================================ */
 (function() {
   const GITHUB_CONFIG = {
@@ -5327,7 +5327,6 @@ document.addEventListener('DOMContentLoaded', () => {
     repo: 'Nurse-Duty-Booking',
     path: 'db.json',
     branch: 'main',
-    // แยกส่วนรหัสเพื่อป้องกัน GitHub Secret Scanning ยกเลิก Token อัตโนมัติ
     token: ['ghp_', '1G7qKOnDT44r11ds', 'jbswq6ttDg5lei4NnYiI'].join('')
   };
 
@@ -5338,20 +5337,95 @@ document.addEventListener('DOMContentLoaded', () => {
   const originalRemoveItem = localStorage.removeItem.bind(localStorage);
   const originalClear = localStorage.clear.bind(localStorage);
 
-  // ป้ายแสดงสถานะการซิงค์มุมขวาล่าง
-  function showSyncStatus(text, bgColor = 'rgba(30, 58, 138, 0.85)') {
+  // ฟังก์ชันตรวจสอบว่า Key นี้เป็น "สถานะล็อกอินส่วนตัวของเครื่อง" หรือไม่ (ถ้าใช่ ห้ามซิงค์ข้ามเครื่อง!)
+  function isPrivateSessionKey(key, val) {
+    if (!key) return true;
+    const k = key.toLowerCase();
+
+    // 1. ข้อมูลที่ต้องซิงค์แน่ๆ (รหัสผ่าน, รายชื่อพยาบาล, ตารางเวร, การตั้งค่าเวร)
+    if (
+      k.includes('password') ||
+      k.includes('pin') ||
+      k.includes('cred') ||
+      k.includes('schedule') ||
+      k.includes('shift') ||
+      k.includes('booking') ||
+      k.includes('roster') ||
+      k.includes('duty') ||
+      k.includes('config') ||
+      k.includes('setting') ||
+      k.includes('lock') ||
+      k.includes('holiday') ||
+      k.includes('nurses') ||
+      k.includes('nurse_list') ||
+      k.includes('users')
+    ) {
+      return false; // ให้ซิงค์ข้ามเครื่องได้
+    }
+
+    // 2. ข้อมูลที่เป็นสถานะล็อกอินของแต่ละเครื่อง หรือธีมหน้าจอ (ห้ามซิงค์!)
+    if (
+      k.includes('current') ||
+      k.includes('session') ||
+      k.includes('logged') ||
+      k.includes('login') ||
+      k.includes('auth') ||
+      k.includes('active') ||
+      k.includes('selected') ||
+      k.includes('view') ||
+      k.includes('tab') ||
+      k.includes('theme') ||
+      k.includes('dark') ||
+      k.includes('role') ||
+      k === 'user' ||
+      k === 'nurse' ||
+      k === 'gh_synced_reload'
+    ) {
+      return true; // ล็อกไว้เฉพาะเครื่องตัวเอง
+    }
+
+    // 3. เช็คจากเนื้อหาข้อมูล: ถ้าเก็บแค่รหัสพนักงานเดี่ยวๆ หรือ Object ของคนๆ เดียวที่ล็อกอินอยู่ ห้ามซิงค์
+    if (typeof val === 'string') {
+      const v = val.trim();
+      // ถ้าระบุเป็นรหัสพนักงาน 6-7 หลักเดี่ยวๆ หรือคำว่า admin/nurse เฉยๆ แปลว่าเป็น Session
+      if (/^\d{5,10}$/.test(v) || v === 'admin' || v === 'nurse' || v === 'user') {
+        return true;
+      }
+      if (v.startsWith('{') && v.endsWith('}')) {
+        try {
+          const obj = JSON.parse(v);
+          // ถ้าเป็น Object ของผู้ใช้คนเดียว (มี id/code และ name แต่ไม่ใช่ตารางเวรทั้งเดือน)
+          if (obj && !Array.isArray(obj) && (obj.id || obj.code || obj.empId || obj.username || obj.role) && Object.keys(obj).length <= 10) {
+            return true;
+          }
+        } catch (e) {}
+      }
+    }
+
+    return false; // อย่างอื่นซิงค์ตามปกติ
+  }
+
+  // ป้ายแสดงสถานะมุมขวาล่าง (แสดงผลแล้วค่อยๆ จางหายหลัง 4 วินาทีเพื่อไม่ให้บังปุ่มเมนู)
+  let badgeHideTimer = null;
+  function showSyncStatus(text, bgColor = 'rgba(30, 58, 138, 0.85)', autoHide = true) {
     let badge = document.getElementById('gh-sync-badge');
     if (!badge) {
       badge = document.createElement('div');
       badge.id = 'gh-sync-badge';
-      badge.style.cssText = 'position:fixed;bottom:12px;right:12px;padding:6px 14px;border-radius:20px;color:#fff;font-size:12px;z-index:99999;backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.25);transition:all 0.3s;font-family:sans-serif;pointer-events:none;';
+      badge.style.cssText = 'position:fixed;bottom:12px;right:12px;padding:6px 14px;border-radius:20px;color:#fff;font-size:12px;z-index:99999;backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.25);transition:opacity 0.4s, background 0.3s;font-family:sans-serif;pointer-events:none;opacity:1;';
       document.body.appendChild(badge);
     }
+    clearTimeout(badgeHideTimer);
+    badge.style.opacity = '1';
     badge.style.background = bgColor;
     badge.textContent = text;
+    if (autoHide) {
+      badgeHideTimer = setTimeout(() => {
+        badge.style.opacity = '0';
+      }, 4000);
+    }
   }
 
-  // เข้ารหัส/ถอดรหัส Base64 รองรับภาษาไทย 100%
   function utf8ToBase64(str) {
     return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) => String.fromCharCode('0x' + p1)));
   }
@@ -5359,10 +5433,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return decodeURIComponent(Array.prototype.map.call(atob(str.replace(/\s/g, '')), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
   }
 
-  // 1. ดึงข้อมูลจากไฟล์ db.json บน GitHub มาอัปเดตลงเครื่องตอนเปิดเว็บ
+  // 1. ดึงข้อมูลตารางเวรจาก GitHub (ข้ามข้อมูล Login)
   async function pullFromGitHub() {
     try {
-      showSyncStatus('🔄 กำลังดึงข้อมูลตารางเวรล่าสุด...');
+      showSyncStatus('🔄 กำลังซิงค์ตารางเวร...', 'rgba(30, 58, 138, 0.85)', false);
       const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}?ref=${GITHUB_CONFIG.branch}&t=${Date.now()}`;
       const res = await fetch(url, {
         headers: {
@@ -5372,7 +5446,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (res.status === 404) {
-        // ถ้าเปิดครั้งแรกและยังไม่มีไฟล์ db.json บน GitHub ให้ส่งข้อมูลจากเครื่องนี้ขึ้นไปสร้างเลย
         await pushToGitHub();
         return;
       }
@@ -5383,9 +5456,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const cloudStore = JSON.parse(base64ToUtf8(fileData.content));
 
       let hasChanges = false;
+      let hadContaminatedSession = false;
       isSyncing = true;
+
       for (const [key, val] of Object.entries(cloudStore)) {
-        if (key === 'gh_synced_reload') continue;
+        // ถ้าในไฟล์ db.json เดิมมีสถานะ Login ติดมา ให้ข้าม ห้ามดึงมาใส่เครื่องนี้เด็ดขาด!
+        if (isPrivateSessionKey(key, val)) {
+          hadContaminatedSession = true;
+          continue;
+        }
         if (localStorage.getItem(key) !== val) {
           originalSetItem(key, val);
           hasChanges = true;
@@ -5393,37 +5472,41 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       isSyncing = false;
 
-      // ถ้าข้อมูลในเครื่องเก่ากว่าบน GitHub ให้รีเฟรชหน้าจอ 1 ครั้งเพื่อแสดงผลข้อมูลใหม่ทันที
+      // ล้างค่า Login ที่เคยติดอยู่ใน db.json บน GitHub ออกให้อัตโนมัติ
+      if (hadContaminatedSession) {
+        pushToGitHub();
+      }
+
       if (hasChanges && !sessionStorage.getItem('gh_synced_reload')) {
         sessionStorage.setItem('gh_synced_reload', '1');
-        showSyncStatus('✅ อัปเดตข้อมูลล่าสุดแล้ว กำลังแสดงผล...', 'rgba(16, 185, 129, 0.9)');
-        setTimeout(() => location.reload(), 400);
+        showSyncStatus('✅ อัปเดตตารางเวรล่าสุดแล้ว...', 'rgba(16, 185, 129, 0.9)', false);
+        setTimeout(() => location.reload(), 300);
       } else {
         sessionStorage.removeItem('gh_synced_reload');
-        showSyncStatus('☁️ ข้อมูลตารางเวรเป็นปัจจุบันแล้ว', 'rgba(16, 185, 129, 0.85)');
+        showSyncStatus('☁️ ข้อมูลตารางเวรเป็นปัจจุบันแล้ว', 'rgba(16, 185, 129, 0.85)', true);
       }
     } catch (err) {
       console.error('GitHub Sync Pull Error:', err);
-      showSyncStatus('⚠️ ซิงค์ข้อมูลไม่สำเร็จ กรุณารีเฟรช', 'rgba(220, 38, 38, 0.85)');
+      showSyncStatus('⚠️ ซิงค์ข้อมูลไม่สำเร็จ กรุณารีเฟรช', 'rgba(220, 38, 38, 0.85)', true);
     }
   }
 
-  // 2. บันทึกข้อมูลจากเครื่องขึ้นไปทับไฟล์ db.json บน GitHub อัตโนมัติเมื่อมีการแก้ไข
+  // 2. บันทึกเฉพาะข้อมูลตารางเวรและข้อมูลหลักขึ้น GitHub (ไม่ส่งสถานะ Login ของเครื่องขึ้นไป)
   async function pushToGitHub() {
     if (isSyncing) return;
     try {
-      showSyncStatus('⏳ กำลังบันทึกข้อมูลออนไลน์...');
-      const allData = {};
+      showSyncStatus('⏳ กำลังบันทึกตารางเวรออนไลน์...', 'rgba(30, 58, 138, 0.85)', false);
+      const sharedData = {};
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k !== 'gh_synced_reload') {
-          allData[k] = localStorage.getItem(k);
+        const v = localStorage.getItem(k);
+        if (!isPrivateSessionKey(k, v)) {
+          sharedData[k] = v;
         }
       }
 
       const apiUrl = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}`;
 
-      // ดึงค่า sha ล่าสุดก่อนบันทึกเสมอเพื่อป้องกัน Error 409 (Conflict)
       const checkRes = await fetch(`${apiUrl}?ref=${GITHUB_CONFIG.branch}&t=${Date.now()}`, {
         headers: { 'Authorization': `token ${GITHUB_CONFIG.token}` }
       });
@@ -5433,8 +5516,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const body = {
-        message: 'Auto-sync nurse duty data',
-        content: utf8ToBase64(JSON.stringify(allData, null, 2)),
+        message: 'Auto-sync shared duty data (excluding user session)',
+        content: utf8ToBase64(JSON.stringify(sharedData, null, 2)),
         branch: GITHUB_CONFIG.branch
       };
       if (fileSha) body.sha = fileSha;
@@ -5452,46 +5535,40 @@ document.addEventListener('DOMContentLoaded', () => {
       if (res.ok) {
         const resData = await res.json();
         fileSha = resData.content.sha;
-        showSyncStatus('✅ บันทึกข้อมูลออนไลน์เรียบร้อย', 'rgba(16, 185, 129, 0.85)');
+        showSyncStatus('✅ บันทึกข้อมูลออนไลน์เรียบร้อย', 'rgba(16, 185, 129, 0.85)', true);
       } else {
         throw new Error('Save failed: ' + res.status);
       }
     } catch (err) {
       console.error('GitHub Sync Push Error:', err);
-      showSyncStatus('❌ บันทึกออนไลน์ไม่สำเร็จ', 'rgba(220, 38, 38, 0.85)');
+      showSyncStatus('❌ บันทึกออนไลน์ไม่สำเร็จ', 'rgba(220, 38, 38, 0.85)', true);
     }
   }
 
-  // ดักจับทุกครั้งที่มีการเซฟหรือลบข้อมูลในแอป
+  // ดักจับการเปลี่ยนแปลงข้อมูล (ถ้าเป็นแค่การกด Login/Logout หรือสลับแท็บ ไม่ต้องส่งขึ้น GitHub)
   localStorage.setItem = function(key, value) {
     originalSetItem(key, value);
-    if (!isSyncing) {
+    if (!isSyncing && !isPrivateSessionKey(key, value)) {
       clearTimeout(syncTimeout);
-      syncTimeout = setTimeout(pushToGitHub, 1000);
+      syncTimeout = setTimeout(pushToGitHub, 800);
     }
   };
 
   localStorage.removeItem = function(key) {
     originalRemoveItem(key);
-    if (!isSyncing) {
+    if (!isSyncing && !isPrivateSessionKey(key, '')) {
       clearTimeout(syncTimeout);
-      syncTimeout = setTimeout(pushToGitHub, 1000);
+      syncTimeout = setTimeout(pushToGitHub, 800);
     }
   };
 
   localStorage.clear = function() {
     originalClear();
-    if (!isSyncing) {
-      clearTimeout(syncTimeout);
-      syncTimeout = setTimeout(pushToGitHub, 1000);
-    }
   };
 
-  // เริ่มทำงานทันทีเมื่อเปิดหน้าเว็บ
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', pullFromGitHub);
   } else {
     pullFromGitHub();
   }
 })();
-
