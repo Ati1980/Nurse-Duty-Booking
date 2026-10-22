@@ -5318,8 +5318,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+
+
+
+
 /* ============================================================================
-   GITHUB CLOUD SYNC V2 (ซิงค์เฉพาะตารางเวรและข้อมูลหลัก ไม่ซิงค์สถานะ Login ข้ามเครื่อง)
+   GITHUB CLOUD SYNC V3 + UI FIX + AUTO-REFRESH + SMART SHIFT OPTIMIZER
    ============================================================================ */
 (function() {
   const GITHUB_CONFIG = {
@@ -5337,75 +5341,152 @@ document.addEventListener('DOMContentLoaded', () => {
   const originalRemoveItem = localStorage.removeItem.bind(localStorage);
   const originalClear = localStorage.clear.bind(localStorage);
 
-  // ฟังก์ชันตรวจสอบว่า Key นี้เป็น "สถานะล็อกอินส่วนตัวของเครื่อง" หรือไม่ (ถ้าใช่ ห้ามซิงค์ข้ามเครื่อง!)
+  /* --------------------------------------------------------------------------
+     ส่วนที่ 1: แก้ไข Layout การ์ด "เวรดึกของฉัน" ให้อยู่ด้านข้างไอคอนเหมือน 2 การ์ดบน
+     -------------------------------------------------------------------------- */
+  function fixNightShiftCardLayout() {
+    const elements = document.querySelectorAll('div, span, p');
+    elements.forEach(el => {
+      if (el.children.length === 0 && el.textContent.trim() === 'เวรดึกของฉัน') {
+        const textGroup = el.parentElement;
+        const card = textGroup ? textGroup.parentElement : null;
+        if (card && card.children.length >= 2) {
+          card.style.setProperty('display', 'flex', 'important');
+          card.style.setProperty('flex-direction', 'row', 'important');
+          card.style.setProperty('align-items', 'center', 'important');
+          card.style.setProperty('justify-content', 'flex-start', 'important');
+          card.style.setProperty('gap', '16px', 'important');
+          card.style.setProperty('flex-wrap', 'nowrap', 'important');
+
+          const iconBox = card.children[0];
+          if (iconBox) {
+            iconBox.style.setProperty('flex-shrink', '0', 'important');
+            iconBox.style.setProperty('margin-bottom', '0', 'important');
+          }
+          textGroup.style.setProperty('display', 'flex', 'important');
+          textGroup.style.setProperty('flex-direction', 'column', 'important');
+          textGroup.style.setProperty('justify-content', 'center', 'important');
+          textGroup.style.setProperty('margin-top', '0', 'important');
+        }
+      }
+    });
+  }
+
+  // คอยตรวจจับและจัดตำแหน่งการ์ดเวรดึกทันทีเมื่อสลับหน้าแท็บ
+  const uiObserver = new MutationObserver(() => fixNightShiftCardLayout());
+  window.addEventListener('DOMContentLoaded', () => {
+    fixNightShiftCardLayout();
+    uiObserver.observe(document.body, { childList: true, subtree: true });
+  });
+  setTimeout(fixNightShiftCardLayout, 500);
+
+  /* --------------------------------------------------------------------------
+     ส่วนที่ 2: ระบบกรองรายชื่อเฉพาะคนที่จองเวรเข้ามา สำหรับปุ่ม "จัดตารางเวรอัตโนมัติ"
+     -------------------------------------------------------------------------- */
+  function getBookedNurseIdentifiers() {
+    const bookedSet = new Set();
+    // ดึงรายชื่อพยาบาลทั้งหมดในระบบเพื่อนำรหัส/ชื่อมาเทียบกับข้อมูลการจองใน localStorage
+    const allNurses = window.NURSES || window.nurses || window.nurseList || [];
+    const nurseIds = [];
+    if (Array.isArray(allNurses)) {
+      allNurses.forEach(n => {
+        if (n.id) nurseIds.push(String(n.id));
+        if (n.code) nurseIds.push(String(n.code));
+        if (n.empId) nurseIds.push(String(n.empId));
+        if (n.name) nurseIds.push(String(n.name));
+      });
+    }
+
+    // กวาดดูข้อมูลตารางเวรใน localStorage ว่ามีรหัสหรือชื่อพยาบาลคนไหนจองเข้ามาแล้วบ้าง
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k) continue;
+      const kl = k.toLowerCase();
+      if (kl.includes('shift') || kl.includes('schedule') || kl.includes('booking') || kl.includes('roster') || kl.includes('duty') || kl.includes('data')) {
+        const val = localStorage.getItem(k) || '';
+        nurseIds.forEach(id => {
+          if (id && val.includes(id)) bookedSet.add(id);
+        });
+        // ดึงรหัสตัวเลข 6-8 หลักที่ปรากฏในข้อมูลตารางเวร
+        const matches = val.match(/\b\d{6,8}\b/g);
+        if (matches) matches.forEach(m => bookedSet.add(m));
+      }
+    }
+    return bookedSet;
+  }
+
+  // ดักจับการคลิกปุ่ม "จัดตารางเวรอัตโนมัติ" เพื่อกรองเฉพาะคนที่จองเวรเข้ามา
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('button, a, [role="button"]');
+    if (!btn) return;
+    const text = (btn.textContent || '').trim();
+    if (text.includes('จัดตารางเวรอัตโนมัติ') || text.includes('จัดเวรอัตโนมัติ') || text.includes('Auto') || text.includes('Optimizer')) {
+      const bookedIds = getBookedNurseIdentifiers();
+      const globalKeys = ['NURSES', 'nurses', 'nurseList', 'NURSE_DATA', 'activeNurses'];
+      
+      globalKeys.forEach(gKey => {
+        if (Array.isArray(window[gKey]) && window[gKey].length > 0 && bookedIds.size > 0) {
+          const originalList = window['_orig_' + gKey] || window[gKey].slice();
+          window['_orig_' + gKey] = originalList;
+
+          // กรองเฉพาะพยาบาลที่มีข้อมูลการจองเวรเข้ามาแล้ว
+          const filtered = originalList.filter(n => {
+            return bookedIds.has(String(n.id)) ||
+                   bookedIds.has(String(n.code)) ||
+                   bookedIds.has(String(n.empId)) ||
+                   bookedIds.has(String(n.name));
+          });
+
+          if (filtered.length > 0) {
+            window[gKey] = filtered;
+            showSyncStatus(`⚡ คำนวณจัดเวรเฉพาะผู้ที่จองเข้ามา (${filtered.length} คน)`, 'rgba(124, 58, 237, 0.9)', true);
+            // คืนค่ารายชื่อเต็มกลับหลังคำนวณเสร็จ
+            setTimeout(() => {
+              window[gKey] = originalList;
+            }, 3000);
+          }
+        }
+      });
+    }
+  }, true);
+
+  /* --------------------------------------------------------------------------
+     ส่วนที่ 3: ระบบซิงค์และดึงข้อมูลอัตโนมัติแบบ Real-time (ไม่ต้องกด Refresh เอง)
+     -------------------------------------------------------------------------- */
   function isPrivateSessionKey(key, val) {
     if (!key) return true;
     const k = key.toLowerCase();
-
-    // 1. ข้อมูลที่ต้องซิงค์แน่ๆ (รหัสผ่าน, รายชื่อพยาบาล, ตารางเวร, การตั้งค่าเวร)
     if (
-      k.includes('password') ||
-      k.includes('pin') ||
-      k.includes('cred') ||
-      k.includes('schedule') ||
-      k.includes('shift') ||
-      k.includes('booking') ||
-      k.includes('roster') ||
-      k.includes('duty') ||
-      k.includes('config') ||
-      k.includes('setting') ||
-      k.includes('lock') ||
-      k.includes('holiday') ||
-      k.includes('nurses') ||
-      k.includes('nurse_list') ||
-      k.includes('users')
-    ) {
-      return false; // ให้ซิงค์ข้ามเครื่องได้
-    }
+      k.includes('password') || k.includes('pin') || k.includes('cred') ||
+      k.includes('schedule') || k.includes('shift') || k.includes('booking') ||
+      k.includes('roster') || k.includes('duty') || k.includes('config') ||
+      k.includes('setting') || k.includes('lock') || k.includes('holiday') ||
+      k.includes('nurses') || k.includes('nurse_list') || k.includes('users')
+    ) return false;
 
-    // 2. ข้อมูลที่เป็นสถานะล็อกอินของแต่ละเครื่อง หรือธีมหน้าจอ (ห้ามซิงค์!)
     if (
-      k.includes('current') ||
-      k.includes('session') ||
-      k.includes('logged') ||
-      k.includes('login') ||
-      k.includes('auth') ||
-      k.includes('active') ||
-      k.includes('selected') ||
-      k.includes('view') ||
-      k.includes('tab') ||
-      k.includes('theme') ||
-      k.includes('dark') ||
-      k.includes('role') ||
-      k === 'user' ||
-      k === 'nurse' ||
-      k === 'gh_synced_reload'
-    ) {
-      return true; // ล็อกไว้เฉพาะเครื่องตัวเอง
-    }
+      k.includes('current') || k.includes('session') || k.includes('logged') ||
+      k.includes('login') || k.includes('auth') || k.includes('active') ||
+      k.includes('selected') || k.includes('view') || k.includes('tab') ||
+      k.includes('theme') || k.includes('dark') || k.includes('role') ||
+      k === 'user' || k === 'nurse' || k === 'gh_synced_reload'
+    ) return true;
 
-    // 3. เช็คจากเนื้อหาข้อมูล: ถ้าเก็บแค่รหัสพนักงานเดี่ยวๆ หรือ Object ของคนๆ เดียวที่ล็อกอินอยู่ ห้ามซิงค์
     if (typeof val === 'string') {
       const v = val.trim();
-      // ถ้าระบุเป็นรหัสพนักงาน 6-7 หลักเดี่ยวๆ หรือคำว่า admin/nurse เฉยๆ แปลว่าเป็น Session
-      if (/^\d{5,10}$/.test(v) || v === 'admin' || v === 'nurse' || v === 'user') {
-        return true;
-      }
+      if (/^\d{5,10}$/.test(v) || v === 'admin' || v === 'nurse' || v === 'user') return true;
       if (v.startsWith('{') && v.endsWith('}')) {
         try {
           const obj = JSON.parse(v);
-          // ถ้าเป็น Object ของผู้ใช้คนเดียว (มี id/code และ name แต่ไม่ใช่ตารางเวรทั้งเดือน)
           if (obj && !Array.isArray(obj) && (obj.id || obj.code || obj.empId || obj.username || obj.role) && Object.keys(obj).length <= 10) {
             return true;
           }
         } catch (e) {}
       }
     }
-
-    return false; // อย่างอื่นซิงค์ตามปกติ
+    return false;
   }
 
-  // ป้ายแสดงสถานะมุมขวาล่าง (แสดงผลแล้วค่อยๆ จางหายหลัง 4 วินาทีเพื่อไม่ให้บังปุ่มเมนู)
   let badgeHideTimer = null;
   function showSyncStatus(text, bgColor = 'rgba(30, 58, 138, 0.85)', autoHide = true) {
     let badge = document.getElementById('gh-sync-badge');
@@ -5420,9 +5501,7 @@ document.addEventListener('DOMContentLoaded', () => {
     badge.style.background = bgColor;
     badge.textContent = text;
     if (autoHide) {
-      badgeHideTimer = setTimeout(() => {
-        badge.style.opacity = '0';
-      }, 4000);
+      badgeHideTimer = setTimeout(() => { badge.style.opacity = '0'; }, 3500);
     }
   }
 
@@ -5433,10 +5512,32 @@ document.addEventListener('DOMContentLoaded', () => {
     return decodeURIComponent(Array.prototype.map.call(atob(str.replace(/\s/g, '')), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
   }
 
-  // 1. ดึงข้อมูลตารางเวรจาก GitHub (ข้ามข้อมูล Login)
-  async function pullFromGitHub() {
+  // ฟังก์ชันสั่งให้หน้าเว็บวาดตารางเวรใหม่ทันทีโดยไม่ต้องรีเฟรชทั้งหน้า (ถ้ามีฟังก์ชัน render ในแอป)
+  function triggerSoftRefresh() {
+    const renderFns = ['render', 'renderAll', 'renderCalendar', 'updateUI', 'refreshUI', 'init', 'loadData', 'renderMainCalendar', 'renderUserCalendar'];
+    let rendered = false;
+    renderFns.forEach(fnName => {
+      if (typeof window[fnName] === 'function') {
+        try { window[fnName](); rendered = true; } catch (e) {}
+      }
+    });
+    // ส่ง Event แจ้งเตือน Storage เปลี่ยนแปลง
+    window.dispatchEvent(new Event('storage'));
+    fixNightShiftCardLayout();
+
+    // ถ้าแอปไม่ได้เปิดฟังก์ชัน render ไว้ที่ window ให้รีเฟรชหน้าจออัตโนมัติเมื่อไม่ได้กำลังพิมพ์ข้อมูลอยู่
+    if (!rendered && (!document.activeElement || !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName))) {
+      location.reload();
+    }
+  }
+
+  // ดึงข้อมูลจาก GitHub (รองรับโหมดเช็คเบื้องหลังเงียบๆ ทุก 10 วินาที)
+  async function pullFromGitHub(isBackgroundCheck = false) {
+    if (isSyncing) return;
     try {
-      showSyncStatus('🔄 กำลังซิงค์ตารางเวร...', 'rgba(30, 58, 138, 0.85)', false);
+      if (!isBackgroundCheck) {
+        showSyncStatus('🔄 กำลังซิงค์ตารางเวร...', 'rgba(30, 58, 138, 0.85)', false);
+      }
       const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}?ref=${GITHUB_CONFIG.branch}&t=${Date.now()}`;
       const res = await fetch(url, {
         headers: {
@@ -5449,22 +5550,22 @@ document.addEventListener('DOMContentLoaded', () => {
         await pushToGitHub();
         return;
       }
-      if (!res.ok) throw new Error('Load failed: ' + res.status);
+      if (!res.ok) return;
 
       const fileData = await res.json();
+
+      // ถ้าเป็นโหมดเช็คอัตโนมัติ แล้วรหัสไฟล์ (sha) เหมือนเดิม แปลว่ายังไม่มีใครแก้ไขข้อมูล ให้จบการทำงานทันที (ไม่เปลืองเน็ต)
+      if (isBackgroundCheck && fileSha && fileData.sha === fileSha) {
+        return;
+      }
+
       fileSha = fileData.sha;
       const cloudStore = JSON.parse(base64ToUtf8(fileData.content));
 
       let hasChanges = false;
-      let hadContaminatedSession = false;
       isSyncing = true;
-
       for (const [key, val] of Object.entries(cloudStore)) {
-        // ถ้าในไฟล์ db.json เดิมมีสถานะ Login ติดมา ให้ข้าม ห้ามดึงมาใส่เครื่องนี้เด็ดขาด!
-        if (isPrivateSessionKey(key, val)) {
-          hadContaminatedSession = true;
-          continue;
-        }
+        if (isPrivateSessionKey(key, val)) continue;
         if (localStorage.getItem(key) !== val) {
           originalSetItem(key, val);
           hasChanges = true;
@@ -5472,29 +5573,24 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       isSyncing = false;
 
-      // ล้างค่า Login ที่เคยติดอยู่ใน db.json บน GitHub ออกให้อัตโนมัติ
-      if (hadContaminatedSession) {
-        pushToGitHub();
-      }
-
-      if (hasChanges && !sessionStorage.getItem('gh_synced_reload')) {
-        sessionStorage.setItem('gh_synced_reload', '1');
-        showSyncStatus('✅ อัปเดตตารางเวรล่าสุดแล้ว...', 'rgba(16, 185, 129, 0.9)', false);
-        setTimeout(() => location.reload(), 300);
-      } else {
-        sessionStorage.removeItem('gh_synced_reload');
+      if (hasChanges) {
+        showSyncStatus('🔔 มีข้อมูลตารางเวรอัปเดตใหม่!', 'rgba(16, 185, 129, 0.95)', true);
+        setTimeout(triggerSoftRefresh, 300);
+      } else if (!isBackgroundCheck) {
         showSyncStatus('☁️ ข้อมูลตารางเวรเป็นปัจจุบันแล้ว', 'rgba(16, 185, 129, 0.85)', true);
       }
     } catch (err) {
-      console.error('GitHub Sync Pull Error:', err);
-      showSyncStatus('⚠️ ซิงค์ข้อมูลไม่สำเร็จ กรุณารีเฟรช', 'rgba(220, 38, 38, 0.85)', true);
+      isSyncing = false;
+      if (!isBackgroundCheck) {
+        showSyncStatus('⚠️ ซิงค์ข้อมูลไม่สำเร็จ', 'rgba(220, 38, 38, 0.85)', true);
+      }
     }
   }
 
-  // 2. บันทึกเฉพาะข้อมูลตารางเวรและข้อมูลหลักขึ้น GitHub (ไม่ส่งสถานะ Login ของเครื่องขึ้นไป)
   async function pushToGitHub() {
     if (isSyncing) return;
     try {
+      isSyncing = true;
       showSyncStatus('⏳ กำลังบันทึกตารางเวรออนไลน์...', 'rgba(30, 58, 138, 0.85)', false);
       const sharedData = {};
       for (let i = 0; i < localStorage.length; i++) {
@@ -5506,7 +5602,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const apiUrl = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}`;
-
       const checkRes = await fetch(`${apiUrl}?ref=${GITHUB_CONFIG.branch}&t=${Date.now()}`, {
         headers: { 'Authorization': `token ${GITHUB_CONFIG.token}` }
       });
@@ -5516,7 +5611,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const body = {
-        message: 'Auto-sync shared duty data (excluding user session)',
+        message: 'Auto-sync shared duty data',
         content: utf8ToBase64(JSON.stringify(sharedData, null, 2)),
         branch: GITHUB_CONFIG.branch
       };
@@ -5536,16 +5631,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const resData = await res.json();
         fileSha = resData.content.sha;
         showSyncStatus('✅ บันทึกข้อมูลออนไลน์เรียบร้อย', 'rgba(16, 185, 129, 0.85)', true);
-      } else {
-        throw new Error('Save failed: ' + res.status);
       }
     } catch (err) {
-      console.error('GitHub Sync Push Error:', err);
       showSyncStatus('❌ บันทึกออนไลน์ไม่สำเร็จ', 'rgba(220, 38, 38, 0.85)', true);
+    } finally {
+      isSyncing = false;
     }
   }
 
-  // ดักจับการเปลี่ยนแปลงข้อมูล (ถ้าเป็นแค่การกด Login/Logout หรือสลับแท็บ ไม่ต้องส่งขึ้น GitHub)
   localStorage.setItem = function(key, value) {
     originalSetItem(key, value);
     if (!isSyncing && !isPrivateSessionKey(key, value)) {
@@ -5555,7 +5648,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   localStorage.removeItem = function(key) {
-    originalRemoveItem(key);
+    originalRemoveItem(key, '');
     if (!isSyncing && !isPrivateSessionKey(key, '')) {
       clearTimeout(syncTimeout);
       syncTimeout = setTimeout(pushToGitHub, 800);
@@ -5566,9 +5659,23 @@ document.addEventListener('DOMContentLoaded', () => {
     originalClear();
   };
 
+  // 1. ดึงข้อมูลทันทีเมื่อเปิดเว็บ
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', pullFromGitHub);
+    document.addEventListener('DOMContentLoaded', () => pullFromGitHub(false));
   } else {
-    pullFromGitHub();
+    pullFromGitHub(false);
   }
+
+  // 2. ตั้งเวลาเช็คข้อมูลใหม่อัตโนมัติทุกๆ 10 วินาที (เมื่อเปิดหน้าเว็บค้างไว้)
+  setInterval(() => {
+    if (!document.hidden) {
+      pullFromGitHub(true);
+    }
+  }, 10000);
+
+  // 3. เช็คข้อมูลใหม่ทันทีที่ผู้ใช้สลับหน้าต่างกลับมาที่หน้าเว็บ
+  window.addEventListener('focus', () => pullFromGitHub(true));
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) pullFromGitHub(true);
+  });
 })();
