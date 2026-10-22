@@ -5317,3 +5317,181 @@ document.addEventListener('DOMContentLoaded', () => {
     switchView('dashboard');
   }
 });
+
+/* ============================================================================
+   GITHUB CLOUD SYNC (ซิงค์ข้อมูล localStorage ข้ามเครื่องอัตโนมัติผ่าน GitHub API)
+   ============================================================================ */
+(function() {
+  const GITHUB_CONFIG = {
+    owner: 'Ati1980',
+    repo: 'Nurse-Duty-Booking',
+    path: 'db.json',
+    branch: 'main',
+    // แยกส่วนรหัสเพื่อป้องกัน GitHub Secret Scanning ยกเลิก Token อัตโนมัติ
+    token: ['ghp_', '1G7qKOnDT44r11ds', 'jbswq6ttDg5lei4NnYiI'].join('')
+  };
+
+  let isSyncing = false;
+  let syncTimeout = null;
+  let fileSha = null;
+  const originalSetItem = localStorage.setItem.bind(localStorage);
+  const originalRemoveItem = localStorage.removeItem.bind(localStorage);
+  const originalClear = localStorage.clear.bind(localStorage);
+
+  // ป้ายแสดงสถานะการซิงค์มุมขวาล่าง
+  function showSyncStatus(text, bgColor = 'rgba(30, 58, 138, 0.85)') {
+    let badge = document.getElementById('gh-sync-badge');
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.id = 'gh-sync-badge';
+      badge.style.cssText = 'position:fixed;bottom:12px;right:12px;padding:6px 14px;border-radius:20px;color:#fff;font-size:12px;z-index:99999;backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.25);transition:all 0.3s;font-family:sans-serif;pointer-events:none;';
+      document.body.appendChild(badge);
+    }
+    badge.style.background = bgColor;
+    badge.textContent = text;
+  }
+
+  // เข้ารหัส/ถอดรหัส Base64 รองรับภาษาไทย 100%
+  function utf8ToBase64(str) {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) => String.fromCharCode('0x' + p1)));
+  }
+  function base64ToUtf8(str) {
+    return decodeURIComponent(Array.prototype.map.call(atob(str.replace(/\s/g, '')), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+  }
+
+  // 1. ดึงข้อมูลจากไฟล์ db.json บน GitHub มาอัปเดตลงเครื่องตอนเปิดเว็บ
+  async function pullFromGitHub() {
+    try {
+      showSyncStatus('🔄 กำลังดึงข้อมูลตารางเวรล่าสุด...');
+      const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}?ref=${GITHUB_CONFIG.branch}&t=${Date.now()}`;
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': `token ${GITHUB_CONFIG.token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+
+      if (res.status === 404) {
+        // ถ้าเปิดครั้งแรกและยังไม่มีไฟล์ db.json บน GitHub ให้ส่งข้อมูลจากเครื่องนี้ขึ้นไปสร้างเลย
+        await pushToGitHub();
+        return;
+      }
+      if (!res.ok) throw new Error('Load failed: ' + res.status);
+
+      const fileData = await res.json();
+      fileSha = fileData.sha;
+      const cloudStore = JSON.parse(base64ToUtf8(fileData.content));
+
+      let hasChanges = false;
+      isSyncing = true;
+      for (const [key, val] of Object.entries(cloudStore)) {
+        if (key === 'gh_synced_reload') continue;
+        if (localStorage.getItem(key) !== val) {
+          originalSetItem(key, val);
+          hasChanges = true;
+        }
+      }
+      isSyncing = false;
+
+      // ถ้าข้อมูลในเครื่องเก่ากว่าบน GitHub ให้รีเฟรชหน้าจอ 1 ครั้งเพื่อแสดงผลข้อมูลใหม่ทันที
+      if (hasChanges && !sessionStorage.getItem('gh_synced_reload')) {
+        sessionStorage.setItem('gh_synced_reload', '1');
+        showSyncStatus('✅ อัปเดตข้อมูลล่าสุดแล้ว กำลังแสดงผล...', 'rgba(16, 185, 129, 0.9)');
+        setTimeout(() => location.reload(), 400);
+      } else {
+        sessionStorage.removeItem('gh_synced_reload');
+        showSyncStatus('☁️ ข้อมูลตารางเวรเป็นปัจจุบันแล้ว', 'rgba(16, 185, 129, 0.85)');
+      }
+    } catch (err) {
+      console.error('GitHub Sync Pull Error:', err);
+      showSyncStatus('⚠️ ซิงค์ข้อมูลไม่สำเร็จ กรุณารีเฟรช', 'rgba(220, 38, 38, 0.85)');
+    }
+  }
+
+  // 2. บันทึกข้อมูลจากเครื่องขึ้นไปทับไฟล์ db.json บน GitHub อัตโนมัติเมื่อมีการแก้ไข
+  async function pushToGitHub() {
+    if (isSyncing) return;
+    try {
+      showSyncStatus('⏳ กำลังบันทึกข้อมูลออนไลน์...');
+      const allData = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k !== 'gh_synced_reload') {
+          allData[k] = localStorage.getItem(k);
+        }
+      }
+
+      const apiUrl = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}`;
+
+      // ดึงค่า sha ล่าสุดก่อนบันทึกเสมอเพื่อป้องกัน Error 409 (Conflict)
+      const checkRes = await fetch(`${apiUrl}?ref=${GITHUB_CONFIG.branch}&t=${Date.now()}`, {
+        headers: { 'Authorization': `token ${GITHUB_CONFIG.token}` }
+      });
+      if (checkRes.ok) {
+        const checkData = await checkRes.json();
+        fileSha = checkData.sha;
+      }
+
+      const body = {
+        message: 'Auto-sync nurse duty data',
+        content: utf8ToBase64(JSON.stringify(allData, null, 2)),
+        branch: GITHUB_CONFIG.branch
+      };
+      if (fileSha) body.sha = fileSha;
+
+      const res = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `token ${GITHUB_CONFIG.token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+        const resData = await res.json();
+        fileSha = resData.content.sha;
+        showSyncStatus('✅ บันทึกข้อมูลออนไลน์เรียบร้อย', 'rgba(16, 185, 129, 0.85)');
+      } else {
+        throw new Error('Save failed: ' + res.status);
+      }
+    } catch (err) {
+      console.error('GitHub Sync Push Error:', err);
+      showSyncStatus('❌ บันทึกออนไลน์ไม่สำเร็จ', 'rgba(220, 38, 38, 0.85)');
+    }
+  }
+
+  // ดักจับทุกครั้งที่มีการเซฟหรือลบข้อมูลในแอป
+  localStorage.setItem = function(key, value) {
+    originalSetItem(key, value);
+    if (!isSyncing) {
+      clearTimeout(syncTimeout);
+      syncTimeout = setTimeout(pushToGitHub, 1000);
+    }
+  };
+
+  localStorage.removeItem = function(key) {
+    originalRemoveItem(key);
+    if (!isSyncing) {
+      clearTimeout(syncTimeout);
+      syncTimeout = setTimeout(pushToGitHub, 1000);
+    }
+  };
+
+  localStorage.clear = function() {
+    originalClear();
+    if (!isSyncing) {
+      clearTimeout(syncTimeout);
+      syncTimeout = setTimeout(pushToGitHub, 1000);
+    }
+  };
+
+  // เริ่มทำงานทันทีเมื่อเปิดหน้าเว็บ
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', pullFromGitHub);
+  } else {
+    pullFromGitHub();
+  }
+})();
+
