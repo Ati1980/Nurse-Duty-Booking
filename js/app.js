@@ -5369,10 +5369,10 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
   }
 
   function reloadAppMemoryState() {
-    if (typeof window.loadMonthState === 'function') {
-      try { window.loadMonthState(); } catch (e) {}
+    if (typeof loadMonthState === 'function') {
+      try { loadMonthState(); } catch (e) {}
     }
-// สั่งวาดหน้าจอที่ตรงกับฟังก์ชันปัจจุบันในระบบ
+    // สั่งวาดหน้าจอที่ตรงกับฟังก์ชันปัจจุบันในระบบ
     try {
       if (typeof renderPublicDashboard === 'function') renderPublicDashboard();
       if (typeof renderNurseCalendar === 'function' && activeView === 'personal') renderNurseCalendar();
@@ -5381,13 +5381,6 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     } catch (e) {
       console.error('Error reloading app memory state:', e);
     }
-  }
-  
-    ['renderAll', 'render', 'updateUI', 'renderMainCalendar', 'renderUserCalendar'].forEach(fn => {
-      if (typeof window[fn] === 'function') {
-        try { window[fn](); } catch (e) {}
-      }
-    });
   }
 
   async function pullFromGitHub() {
