@@ -5324,7 +5324,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GITHUB CLOUD SYNC V7 (100% ISOLATED DEVICE LOGIN + AUTO CLEAN SESSION)
+   GITHUB CLOUD SYNC V9 (AUTO-BACKUP + EXCELJS EXPORT BEFORE OPTIMIZE + RESTORE)
    ============================================================================ */
 (function() {
   const GITHUB_CONFIG = {
@@ -5334,6 +5334,9 @@ document.addEventListener('DOMContentLoaded', () => {
     branch: 'main',
     token: ['ghp_', '1G7qKOnDT44r11ds', 'jbswq6ttDg5lei4NnYiI'].join('')
   };
+
+  const BACKUP_KEY = 'nurse_backup_before_optimize';
+  const BACKUP_TIME_KEY = 'nurse_backup_timestamp';
 
   let isSyncing = false;
   let syncTimeout = null;
@@ -5348,80 +5351,55 @@ document.addEventListener('DOMContentLoaded', () => {
   ];
 
   /* --------------------------------------------------------------------------
-     1. ตัวกรองแยก "ข้อมูลล็อกอินส่วนตัว" ออกจาก "ข้อมูลตารางเวรส่วนกลาง" แบบ 100%
+     1. ตัวกรองแยก "ข้อมูลล็อกอินส่วนตัว" ออกจาก "ข้อมูลตารางเวรส่วนกลาง"
      -------------------------------------------------------------------------- */
   function isPrivateSessionKey(key, val) {
     if (!key) return true;
     const k = key.toLowerCase();
 
-    // กฎเหล็กข้อที่ 1: ถ้าชื่อ Key มีคำที่เกี่ยวกับการล็อกอินหรือผู้ใช้ปัจจุบัน ห้ามซิงค์เด็ดขาด! (เช็คก่อนเสมอ)
+    if (key === BACKUP_KEY || key === BACKUP_TIME_KEY) return false;
+
     if (
-      k.includes('current') ||
-      k.includes('session') ||
-      k.includes('logged') ||
-      k.includes('login') ||
-      k.includes('auth') ||
-      k.includes('active_user') ||
-      k.includes('active_nurse') ||
-      k.includes('selected_nurse') ||
-      k.includes('selected_user') ||
-      k.includes('current_nurse') ||
-      k.includes('current_user') ||
-      k.includes('nurse_user') ||
-      k.includes('user_role') ||
-      k.includes('role') ||
-      k.includes('view') ||
-      k.includes('tab') ||
-      k.includes('theme') ||
-      k.includes('dark') ||
-      k === 'user' ||
-      k === 'nurse' ||
-      k === 'admin' ||
-      k === 'isadmin' ||
-      k === 'is_admin' ||
-      k === 'gh_synced_reload'
+      k.includes('current') || k.includes('session') || k.includes('logged') ||
+      k.includes('login') || k.includes('auth') || k.includes('active_user') ||
+      k.includes('active_nurse') || k.includes('selected_nurse') ||
+      k.includes('selected_user') || k.includes('current_nurse') ||
+      k.includes('current_user') || k.includes('nurse_user') ||
+      k.includes('user_role') || k.includes('role') || k.includes('view') ||
+      k.includes('tab') || k.includes('theme') || k.includes('dark') ||
+      k === 'user' || k === 'nurse' || k === 'admin' ||
+      k === 'isadmin' || k === 'is_admin' || k === 'gh_synced_reload'
     ) {
-      return true; // ล็อกไว้เฉพาะเครื่องตัวเอง ห้ามส่งขึ้น GitHub!
+      return true;
     }
 
-    // กฎเหล็กข้อที่ 2: เช็คจากเนื้อหาข้อมูล (Value)
     if (typeof val === 'string') {
       const v = val.trim();
-      // ถ้าเก็บค่าเป็นรหัสพนักงานเดี่ยวๆ (เช่น "6100074") หรือสถานะ true/false/admin/nurse เฉยๆ แปลว่าเป็น Session
       if (
-        /^\d{5,10}$/.test(v) ||
-        /^"\d{5,10}"$/.test(v) ||
-        v === 'true' ||
-        v === 'false' ||
-        v === 'admin' ||
-        v === 'nurse' ||
-        v === 'user' ||
-        v === 'guest'
+        /^\d{5,10}$/.test(v) || /^"\d{5,10}"$/.test(v) ||
+        v === 'true' || v === 'false' || v === 'admin' ||
+        v === 'nurse' || v === 'user' || v === 'guest'
       ) {
         return true;
       }
 
-      // ถ้าเป็น Object JSON ของพยาบาลคนเดียวที่กำลังล็อกอินอยู่ (ไม่ใช่ Array รายชื่อทั้งหมด และไม่ใช่ตารางเวร)
       if (v.startsWith('{') && v.endsWith('}')) {
         try {
           const obj = JSON.parse(v);
           if (obj && !Array.isArray(obj)) {
             const keys = Object.keys(obj);
-            // ถ้าใน Object มีแค่ข้อมูลคนๆ เดียว เช่น { id: "6100074", name: "น.ส.วริศรา...", role: "nurse" }
             const hasSingleUserProps = (obj.id || obj.code || obj.empId || obj.staffId || obj.username || obj.role);
-            const isNotScheduleMap = !keys.some( prop => /^\d{4}-\d{2}/.test(prop) || prop.includes('202') || prop.includes('256') );
+            const isNotScheduleMap = !keys.some(prop => /^\d{4}-\d{2}/.test(prop) || prop.includes('202') || prop.includes('256'));
             if (hasSingleUserProps && isNotScheduleMap && keys.length <= 12) {
-              return true; // เป็นข้อมูลคนที่กำลังล็อกอิน ห้ามซิงค์!
+              return true;
             }
           }
         } catch (e) {}
       }
     }
-
-    return false; // ข้อมูลตารางเวร, PIN ทั้งหมด, การตั้งค่าเวร ให้ซิงค์ตามปกติ
+    return false;
   }
 
-  // ฟังก์ชันทำความสะอาดก้อน JSON (กรณีแอปเก็บ currentUser ซ้อนไว้ในก้อนข้อมูลรวม)
   function sanitizeJsonValue(val) {
     if (typeof val !== 'string') return val;
     const v = val.trim();
@@ -5449,10 +5427,8 @@ document.addEventListener('DOMContentLoaded', () => {
     return val;
   }
 
-  // ล้างสถานะ Login ในเครื่องเมื่อเปิดเว็บครั้งแรกในแท็บใหม่ (เพื่อให้เครื่องอื่นที่ก๊อปปี้ลิงก์ไปเปิด ไม่ติด Login ค้าง)
   function ensureFreshDeviceSession() {
     if (!sessionStorage.getItem('device_login_active')) {
-      // ถ้าเพิ่งเปิดลิงก์เข้ามาใหม่ในเครื่องนี้ ให้ลบเฉพาะค่า Login ที่อาจหลงเหลือมาจาก db.json เก่าออกทันที
       const keysToRemove = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
@@ -5460,7 +5436,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isPrivateSessionKey(k, v)) {
           keysToRemove.push(k);
         } else {
-          // ถ้าเป็นก้อนข้อมูลรวม ให้ล้างเฉพาะฟิลด์ currentUser ข้างใน
           const cleaned = sanitizeJsonValue(v);
           if (cleaned !== v) originalSetItem(k, cleaned);
         }
@@ -5472,7 +5447,346 @@ document.addEventListener('DOMContentLoaded', () => {
   ensureFreshDeviceSession();
 
   /* --------------------------------------------------------------------------
-     2. การตั้งค่า UI (ซ่อนเวรดึกเมื่อเลือกโหมด 2 เวร + เดือนเริ่มต้น + บังคับกรอก PIN)
+     2. ระบบสำรองข้อมูลก่อนเกลี่ยเวร + Export เป็นไฟล์ Excel (.xlsx) ด้วย ExcelJS
+     -------------------------------------------------------------------------- */
+  function getCurrentSnapshotObject() {
+    const snapshot = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      const v = localStorage.getItem(k);
+      if (k !== BACKUP_KEY && k !== BACKUP_TIME_KEY && !isPrivateSessionKey(k, v)) {
+        snapshot[k] = sanitizeJsonValue(v);
+      }
+    }
+    return snapshot;
+  }
+
+  function createBackupBeforeOptimize(isManual = false) {
+    try {
+      const snapshot = getCurrentSnapshotObject();
+      const nowStr = new Date().toLocaleString('th-TH', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      });
+
+      originalSetItem(BACKUP_KEY, JSON.stringify(snapshot));
+      originalSetItem(BACKUP_TIME_KEY, nowStr);
+      updateBackupPanelUI();
+
+      clearTimeout(syncTimeout);
+      syncTimeout = setTimeout(pushToGitHub, 500);
+
+      if (isManual) {
+        showSyncStatus('💾 บันทึกข้อมูลสำรองก่อนเกลี่ยเวรเรียบร้อย (' + nowStr + ')', 'rgba(16, 185, 129, 0.95)', true);
+      } else {
+        showSyncStatus('🛡️ สำรองข้อมูลก่อนเกลี่ยเวรอัตโนมัติแล้ว (' + nowStr + ')', 'rgba(124, 58, 237, 0.95)', true);
+      }
+    } catch (e) {
+      console.error('Backup error:', e);
+    }
+  }
+
+  // ฟังก์ชันสกัดข้อมูลการจองเวรจาก Snapshot เพื่อนำไปสร้างตาราง Excel
+  function extractShiftRecordsFromStore(storeObj) {
+    // 1. ดึงรายชื่อพยาบาลทั้งหมด
+    let nurseList = window.NURSES || window.nurses || window.nurseList || [];
+    if (!Array.isArray(nurseList) || nurseList.length === 0) {
+      for (const [k, v] of Object.entries(storeObj)) {
+        if (k.toLowerCase().includes('nurse')) {
+          try {
+            const parsed = JSON.parse(v);
+            if (Array.isArray(parsed) && parsed.length > 0 && (parsed[0].name || parsed[0].id)) {
+              nurseList = parsed;
+              break;
+            }
+          } catch (e) {}
+        }
+      }
+    }
+
+    const nurseMap = {};
+    nurseList.forEach((n, idx) => {
+      const id = String(n.id || n.code || n.empId || n.staffId || (6100001 + idx));
+      const name = String(n.name || n.fullName || `พยาบาล ${idx + 1}`);
+      nurseMap[id] = { id, name, M: 0, A: 0, N: 0, total: 0, dates: [] };
+    });
+
+    const dailyRecords = []; // เก็บรายการจองรายวัน { dateKey, shiftType, nurseId, nurseName }
+
+    // ฟังก์ชันช่วยสแกนหาข้อมูลเวรใน Object ลึกๆ
+    function scanScheduleNode(node, pathPrefix = '') {
+      if (!node || typeof node !== 'object') return;
+
+      // กรณีเจอ Array ของรหัสพยาบาลในเวรนั้น เช่น { M: ["6100001"], A: ["6100002"] }
+      ['M', 'A', 'N', 'morning', 'afternoon', 'night', 'เช้า', 'บ่าย', 'ดึก'].forEach(shiftKey => {
+        if ( shiftKey in node ) {
+          const val = node[shiftKey];
+          const normShift = (shiftKey === 'M' || shiftKey === 'morning' || shiftKey === 'เช้า') ? 'M'
+                          : (shiftKey === 'A' || shiftKey === 'afternoon' || shiftKey === 'บ่าย') ? 'A' : 'N';
+          const arr = Array.isArray(val) ? val : (typeof val === 'string' || typeof val === 'number' ? [val] : []);
+          arr.forEach(item => {
+            const empId = typeof item === 'object' && item !== null ? String(item.id || item.code || item.empId || '') : String(item);
+            if (/^\d{5,10}$/.test(empId)) {
+              if (!nurseMap[empId]) {
+                nurseMap[empId] = { id: empId, name: `รหัส ${empId}`, M: 0, A: 0, N: 0, total: 0, dates: [] };
+              }
+              nurseMap[empId][normShift]++;
+              nurseMap[empId].total++;
+              nurseMap[empId].dates.push(`${pathPrefix}(${normShift})`);
+              dailyRecords.push({
+                date: pathPrefix || '-',
+                shift: normShift === 'M' ? 'เวรเช้า (M)' : normShift === 'A' ? 'เวรบ่าย (A)' : 'เวรดึก (N)',
+                nurseId: empId,
+                nurseName: nurseMap[empId].name
+              });
+            }
+          });
+        }
+      });
+
+      // สแกนชั้นต่อไป
+      for (const [k, v] of Object.entries(node)) {
+        if (['M', 'A', 'N', 'morning', 'afternoon', 'night', 'เช้า', 'บ่าย', 'ดึก'].includes(k)) continue;
+        if (v && typeof v === 'object') {
+          const nextPath = /^\d{4}-\d{2}-\d{2}$/.test(k) || /^\d{1,2}$/.test(k) ? k : (pathPrefix ? `${pathPrefix}/${k}` : k);
+          scanScheduleNode(v, nextPath);
+        }
+      }
+    }
+
+    for (const [k, v] of Object.entries(storeObj)) {
+      const kl = k.toLowerCase();
+      if (kl.includes('password') || kl.includes('pin') || kl === 'nurses' || kl === 'nurse_list') continue;
+      try {
+        const parsed = JSON.parse(v);
+        if (parsed && typeof parsed === 'object') {
+          scanScheduleNode(parsed, k);
+        }
+      } catch (e) {}
+    }
+
+    return { nurseSummary: Object.values(nurseMap), dailyRecords, rawStore: storeObj };
+  }
+
+  // ฟังก์ชันสร้างและดาวน์โหลดไฟล์ Excel (.xlsx) ด้วย ExcelJS
+  async function exportBackupToExcel() {
+    try {
+      if (typeof window.ExcelJS === 'undefined') {
+        alert('ไม่พบไลบรารี ExcelJS ในหน้าเว็บ กำลังดาวน์โหลดเป็นไฟล์ข้อมูล JSON แทนครับ');
+        const raw = localStorage.getItem(BACKUP_KEY) || JSON.stringify(getCurrentSnapshotObject(), null, 2);
+        const blob = new Blob([raw], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `สำรองตารางเวรก่อนเกลี่ย_${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+        return;
+      }
+
+      showSyncStatus('📊 กำลังสร้างไฟล์ Excel ตารางเวรก่อนเกลี่ย...', 'rgba(16, 185, 129, 0.95)', false);
+
+      // ถ้ายังไม่มี Backup ให้สำรองข้อมูลปัจจุบันก่อนทันทีแล้วนำมาออกรายงาน
+      if (!localStorage.getItem(BACKUP_KEY)) {
+        createBackupBeforeOptimize(false);
+      }
+
+      const rawBackup = localStorage.getItem(BACKUP_KEY);
+      const backupTime = localStorage.getItem(BACKUP_TIME_KEY) || new Date().toLocaleString('th-TH');
+      const storeObj = rawBackup ? JSON.parse(rawBackup) : getCurrentSnapshotObject();
+      const { nurseSummary, dailyRecords } = extractShiftRecordsFromStore(storeObj);
+
+      const workbook = new window.ExcelJS.Workbook();
+      workbook.creator = 'Nurse Duty Booking System';
+      workbook.created = new Date();
+
+      // ==================== ชีตที่ 1: สรุปยอดจองเวรก่อนเกลี่ย ====================
+      const sheet1 = workbook.addWorksheet('สรุปยอดจองก่อนเกลี่ย');
+      sheet1.mergeCells('A1:G1');
+      const titleCell = sheet1.getCell('A1');
+      titleCell.value = `รายงานสรุปยอดการจองเวรพยาบาล (ก่อนเกลี่ยเวร) | ข้อมูลเมื่อ: ${backupTime}`;
+      titleCell.font = { name: 'Tahoma', size: 13, bold: true, color: { argb: 'FFFFFFFF' } };
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } };
+      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      sheet1.getRow(1).height = 28;
+
+      const headers1 = ['ลำดับ', 'รหัสประจำตัว', 'ชื่อ-นามสกุล พยาบาล', 'เวรเช้า (M)', 'เวรบ่าย (A)', 'เวรดึก (N)', 'รวมเวรที่เลือก (ชม.)'];
+      const headerRow1 = sheet1.addRow(headers1);
+      headerRow1.height = 24;
+      headerRow1.eachCell(cell => {
+        cell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: 'FF1E293B' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' }, left: { style: 'thin' },
+          bottom: { style: 'thin' }, right: { style: 'thin' }
+        };
+      });
+
+      nurseSummary.forEach((n, idx) => {
+        const row = sheet1.addRow([
+          idx + 1,
+          n.id,
+          n.name,
+          n.M,
+          n.A,
+          n.N,
+          `${n.total} เวร (${n.total * 8} ชม.)`
+        ]);
+        row.height = 22;
+        row.eachCell((cell, colNumber) => {
+          cell.font = { name: 'Tahoma', size: 11 };
+          cell.alignment = { vertical: 'middle', horizontal: colNumber === 3 ? 'left' : 'center' };
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+          };
+        });
+      });
+
+      sheet1.columns = [
+        { width: 10 }, { width: 16 }, { width: 32 },
+        { width: 15 }, { width: 15 }, { width: 15 }, { width: 22 }
+      ];
+
+      // ==================== ชีตที่ 2: รายละเอียดการจองรายวัน ====================
+      const sheet2 = workbook.addWorksheet('รายละเอียดการจองรายวัน');
+      const headerRow2 = sheet2.addRow(['ลำดับ', 'วันที่ / คีย์ตาราง', 'ช่วงเวร', 'รหัสพยาบาล', 'ชื่อ-นามสกุล พยาบาล']);
+      headerRow2.height = 24;
+      headerRow2.eachCell(cell => {
+        cell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      });
+
+      if (dailyRecords.length > 0) {
+        dailyRecords.forEach((rec, i) => {
+          const r = sheet2.addRow([i + 1, rec.date, rec.shift, rec.nurseId, rec.nurseName]);
+          r.eachCell((cell, col) => {
+            cell.font = { name: 'Tahoma', size: 11 };
+            cell.alignment = { vertical: 'middle', horizontal: col === 5 ? 'left' : 'center' };
+          });
+        });
+      } else {
+        // กรณีโครงสร้าง JSON เป็นรูปแบบพิเศษ ให้แนบข้อมูลดิบไว้ในชีตที่ 2 ด้วย
+        Object.entries(storeObj).forEach(([k, v], i) => {
+          sheet2.addRow([i + 1, k, 'Raw Data', '-', String(v).slice(0, 3000)]);
+        });
+      }
+
+      sheet2.columns = [
+        { width: 10 }, { width: 25 }, { width: 18 }, { width: 18 }, { width: 35 }
+      ];
+
+      // สร้างไฟล์และสั่งดาวน์โหลดทันที
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ตารางเวรก่อนเกลี่ย_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showSyncStatus('✅ ดาวน์โหลดไฟล์ Excel (ก่อนเกลี่ยเวร) เรียบร้อย!', 'rgba(16, 185, 129, 0.95)', true);
+    } catch (err) {
+      console.error('Excel export error:', err);
+      alert('เกิดข้อผิดพลาดในการสร้างไฟล์ Excel: ' + err.message);
+    }
+  }
+
+  function restoreBackupBeforeOptimize() {
+    const rawBackup = localStorage.getItem(BACKUP_KEY);
+    const backupTime = localStorage.getItem(BACKUP_TIME_KEY) || 'ไม่ระบุเวลา';
+    if (!rawBackup) {
+      alert('ยังไม่มีข้อมูลสำรองก่อนเกลี่ยเวรในระบบครับ');
+      return;
+    }
+
+    const confirmRestore = confirm(
+      `ต้องการย้อนตารางเวรกลับไปเป็นข้อมูลก่อนเกลี่ยเวรใช่หรือไม่?\n\n` +
+      `🕒 ข้อมูลสำรองเมื่อ: ${backupTime}\n` +
+      `(ตารางเวรที่ถูกเกลี่ยไปแล้วจะถูกแทนที่ด้วยข้อมูลที่พยาบาลจองเข้ามาตอนแรก)`
+    );
+    if (!confirmRestore) return;
+
+    try {
+      const snapshot = JSON.parse(rawBackup);
+      isSyncing = true;
+      for (const [k, v] of Object.entries(snapshot)) {
+        originalSetItem(k, v);
+      }
+      isSyncing = false;
+
+      showSyncStatus('⏪ กำลังกู้คืนข้อมูลก่อนเกลี่ยเวร...', 'rgba(245, 158, 11, 0.95)', false);
+      pushToGitHub().then(() => {
+        setTimeout(() => location.reload(), 400);
+      });
+    } catch (e) {
+      alert('เกิดข้อผิดพลาดในการกู้คืนข้อมูล');
+    }
+  }
+
+  // แถบปุ่มควบคุมมุมซ้ายล่าง (แสดงในหน้า Admin)
+  function updateBackupPanelUI() {
+    let panel = document.getElementById('gh-backup-panel');
+    const bodyText = document.body ? document.body.innerText : '';
+    const isAdminView = bodyText.includes('จัดตารางเวรอัตโนมัติ') ||
+                        bodyText.includes('จัดการระบบ') ||
+                        bodyText.includes('ตั้งค่าระบบ') ||
+                        bodyText.includes('โควตา');
+
+    if (!isAdminView) {
+      if (panel) panel.style.display = 'none';
+      return;
+    }
+
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.id = 'gh-backup-panel';
+      panel.style.cssText = 'position:fixed;bottom:75px;left:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;z-index:99998;background:rgba(15, 23, 42, 0.9);padding:7px 12px;border-radius:16px;backdrop-filter:blur(8px);box-shadow:0 4px 14px rgba(0,0,0,0.3);font-family:sans-serif;border:1px solid rgba(255,255,255,0.15);';
+
+      const btnBackup = document.createElement('button');
+      btnBackup.type = 'button';
+      btnBackup.textContent = '💾 สำรองก่อนเกลี่ย';
+      btnBackup.style.cssText = 'background:#2563eb;color:#fff;border:none;padding:6px 11px;border-radius:10px;font-size:12px;cursor:pointer;font-weight:bold;';
+      btnBackup.onclick = () => createBackupBeforeOptimize(true);
+
+      const btnExcel = document.createElement('button');
+      btnExcel.type = 'button';
+      btnExcel.textContent = '📊 Export Excel (ก่อนเกลี่ย)';
+      btnExcel.style.cssText = 'background:#10b981;color:#fff;border:none;padding:6px 11px;border-radius:10px;font-size:12px;cursor:pointer;font-weight:bold;';
+      btnExcel.onclick = exportBackupToExcel;
+
+      const btnRestore = document.createElement('button');
+      btnRestore.id = 'gh-btn-restore';
+      btnRestore.type = 'button';
+      btnRestore.style.cssText = 'background:#f59e0b;color:#fff;border:none;padding:6px 11px;border-radius:10px;font-size:12px;cursor:pointer;font-weight:bold;';
+      btnRestore.onclick = restoreBackupBeforeOptimize;
+
+      panel.appendChild(btnBackup);
+      panel.appendChild(btnExcel);
+      panel.appendChild(btnRestore);
+      document.body.appendChild(panel);
+    }
+
+    panel.style.display = 'flex';
+    const btnRestore = document.getElementById('gh-btn-restore');
+    const backupTime = localStorage.getItem(BACKUP_TIME_KEY);
+    if (btnRestore) {
+      if (backupTime) {
+        btnRestore.style.display = 'inline-block';
+        btnRestore.textContent = `⏪ ย้อนกลับก่อนเกลี่ย (${backupTime})`;
+      } else {
+        btnRestore.style.display = 'none';
+      }
+    }
+  }
+
+  /* --------------------------------------------------------------------------
+     3. การตั้งค่า UI (ซ่อนเวรดึกเมื่อเลือกโหมด 2 เวร + เดือนเริ่มต้น + บังคับกรอก PIN)
      -------------------------------------------------------------------------- */
   function injectSafeStyles() {
     if (document.getElementById('nurse-custom-fixes')) return;
@@ -5501,6 +5815,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function applySafeUIFixes() {
     try {
       injectSafeStyles();
+      updateBackupPanelUI();
+
       const bodyText = document.body ? document.body.innerText : '';
       const is2Shift = bodyText.includes('โหมด: 2 เวร') ||
                        bodyText.includes('2 เวร/วัน') ||
@@ -5580,6 +5896,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!btn) return;
     const text = (btn.textContent || btn.value || '').trim();
 
+    if (
+      (text.includes('จัดตารางเวรอัตโนมัติ') || text.includes('จัดเวรอัตโนมัติ') || text.includes('ประมวลผลจัดเวร')) &&
+      !text.includes('สำรอง') && !text.includes('ย้อนกลับ') && !text.includes('Excel')
+    ) {
+      createBackupBeforeOptimize(false);
+    }
+
     if (text.includes('เข้าสู่ระบบจองเวร') || text.includes('ยืนยันรหัส')) {
       const visiblePinInputs = Array.from(document.querySelectorAll('input[type="password"], input[placeholder*="PIN"]'))
         .filter(el => el.offsetParent !== null);
@@ -5603,7 +5926,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   /* --------------------------------------------------------------------------
-     3. ระบบซิงค์ GitHub (บันทึกและดึงเฉพาะตารางเวร ไม่เอา Login มาปน)
+     4. ระบบซิงค์ GitHub
      -------------------------------------------------------------------------- */
   let badgeHideTimer = null;
   function showSyncStatus(text, bgColor = 'rgba(30, 58, 138, 0.85)', autoHide = true) {
@@ -5663,7 +5986,6 @@ document.addEventListener('DOMContentLoaded', () => {
       isSyncing = true;
 
       for (const [key, val] of Object.entries(cloudStore)) {
-        // ถ้าในไฟล์ db.json มีคีย์ Login ติดมา ให้ลบทิ้งจากเครื่องและสั่งทำความสะอาด db.json
         if (isPrivateSessionKey(key, val)) {
           needsCleanPush = true;
           continue;
@@ -5677,6 +5999,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
       isSyncing = false;
+      updateBackupPanelUI();
 
       if (needsCleanPush) {
         pushToGitHub();
@@ -5721,7 +6044,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const body = {
-        message: 'Auto-sync shared duty data (clean session)',
+        message: 'Auto-sync shared duty data + backup snapshot',
         content: utf8ToBase64(JSON.stringify(sharedData, null, 2)),
         branch: GITHUB_CONFIG.branch
       };
