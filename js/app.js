@@ -5323,7 +5323,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GITHUB CLOUD SYNC V12 (STRICT NURSE_ FILTER + SMART ROSTER MERGE + EXCEL)
+   GITHUB CLOUD SYNC V13 (FIX LOGOUT TABLE REMAINS + STRICT NURSE_ FILTER + EXCEL)
    ============================================================================ */
 (function() {
   const GITHUB_CONFIG = {
@@ -5352,16 +5352,14 @@ document.addEventListener('DOMContentLoaded', () => {
   ];
 
   /* --------------------------------------------------------------------------
-     1. กรองเฉพาะข้อมูลของระบบพยาบาล (nurse_*) เท่านั้น! ตัด manpower_* และขยะอื่นทิ้ง 100%
+     1. กรองเฉพาะข้อมูลของระบบพยาบาล (nurse_*) เท่านั้น! ตัด manpower_* ทิ้ง 100%
      -------------------------------------------------------------------------- */
   function isAllowedNurseSharedKey(key) {
     if (!key || typeof key !== 'string') return false;
     const k = key.toLowerCase();
 
-    // ต้องขึ้นต้นด้วยคำว่า nurse_ เท่านั้น ถึงจะยอมให้เซฟลง db.json (ป้องกัน manpower_* เข้ามาปน)
     if (!k.startsWith('nurse_')) return false;
 
-    // ยกเว้นคีย์ที่เป็นสถานะการล็อกอินส่วนตัว หรือธีมหน้าจอของแต่ละเครื่อง ห้ามซิงค์ข้ามเครื่อง
     if (
       k.includes('current') ||
       k.includes('session') ||
@@ -5390,12 +5388,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!cloudObj) return localJsonStr;
       if (!localObj) return cloudJsonStr;
 
-      // รวมข้อมูลใน roster ของพยาบาลแต่ละรหัสเข้าด้วยกัน เพื่อไม่ให้เครื่องที่เพิ่งเปิดไปลบข้อมูลคนที่คีย์ไว้แล้ว
       const mergedRoster = Object.assign({}, cloudObj.roster || {}, localObj.roster || {});
       for (const empId of Object.keys(mergedRoster)) {
         const cDays = (cloudObj.roster && cloudObj.roster[empId]) || {};
         const lDays = (localObj.roster && localObj.roster[empId]) || {};
-        // ถ้าในเครื่องเพิ่งเปิดมาว่างเปล่า แต่บน Cloud มีเวรของคนนี้อยู่ ให้ใช้ข้อมูลจาก Cloud
         if (Object.keys(lDays).length === 0 && Object.keys(cDays).length > 0) {
           mergedRoster[empId] = cDays;
         } else if (Object.keys(lDays).length > 0) {
@@ -5461,13 +5457,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       showSyncStatus('📊 กำลังสร้างไฟล์ Excel (ก่อนเกลี่ย)...', 'rgba(16, 185, 129, 0.95)', false);
 
-      // ดึงรายชื่อพยาบาลจาก nurse_master_list
       let masterList = [];
       try {
         masterList = JSON.parse(storeObj['nurse_master_list'] || localStorage.getItem('nurse_master_list') || '[]');
       } catch (e) {}
 
-      // ค้นหาคีย์ตารางเวรเดือนล่าสุด เช่น nurse_system_2026_10
       const systemKeys = Object.keys(storeObj).filter(k => k.startsWith('nurse_system_')).sort();
       const targetKey = systemKeys[systemKeys.length - 1] || 'nurse_system_2026_10';
       let rosterData = {};
@@ -5479,7 +5473,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const workbook = new window.ExcelJS.Workbook();
       const sheet = workbook.addWorksheet('ตารางเวรก่อนเกลี่ย');
 
-      // สร้างหัวตารางแนวนอน วันที่ 1 - 31 เหมือนหน้าเว็บ
       const headerCols = ['#', 'รหัส', 'ชื่อ - สกุล'];
       for (let d = 1; d <= 31; d++) headerCols.push(String(d));
       headerCols.push('เวรเช้า (M)', 'เวรบ่าย (A)', 'เวรดึก (N)', 'รวมเวร', 'รวมชั่วโมง');
@@ -5573,7 +5566,52 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* --------------------------------------------------------------------------
-     4. การตั้งค่า UI (ซ่อนเวรดึกเมื่อเลือกโหมด 2 เวร + เดือนเริ่มต้น + บังคับกรอก PIN)
+     4. แก้ปัญหาตารางแนวนอนด้านล่างสุดค้างเวลากด Logout จากหน้า Admin กลับมาหน้าหลัก
+     -------------------------------------------------------------------------- */
+  function hideGhostMatrixTableOnMainView() {
+    try {
+      // เช็คว่าตอนนี้อยู่ในหน้า "ปฏิทินหลัก" หรือ "เวรของฉัน" หรือไม่ (ดูจากกล่องปฏิทินหลักที่แสดงผลอยู่)
+      const allHeadings = Array.from(document.querySelectorAll('h1, h2, h3, h4, div, span'));
+      const isMainCalendarVisible = allHeadings.some(el =>
+        el.children.length === 0 &&
+        (el.textContent.trim() === 'ปฏิทินจองเวรประจำเดือน' || el.textContent.includes('ตารางเวรประจำเดือนของฉัน')) &&
+        el.offsetParent !== null
+      );
+
+      // เช็คว่าหน้า Admin หรือหน้าสรุปตารางเวรเปิดอยู่หรือไม่
+      const isAdminControlVisible = allHeadings.some(el =>
+        el.children.length === 0 &&
+        (el.textContent.includes('จัดตารางเวรอัตโนมัติ') || el.textContent.includes('แผงควบคุมผู้ดูแลระบบ')) &&
+        el.offsetParent !== null
+      );
+
+      // ค้นหาตาราง Matrix แนวนอนด้านล่างสุด (ที่มีหัวตาราง "ชื่อ - สกุล" และท้ายตาราง "จำนวนเวรรวมต่อวัน:")
+      const tables = document.querySelectorAll('table');
+      tables.forEach(tbl => {
+        const txt = tbl.textContent || '';
+        if (txt.includes('ชื่อ - สกุล') && txt.includes('จำนวนเวรรวมต่อวัน')) {
+          // หา Container ที่หุ้มตารางด้านล่างสุดอยู่
+          const wrapper = tbl.closest('div[id*="matrix" i], div[id*="summary" i], div[id*="roster" i], div[class*="matrix" i], section') || tbl.parentElement;
+          
+          // ถ้าตอนนี้เปิดหน้าปฏิทินหลักอยู่ และไม่ได้อยู่ในหน้า Admin ให้ซ่อนตารางล่างสุดทันที!
+          if (isMainCalendarVisible && !isAdminControlVisible) {
+            if (wrapper && !wrapper.contains(document.querySelector('h1, h2'))) {
+              wrapper.style.setProperty('display', 'none', 'important');
+            } else {
+              tbl.style.setProperty('display', 'none', 'important');
+            }
+          } else {
+            // ถ้ากดเข้าแท็บ "สรุปตารางเวร" หรือ "Admin" ให้แสดงตารางตามปกติ
+            if (wrapper) wrapper.style.removeProperty('display');
+            tbl.style.removeProperty('display');
+          }
+        }
+      });
+    } catch (e) {}
+  }
+
+  /* --------------------------------------------------------------------------
+     5. การตั้งค่า UI (ซ่อนเวรดึกเมื่อเลือกโหมด 2 เวร + เดือนเริ่มต้น + บังคับกรอก PIN)
      -------------------------------------------------------------------------- */
   function injectSafeStyles() {
     if (document.getElementById('nurse-custom-fixes')) return;
@@ -5603,6 +5641,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       injectSafeStyles();
       injectInlineTopExcelButton();
+      hideGhostMatrixTableOnMainView();
 
       const shiftMode = localStorage.getItem('nurse_shift_mode');
       const bodyText = document.body ? document.body.innerText : '';
@@ -5676,16 +5715,37 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.addEventListener('click', function(e) {
-    setTimeout(applySafeUIFixes, 150);
+    setTimeout(applySafeUIFixes, 100);
+    setTimeout(hideGhostMatrixTableOnMainView, 250);
 
     const btn = e.target.closest('button, input[type="submit"], a, [role="button"]');
     if (!btn || btn.id === 'gh-inline-excel-btn') return;
     const text = (btn.textContent || btn.value || '').trim();
+    const title = (btn.getAttribute('title') || '').toLowerCase();
+    const onclickAttr = (btn.getAttribute('onclick') || '').toLowerCase();
 
+    // 1. ตรวจจับการกดปุ่ม Logout (ออกจากระบบ) -> ล้างตารางค้างและรีเฟรชหน้าจอให้อัตโนมัติทันที!
+    const isLogoutBtn = text.includes('ออกจากระบบ') ||
+                        text.toLowerCase().includes('logout') ||
+                        title.includes('ออกจากระบบ') ||
+                        title.includes('logout') ||
+                        onclickAttr.includes('logout') ||
+                        text.includes('🚪');
+
+    if (isLogoutBtn) {
+      setTimeout(() => {
+        hideGhostMatrixTableOnMainView();
+        location.reload();
+      }, 150);
+      return;
+    }
+
+    // 2. สำรองข้อมูลอัตโนมัติเมื่อกดจัดเวร
     if (text.includes('จัดตารางเวรอัตโนมัติ') || text.includes('จัดเวรอัตโนมัติ') || text.includes('ประมวลผลจัดเวร')) {
       autoBackupBeforeOptimize();
     }
 
+    // 3. บังคับกรอก PIN ก่อนเข้าสู่ระบบ
     if (text.includes('เข้าสู่ระบบจองเวร') || text.includes('ยืนยันรหัส')) {
       const visiblePinInputs = Array.from(document.querySelectorAll('input[type="password"], input[placeholder*="PIN"]'))
         .filter(el => el.offsetParent !== null);
@@ -5709,7 +5769,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   /* --------------------------------------------------------------------------
-     5. ระบบซิงค์ GitHub (สะอาด ปลอดภัย ไม่รีเซ็ตข้อมูล)
+     6. ระบบซิงค์ GitHub
      -------------------------------------------------------------------------- */
   let badgeHideTimer = null;
   function showSyncStatus(text, bgColor = 'rgba(30, 58, 138, 0.85)', autoHide = true) {
@@ -5771,7 +5831,6 @@ document.addEventListener('DOMContentLoaded', () => {
       isSyncing = true;
 
       for (const [key, val] of Object.entries(cloudStore)) {
-        // ถ้าเจอคีย์ของโปรเจกต์อื่น เช่น manpower_* หรือ __scdn_ga_sid ให้ข้ามและสั่งล้างออกจาก db.json
         if (!isAllowedNurseSharedKey(key)) {
           hadNonNurseKeys = true;
           continue;
@@ -5787,7 +5846,6 @@ document.addEventListener('DOMContentLoaded', () => {
       hasPulledFromCloud = true;
       applySafeUIFixes();
 
-      // ล้างคีย์ manpower_* ออกจากไฟล์ db.json บน GitHub ให้อัตโนมัติ
       if (hadNonNurseKeys) {
         pushToGitHub(true);
       }
@@ -5824,7 +5882,6 @@ document.addEventListener('DOMContentLoaded', () => {
         fileSha = checkData.sha;
         const cloudStore = JSON.parse(base64ToUtf8(checkData.content));
 
-        // รวมตารางเวร (Merge Roster) ระหว่างบน Cloud กับในเครื่อง ป้องกันข้อมูลคนอื่นหาย
         for (const [k, cloudVal] of Object.entries(cloudStore)) {
           if (k.startsWith('nurse_system_')) {
             localShared[k] = mergeNurseSystemData(cloudVal, localShared[k]);
