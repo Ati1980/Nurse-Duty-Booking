@@ -371,16 +371,6 @@ function saveMonthState() {
 }
 
 function loadMonthState() {
-  // One-time reset of previous mock data so bookings start completely clean (0 booked)
-  if (!localStorage.getItem('nurse_booking_v4_clean_reset')) {
-    for (let y = 2024; y <= 2035; y++) {
-      for (let m = 0; m <= 11; m++) {
-        localStorage.removeItem(`nurse_system_${y}_${m}`);
-      }
-    }
-    localStorage.setItem('nurse_booking_v4_clean_reset', 'true');
-  }
-
   const raw = localStorage.getItem(getStorageKey());
   if (raw) {
     try {
@@ -5322,9 +5312,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /* ============================================================================
-   GITHUB CLOUD SYNC V13 (FIX LOGOUT TABLE REMAINS + STRICT NURSE_ FILTER + EXCEL)
+   GITHUB CLOUD SYNC V15 (DIRECT integration with loadMonthState + ANTI-WIPE)
    ============================================================================ */
+try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) {}
+
 (function() {
   const GITHUB_CONFIG = {
     owner: 'Ati1980',
@@ -5339,6 +5346,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let isSyncing = false;
   let hasPulledFromCloud = false;
+  let allowIntentionalDelete = false;
   let syncTimeout = null;
   let fileSha = null;
 
@@ -5346,65 +5354,119 @@ document.addEventListener('DOMContentLoaded', () => {
   const originalRemoveItem = localStorage.removeItem.bind(localStorage);
   const originalClear = localStorage.clear.bind(localStorage);
 
+  // ล็อกค่าไว้เสมอเพื่อความปลอดภัยสูงสุด
+  originalSetItem('nurse_booking_v4_clean_reset', 'true');
+
   const THAI_MONTHS = [
     'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
     'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
   ];
 
   /* --------------------------------------------------------------------------
-     1. กรองเฉพาะข้อมูลของระบบพยาบาล (nurse_*) เท่านั้น! ตัด manpower_* ทิ้ง 100%
+     1. ตัวกรองเฉพาะคีย์ของระบบพยาบาล (nurse_*) และฟังก์ชันนับจำนวนเวรจริง
      -------------------------------------------------------------------------- */
   function isAllowedNurseSharedKey(key) {
     if (!key || typeof key !== 'string') return false;
     const k = key.toLowerCase();
-
     if (!k.startsWith('nurse_')) return false;
 
     if (
-      k.includes('current') ||
-      k.includes('session') ||
-      k.includes('logged') ||
-      k.includes('login') ||
-      k.includes('auth') ||
-      k.includes('active_user') ||
-      k.includes('active_nurse') ||
-      k.includes('selected_nurse') ||
-      k.includes('role') ||
-      k.includes('theme')
+      k.includes('current') || k.includes('session') || k.includes('logged') ||
+      k.includes('login') || k.includes('auth') || k.includes('active_user') ||
+      k.includes('active_nurse') || k.includes('selected_nurse') ||
+      k.includes('role') || k.includes('theme')
     ) {
       return false;
     }
-
     return true;
   }
 
-  /* --------------------------------------------------------------------------
-     2. ระบบรวมตารางเวรอัจฉริยะ (Smart Roster Merge) ป้องกันข้อมูลพยาบาลคนอื่นหาย
-     -------------------------------------------------------------------------- */
-  function mergeNurseSystemData(cloudJsonStr, localJsonStr) {
+  function countTotalShiftsInSystemJson(jsonStr) {
+    if (!jsonStr || typeof jsonStr !== 'string') return 0;
     try {
-      const cloudObj = cloudJsonStr ? JSON.parse(cloudJsonStr) : null;
-      const localObj = localJsonStr ? JSON.parse(localJsonStr) : null;
-      if (!cloudObj) return localJsonStr;
-      if (!localObj) return cloudJsonStr;
+      const obj = JSON.parse(jsonStr);
+      if (!obj || typeof obj !== 'object') return 0;
+      let count = 0;
 
-      const mergedRoster = Object.assign({}, cloudObj.roster || {}, localObj.roster || {});
-      for (const empId of Object.keys(mergedRoster)) {
-        const cDays = (cloudObj.roster && cloudObj.roster[empId]) || {};
-        const lDays = (localObj.roster && localObj.roster[empId]) || {};
-        if (Object.keys(lDays).length === 0 && Object.keys(cDays).length > 0) {
-          mergedRoster[empId] = cDays;
-        } else if (Object.keys(lDays).length > 0) {
-          mergedRoster[empId] = lDays;
+      ['roster', 'round1', 'round2', 'schedule', 'bookings'].forEach(section => {
+        const secData = obj[section];
+        if (secData && typeof secData === 'object') {
+          for (const empOrDay of Object.values(secData)) {
+            if (Array.isArray(empOrDay)) {
+              count += empOrDay.length;
+            } else if (empOrDay && typeof empOrDay === 'object') {
+              for (const shifts of Object.values(empOrDay)) {
+                if (Array.isArray(shifts)) count += shifts.length;
+                else if (shifts) count += 1;
+              }
+            }
+          }
         }
+      });
+      return count;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function countAllShiftsInStore(storeObj) {
+    if (!storeObj || typeof storeObj !== 'object') return 0;
+    let total = 0;
+    for (const [k, v] of Object.entries(storeObj)) {
+      if (k.startsWith('nurse_system_')) {
+        total += countTotalShiftsInSystemJson(v);
+      }
+    }
+    return total;
+  }
+
+  function deepMergeShiftMap(cloudMap, localMap, preferLocalEmpty = false) {
+    const cMap = (cloudMap && typeof cloudMap === 'object') ? cloudMap : {};
+    const lMap = (localMap && typeof localMap === 'object') ? localMap : {};
+    const result = Object.assign({}, cMap);
+
+    for (const [empId, lDays] of Object.entries(lMap)) {
+      const cDays = cMap[empId] || {};
+      const lCount = lDays && typeof lDays === 'object' ? Object.keys(lDays).length : 0;
+      const cCount = cDays && typeof cDays === 'object' ? Object.keys(cDays).length : 0;
+
+      if (lCount === 0 && cCount > 0 && !preferLocalEmpty) {
+        result[empId] = cDays;
+      } else {
+        result[empId] = lDays;
+      }
+    }
+    return result;
+  }
+
+  function mergeNurseSystemData(cloudJsonStr, localJsonStr, isIntentionalDelete = false) {
+    try {
+      const cloudCount = countTotalShiftsInSystemJson(cloudJsonStr);
+      const localCount = countTotalShiftsInSystemJson(localJsonStr);
+
+      if (cloudCount > 0 && localCount === 0 && !isIntentionalDelete) {
+        return cloudJsonStr;
+      }
+      if (!cloudJsonStr) return localJsonStr;
+      if (!localJsonStr) return cloudJsonStr;
+
+      const cloudObj = JSON.parse(cloudJsonStr);
+      const localObj = JSON.parse(localJsonStr);
+
+      const merged = Object.assign({}, cloudObj, localObj);
+      if (cloudObj.roster || localObj.roster) {
+        merged.roster = deepMergeShiftMap(cloudObj.roster, localObj.roster, isIntentionalDelete);
+      }
+      if (cloudObj.round1 || localObj.round1) {
+        merged.round1 = deepMergeShiftMap(cloudObj.round1, localObj.round1, isIntentionalDelete);
+      }
+      if (cloudObj.round2 || localObj.round2) {
+        merged.round2 = deepMergeShiftMap(cloudObj.round2, localObj.round2, isIntentionalDelete);
       }
 
-      const result = Object.assign({}, cloudObj, localObj, {
-        roster: mergedRoster
-      });
-      return JSON.stringify(result);
+      return JSON.stringify(merged);
     } catch (e) {
-      return localJsonStr || cloudJsonStr;
+      return cloudJsonStr || localJsonStr;
     }
   }
 
@@ -5416,7 +5478,40 @@ document.addEventListener('DOMContentLoaded', () => {
         shared[k] = localStorage.getItem(k);
       }
     }
+    shared['nurse_booking_v4_clean_reset'] = 'true';
     return shared;
+  }
+
+  /* --------------------------------------------------------------------------
+     2. ระบบกู้คืนข้อมูลอัตโนมัติจาก GitHub Commit History (กรณี db.json ว่างเปล่า)
+     -------------------------------------------------------------------------- */
+  async function autoRecoverFromGitHubHistoryIfEmpty() {
+    try {
+      showSyncStatus('🔍 กำลังดึงข้อมูลตารางเวรที่คีย์ไว้ล่าสุด...', 'rgba(245, 158, 11, 0.95)', false);
+      const commitsUrl = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/commits?path=${GITHUB_CONFIG.path}&per_page=25&t=${Date.now()}`;
+      const res = await fetch(commitsUrl, {
+        headers: { 'Authorization': `token ${GITHUB_CONFIG.token}` }
+      });
+      if (!res.ok) return null;
+      const commits = await res.json();
+
+      for (const c of commits) {
+        const fileRes = await fetch(`https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}?ref=${c.sha}`, {
+          headers: { 'Authorization': `token ${GITHUB_CONFIG.token}` }
+        });
+        if (!fileRes.ok) continue;
+        const fileJson = await fileRes.json();
+        const store = JSON.parse(base64ToUtf8(fileJson.content));
+        const shiftCount = countAllShiftsInStore(store);
+
+        if (shiftCount > 0) {
+          return store;
+        }
+      }
+    } catch (e) {
+      console.error('Auto recovery error:', e);
+    }
+    return null;
   }
 
   /* --------------------------------------------------------------------------
@@ -5438,7 +5533,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (hasPulledFromCloud) {
         clearTimeout(syncTimeout);
-        syncTimeout = setTimeout(() => pushToGitHub(true), 300);
+        syncTimeout = setTimeout(() => pushToGitHub(), 300);
       }
       showSyncStatus('🛡️ สำรองตารางเวรก่อนเกลี่ยอัตโนมัติแล้ว (' + nowStr + ')', 'rgba(124, 58, 237, 0.95)', true);
     } catch (e) {}
@@ -5462,12 +5557,14 @@ document.addEventListener('DOMContentLoaded', () => {
         masterList = JSON.parse(storeObj['nurse_master_list'] || localStorage.getItem('nurse_master_list') || '[]');
       } catch (e) {}
 
+      const currentStorageKey = typeof window.getStorageKey === 'function' ? window.getStorageKey() : null;
       const systemKeys = Object.keys(storeObj).filter(k => k.startsWith('nurse_system_')).sort();
-      const targetKey = systemKeys[systemKeys.length - 1] || 'nurse_system_2026_10';
+      const targetKey = (currentStorageKey && storeObj[currentStorageKey]) ? currentStorageKey : (systemKeys[systemKeys.length - 1] || 'nurse_system_2026_10');
+
       let rosterData = {};
       try {
         const parsedSys = JSON.parse(storeObj[targetKey] || '{}');
-        rosterData = parsedSys.roster || {};
+        rosterData = parsedSys.roster || parsedSys.round1 || {};
       } catch (e) {}
 
       const workbook = new window.ExcelJS.Workbook();
@@ -5566,34 +5663,27 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* --------------------------------------------------------------------------
-     4. แก้ปัญหาตารางแนวนอนด้านล่างสุดค้างเวลากด Logout จากหน้า Admin กลับมาหน้าหลัก
+     4. แก้ตารางล่างสุดค้างเวลา Logout + ซ่อนเวรดึกเมื่อเลือก 2 เวร + เดือนเริ่มต้น
      -------------------------------------------------------------------------- */
   function hideGhostMatrixTableOnMainView() {
     try {
-      // เช็คว่าตอนนี้อยู่ในหน้า "ปฏิทินหลัก" หรือ "เวรของฉัน" หรือไม่ (ดูจากกล่องปฏิทินหลักที่แสดงผลอยู่)
       const allHeadings = Array.from(document.querySelectorAll('h1, h2, h3, h4, div, span'));
       const isMainCalendarVisible = allHeadings.some(el =>
         el.children.length === 0 &&
         (el.textContent.trim() === 'ปฏิทินจองเวรประจำเดือน' || el.textContent.includes('ตารางเวรประจำเดือนของฉัน')) &&
         el.offsetParent !== null
       );
-
-      // เช็คว่าหน้า Admin หรือหน้าสรุปตารางเวรเปิดอยู่หรือไม่
       const isAdminControlVisible = allHeadings.some(el =>
         el.children.length === 0 &&
         (el.textContent.includes('จัดตารางเวรอัตโนมัติ') || el.textContent.includes('แผงควบคุมผู้ดูแลระบบ')) &&
         el.offsetParent !== null
       );
 
-      // ค้นหาตาราง Matrix แนวนอนด้านล่างสุด (ที่มีหัวตาราง "ชื่อ - สกุล" และท้ายตาราง "จำนวนเวรรวมต่อวัน:")
       const tables = document.querySelectorAll('table');
       tables.forEach(tbl => {
         const txt = tbl.textContent || '';
         if (txt.includes('ชื่อ - สกุล') && txt.includes('จำนวนเวรรวมต่อวัน')) {
-          // หา Container ที่หุ้มตารางด้านล่างสุดอยู่
           const wrapper = tbl.closest('div[id*="matrix" i], div[id*="summary" i], div[id*="roster" i], div[class*="matrix" i], section') || tbl.parentElement;
-          
-          // ถ้าตอนนี้เปิดหน้าปฏิทินหลักอยู่ และไม่ได้อยู่ในหน้า Admin ให้ซ่อนตารางล่างสุดทันที!
           if (isMainCalendarVisible && !isAdminControlVisible) {
             if (wrapper && !wrapper.contains(document.querySelector('h1, h2'))) {
               wrapper.style.setProperty('display', 'none', 'important');
@@ -5601,7 +5691,6 @@ document.addEventListener('DOMContentLoaded', () => {
               tbl.style.setProperty('display', 'none', 'important');
             }
           } else {
-            // ถ้ากดเข้าแท็บ "สรุปตารางเวร" หรือ "Admin" ให้แสดงตารางตามปกติ
             if (wrapper) wrapper.style.removeProperty('display');
             tbl.style.removeProperty('display');
           }
@@ -5610,9 +5699,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {}
   }
 
-  /* --------------------------------------------------------------------------
-     5. การตั้งค่า UI (ซ่อนเวรดึกเมื่อเลือกโหมด 2 เวร + เดือนเริ่มต้น + บังคับกรอก PIN)
-     -------------------------------------------------------------------------- */
   function injectSafeStyles() {
     if (document.getElementById('nurse-custom-fixes')) return;
     const style = document.createElement('style');
@@ -5724,7 +5810,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const title = (btn.getAttribute('title') || '').toLowerCase();
     const onclickAttr = (btn.getAttribute('onclick') || '').toLowerCase();
 
-    // 1. ตรวจจับการกดปุ่ม Logout (ออกจากระบบ) -> ล้างตารางค้างและรีเฟรชหน้าจอให้อัตโนมัติทันที!
+    if (text.includes('ล้างตาราง') || text.includes('รีเซ็ตตาราง') || text.includes('ลบทั้งหมด')) {
+      allowIntentionalDelete = true;
+      setTimeout(() => { allowIntentionalDelete = false; }, 5000);
+    }
+
     const isLogoutBtn = text.includes('ออกจากระบบ') ||
                         text.toLowerCase().includes('logout') ||
                         title.includes('ออกจากระบบ') ||
@@ -5740,12 +5830,10 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // 2. สำรองข้อมูลอัตโนมัติเมื่อกดจัดเวร
     if (text.includes('จัดตารางเวรอัตโนมัติ') || text.includes('จัดเวรอัตโนมัติ') || text.includes('ประมวลผลจัดเวร')) {
       autoBackupBeforeOptimize();
     }
 
-    // 3. บังคับกรอก PIN ก่อนเข้าสู่ระบบ
     if (text.includes('เข้าสู่ระบบจองเวร') || text.includes('ยืนยันรหัส')) {
       const visiblePinInputs = Array.from(document.querySelectorAll('input[type="password"], input[placeholder*="PIN"]'))
         .filter(el => el.offsetParent !== null);
@@ -5769,7 +5857,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   /* --------------------------------------------------------------------------
-     6. ระบบซิงค์ GitHub
+     5. ระบบซิงค์ GitHub (เชื่อมตรงกับ loadMonthState() ของแอป)
      -------------------------------------------------------------------------- */
   let badgeHideTimer = null;
   function showSyncStatus(text, bgColor = 'rgba(30, 58, 138, 0.85)', autoHide = true) {
@@ -5796,6 +5884,22 @@ document.addEventListener('DOMContentLoaded', () => {
     return decodeURIComponent(Array.prototype.map.call(atob(str.replace(/\s/g, '')), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
   }
 
+  // เรียกใช้ loadMonthState() และฟังก์ชันวาดหน้าจอของแอปโดยตรงเมื่อได้ข้อมูลใหม่จาก GitHub
+  function reloadAppMemoryState() {
+    let updated = false;
+    if (typeof window.loadMonthState === 'function') {
+      try { window.loadMonthState(); updated = true; } catch (e) {}
+    }
+    const renderFns = ['renderAll', 'render', 'updateUI', 'renderMainCalendar', 'renderUserCalendar', 'renderSummaryTable', 'renderMatrix'];
+    renderFns.forEach(fn => {
+      if (typeof window[fn] === 'function') {
+        try { window[fn](); updated = true; } catch (e) {}
+      }
+    });
+    applySafeUIFixes();
+    return updated;
+  }
+
   async function pullFromGitHub(isBackgroundCheck = false) {
     if (isSyncing) return;
     try {
@@ -5813,7 +5917,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (res.status === 404) {
         hasPulledFromCloud = true;
-        await pushToGitHub(true);
+        await pushToGitHub();
         return;
       }
       if (!res.ok) return;
@@ -5824,38 +5928,66 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       fileSha = fileData.sha;
-      const cloudStore = JSON.parse(base64ToUtf8(fileData.content));
+      let cloudStore = JSON.parse(base64ToUtf8(fileData.content));
+      const cloudShiftsCount = countAllShiftsInStore(cloudStore);
+
+      // กู้คืนอัตโนมัติจากประวัติ GitHub หากพบว่าตารางบน Cloud กลายเป็น 0 เวร
+      if (cloudShiftsCount === 0 && !sessionStorage.getItem('history_checked')) {
+        sessionStorage.setItem('history_checked', '1');
+        const recoveredStore = await autoRecoverFromGitHubHistoryIfEmpty();
+        if (recoveredStore) {
+          cloudStore = recoveredStore;
+          isSyncing = true;
+          for (const [key, val] of Object.entries(cloudStore)) {
+            if (isAllowedNurseSharedKey(key)) {
+              originalSetItem(key, val);
+            }
+          }
+          isSyncing = false;
+          hasPulledFromCloud = true;
+          await pushToGitHub();
+          reloadAppMemoryState();
+          showSyncStatus('✅ กู้คืนตารางเวรที่คีย์ไว้กลับมาเรียบร้อย!', 'rgba(16, 185, 129, 0.95)', false);
+          setTimeout(() => location.reload(), 300);
+          return;
+        }
+      }
 
       let hasChanges = false;
-      let hadNonNurseKeys = false;
       isSyncing = true;
 
       for (const [key, val] of Object.entries(cloudStore)) {
-        if (!isAllowedNurseSharedKey(key)) {
-          hadNonNurseKeys = true;
-          continue;
-        }
+        if (!isAllowedNurseSharedKey(key)) continue;
 
-        if (localStorage.getItem(key) !== val) {
+        if (key.startsWith('nurse_system_')) {
+          const localVal = localStorage.getItem(key);
+          const mergedVal = mergeNurseSystemData(val, localVal, false);
+          if (localVal !== mergedVal) {
+            originalSetItem(key, mergedVal);
+            hasChanges = true;
+          }
+        } else if (localStorage.getItem(key) !== val) {
           originalSetItem(key, val);
           hasChanges = true;
         }
       }
 
+      originalSetItem('nurse_booking_v4_clean_reset', 'true');
       isSyncing = false;
       hasPulledFromCloud = true;
-      applySafeUIFixes();
 
-      if (hadNonNurseKeys) {
-        pushToGitHub(true);
-      }
-
-      if (hasChanges && !sessionStorage.getItem('gh_synced_reload')) {
-        sessionStorage.setItem('gh_synced_reload', '1');
-        showSyncStatus('🔔 โหลดตารางเวรล่าสุดแล้ว...', 'rgba(16, 185, 129, 0.95)', false);
-        setTimeout(() => location.reload(), 300);
+      if (hasChanges) {
+        const refreshedInPlace = reloadAppMemoryState();
+        if (!refreshedInPlace && !sessionStorage.getItem('gh_synced_reload')) {
+          sessionStorage.setItem('gh_synced_reload', '1');
+          showSyncStatus('🔔 โหลดตารางเวรล่าสุดแล้ว...', 'rgba(16, 185, 129, 0.95)', false);
+          setTimeout(() => location.reload(), 300);
+          return;
+        }
+        showSyncStatus('☁️ อัปเดตตารางเวรล่าสุดเรียบร้อย', 'rgba(16, 185, 129, 0.95)', true);
       } else {
         sessionStorage.removeItem('gh_synced_reload');
+        reloadAppMemoryState();
         if (!isBackgroundCheck) {
           showSyncStatus('☁️ ข้อมูลตารางเวรเป็นปัจจุบันแล้ว', 'rgba(16, 185, 129, 0.85)', true);
         }
@@ -5882,18 +6014,35 @@ document.addEventListener('DOMContentLoaded', () => {
         fileSha = checkData.sha;
         const cloudStore = JSON.parse(base64ToUtf8(checkData.content));
 
+        let restoredFromCloud = false;
         for (const [k, cloudVal] of Object.entries(cloudStore)) {
           if (k.startsWith('nurse_system_')) {
-            localShared[k] = mergeNurseSystemData(cloudVal, localShared[k]);
-            originalSetItem(k, localShared[k]);
+            const cCount = countTotalShiftsInSystemJson(cloudVal);
+            const lCount = countTotalShiftsInSystemJson(localShared[k]);
+
+            if (cCount > 0 && lCount === 0 && !allowIntentionalDelete) {
+              localShared[k] = cloudVal;
+              originalSetItem(k, cloudVal);
+              restoredFromCloud = true;
+            } else {
+              localShared[k] = mergeNurseSystemData(cloudVal, localShared[k], allowIntentionalDelete);
+              originalSetItem(k, localShared[k]);
+            }
           }
+        }
+
+        if (restoredFromCloud) {
+          isSyncing = false;
+          reloadAppMemoryState();
+          showSyncStatus('🛡️ ป้องกันการรีเซ็ต: ดึงข้อมูลเดิมกลับมาแล้ว', 'rgba(16, 185, 129, 0.95)', true);
+          return;
         }
       }
 
       showSyncStatus('⏳ กำลังบันทึกตารางเวรออนไลน์...', 'rgba(30, 58, 138, 0.85)', false);
 
       const body = {
-        message: 'Sync clean nurse duty data',
+        message: 'Sync protected nurse duty data',
         content: utf8ToBase64(JSON.stringify(localShared, null, 2)),
         branch: GITHUB_CONFIG.branch
       };
@@ -5922,6 +6071,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   localStorage.setItem = function(key, value) {
+    if (key && key.startsWith('nurse_system_') && !isSyncing && !allowIntentionalDelete) {
+      const existingVal = localStorage.getItem(key);
+      const existingCount = countTotalShiftsInSystemJson(existingVal);
+      const newCount = countTotalShiftsInSystemJson(value);
+      if (existingCount > 0 && newCount === 0) {
+        console.warn('Blocked local app from resetting', key);
+        return;
+      }
+    }
+
     originalSetItem(key, value);
     setTimeout(applySafeUIFixes, 100);
     if (!isSyncing && hasPulledFromCloud && isAllowedNurseSharedKey(key)) {
@@ -5931,15 +6090,15 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   localStorage.removeItem = function(key) {
+    if (key && (key.startsWith('nurse_system_') || key === 'nurse_booking_v4_clean_reset') && !allowIntentionalDelete) {
+      return;
+    }
     originalRemoveItem(key);
     setTimeout(applySafeUIFixes, 100);
-    if (!isSyncing && hasPulledFromCloud && isAllowedNurseSharedKey(key)) {
-      clearTimeout(syncTimeout);
-      syncTimeout = setTimeout(pushToGitHub, 800);
-    }
   };
 
   localStorage.clear = function() {
+    if (!allowIntentionalDelete) return;
     originalClear();
   };
 
