@@ -5322,9 +5322,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-
 /* ============================================================================
-   GITHUB CLOUD SYNC V9 (AUTO-BACKUP + EXCELJS EXPORT BEFORE OPTIMIZE + RESTORE)
+   GITHUB CLOUD SYNC V10 (INLINE TOP EXCEL BUTTON + AUTO-BACKUP ON OPTIMIZE)
    ============================================================================ */
 (function() {
   const GITHUB_CONFIG = {
@@ -5349,6 +5348,10 @@ document.addEventListener('DOMContentLoaded', () => {
     'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
     'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
   ];
+
+  // ลบกล่องปุ่มลอยเดิม (ถ้าเคยค้างอยู่) ออกทันทีเพื่อไม่ให้บังตาราง
+  const oldFloatingPanel = document.getElementById('gh-backup-panel');
+  if (oldFloatingPanel) oldFloatingPanel.remove();
 
   /* --------------------------------------------------------------------------
      1. ตัวกรองแยก "ข้อมูลล็อกอินส่วนตัว" ออกจาก "ข้อมูลตารางเวรส่วนกลาง"
@@ -5447,7 +5450,7 @@ document.addEventListener('DOMContentLoaded', () => {
   ensureFreshDeviceSession();
 
   /* --------------------------------------------------------------------------
-     2. ระบบสำรองข้อมูลก่อนเกลี่ยเวร + Export เป็นไฟล์ Excel (.xlsx) ด้วย ExcelJS
+     2. ระบบสำรองข้อมูลอัตโนมัติเมื่อกดปุ่มจัดตารางเวร + ปุ่ม Export Excel ด้านบน
      -------------------------------------------------------------------------- */
   function getCurrentSnapshotObject() {
     const snapshot = {};
@@ -5461,7 +5464,8 @@ document.addEventListener('DOMContentLoaded', () => {
     return snapshot;
   }
 
-  function createBackupBeforeOptimize(isManual = false) {
+  // ทำงานอัตโนมัติทันทีเมื่อกดปุ่ม "จัดตารางเวรอัตโนมัติ"
+  function autoBackupBeforeOptimize() {
     try {
       const snapshot = getCurrentSnapshotObject();
       const nowStr = new Date().toLocaleString('th-TH', {
@@ -5471,24 +5475,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
       originalSetItem(BACKUP_KEY, JSON.stringify(snapshot));
       originalSetItem(BACKUP_TIME_KEY, nowStr);
-      updateBackupPanelUI();
 
       clearTimeout(syncTimeout);
       syncTimeout = setTimeout(pushToGitHub, 500);
-
-      if (isManual) {
-        showSyncStatus('💾 บันทึกข้อมูลสำรองก่อนเกลี่ยเวรเรียบร้อย (' + nowStr + ')', 'rgba(16, 185, 129, 0.95)', true);
-      } else {
-        showSyncStatus('🛡️ สำรองข้อมูลก่อนเกลี่ยเวรอัตโนมัติแล้ว (' + nowStr + ')', 'rgba(124, 58, 237, 0.95)', true);
-      }
+      showSyncStatus('🛡️ สำรองข้อมูลก่อนเกลี่ยเวรอัตโนมัติแล้ว (' + nowStr + ')', 'rgba(124, 58, 237, 0.95)', true);
     } catch (e) {
-      console.error('Backup error:', e);
+      console.error('Auto-backup error:', e);
     }
   }
 
-  // ฟังก์ชันสกัดข้อมูลการจองเวรจาก Snapshot เพื่อนำไปสร้างตาราง Excel
   function extractShiftRecordsFromStore(storeObj) {
-    // 1. ดึงรายชื่อพยาบาลทั้งหมด
     let nurseList = window.NURSES || window.nurses || window.nurseList || [];
     if (!Array.isArray(nurseList) || nurseList.length === 0) {
       for (const [k, v] of Object.entries(storeObj)) {
@@ -5511,15 +5507,13 @@ document.addEventListener('DOMContentLoaded', () => {
       nurseMap[id] = { id, name, M: 0, A: 0, N: 0, total: 0, dates: [] };
     });
 
-    const dailyRecords = []; // เก็บรายการจองรายวัน { dateKey, shiftType, nurseId, nurseName }
+    const dailyRecords = [];
 
-    // ฟังก์ชันช่วยสแกนหาข้อมูลเวรใน Object ลึกๆ
     function scanScheduleNode(node, pathPrefix = '') {
       if (!node || typeof node !== 'object') return;
 
-      // กรณีเจอ Array ของรหัสพยาบาลในเวรนั้น เช่น { M: ["6100001"], A: ["6100002"] }
       ['M', 'A', 'N', 'morning', 'afternoon', 'night', 'เช้า', 'บ่าย', 'ดึก'].forEach(shiftKey => {
-        if ( shiftKey in node ) {
+        if (shiftKey in node) {
           const val = node[shiftKey];
           const normShift = (shiftKey === 'M' || shiftKey === 'morning' || shiftKey === 'เช้า') ? 'M'
                           : (shiftKey === 'A' || shiftKey === 'afternoon' || shiftKey === 'บ่าย') ? 'A' : 'N';
@@ -5544,7 +5538,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      // สแกนชั้นต่อไป
       for (const [k, v] of Object.entries(node)) {
         if (['M', 'A', 'N', 'morning', 'afternoon', 'night', 'เช้า', 'บ่าย', 'ดึก'].includes(k)) continue;
         if (v && typeof v === 'object') {
@@ -5568,37 +5561,30 @@ document.addEventListener('DOMContentLoaded', () => {
     return { nurseSummary: Object.values(nurseMap), dailyRecords, rawStore: storeObj };
   }
 
-  // ฟังก์ชันสร้างและดาวน์โหลดไฟล์ Excel (.xlsx) ด้วย ExcelJS
   async function exportBackupToExcel() {
     try {
+      // ถ้ายังไม่เคยกดจัดตารางเวรอัตโนมัติ (ยังไม่มีข้อมูลใน BACKUP_KEY) ให้ใช้ข้อมูลตารางเวรปัจจุบันที่พยาบาลจองเข้ามาเลย
+      const rawBackup = localStorage.getItem(BACKUP_KEY);
+      const backupTime = localStorage.getItem(BACKUP_TIME_KEY) || 'ข้อมูลปัจจุบัน (ก่อนเกลี่ย)';
+      const storeObj = rawBackup ? JSON.parse(rawBackup) : getCurrentSnapshotObject();
+
       if (typeof window.ExcelJS === 'undefined') {
-        alert('ไม่พบไลบรารี ExcelJS ในหน้าเว็บ กำลังดาวน์โหลดเป็นไฟล์ข้อมูล JSON แทนครับ');
-        const raw = localStorage.getItem(BACKUP_KEY) || JSON.stringify(getCurrentSnapshotObject(), null, 2);
-        const blob = new Blob([raw], { type: 'application/json' });
+        const blob = new Blob([JSON.stringify(storeObj, null, 2)], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `สำรองตารางเวรก่อนเกลี่ย_${new Date().toISOString().slice(0,10)}.json`;
+        a.download = `ตารางเวรก่อนเกลี่ย_${new Date().toISOString().slice(0,10)}.json`;
         a.click();
         return;
       }
 
-      showSyncStatus('📊 กำลังสร้างไฟล์ Excel ตารางเวรก่อนเกลี่ย...', 'rgba(16, 185, 129, 0.95)', false);
-
-      // ถ้ายังไม่มี Backup ให้สำรองข้อมูลปัจจุบันก่อนทันทีแล้วนำมาออกรายงาน
-      if (!localStorage.getItem(BACKUP_KEY)) {
-        createBackupBeforeOptimize(false);
-      }
-
-      const rawBackup = localStorage.getItem(BACKUP_KEY);
-      const backupTime = localStorage.getItem(BACKUP_TIME_KEY) || new Date().toLocaleString('th-TH');
-      const storeObj = rawBackup ? JSON.parse(rawBackup) : getCurrentSnapshotObject();
+      showSyncStatus('📊 กำลังสร้างไฟล์ Excel (ก่อนเกลี่ย)...', 'rgba(16, 185, 129, 0.95)', false);
       const { nurseSummary, dailyRecords } = extractShiftRecordsFromStore(storeObj);
 
       const workbook = new window.ExcelJS.Workbook();
       workbook.creator = 'Nurse Duty Booking System';
       workbook.created = new Date();
 
-      // ==================== ชีตที่ 1: สรุปยอดจองเวรก่อนเกลี่ย ====================
+      // ชีตที่ 1: สรุปยอดจองเวรก่อนเกลี่ย
       const sheet1 = workbook.addWorksheet('สรุปยอดจองก่อนเกลี่ย');
       sheet1.mergeCells('A1:G1');
       const titleCell = sheet1.getCell('A1');
@@ -5615,22 +5601,11 @@ document.addEventListener('DOMContentLoaded', () => {
         cell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: 'FF1E293B' } };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        cell.border = {
-          top: { style: 'thin' }, left: { style: 'thin' },
-          bottom: { style: 'thin' }, right: { style: 'thin' }
-        };
+        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
       });
 
       nurseSummary.forEach((n, idx) => {
-        const row = sheet1.addRow([
-          idx + 1,
-          n.id,
-          n.name,
-          n.M,
-          n.A,
-          n.N,
-          `${n.total} เวร (${n.total * 8} ชม.)`
-        ]);
+        const row = sheet1.addRow([idx + 1, n.id, n.name, n.M, n.A, n.N, `${n.total} เวร (${n.total * 8} ชม.)`]);
         row.height = 22;
         row.eachCell((cell, colNumber) => {
           cell.font = { name: 'Tahoma', size: 11 };
@@ -5649,7 +5624,7 @@ document.addEventListener('DOMContentLoaded', () => {
         { width: 15 }, { width: 15 }, { width: 15 }, { width: 22 }
       ];
 
-      // ==================== ชีตที่ 2: รายละเอียดการจองรายวัน ====================
+      // ชีตที่ 2: รายละเอียดการจองรายวัน
       const sheet2 = workbook.addWorksheet('รายละเอียดการจองรายวัน');
       const headerRow2 = sheet2.addRow(['ลำดับ', 'วันที่ / คีย์ตาราง', 'ช่วงเวร', 'รหัสพยาบาล', 'ชื่อ-นามสกุล พยาบาล']);
       headerRow2.height = 24;
@@ -5668,7 +5643,6 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         });
       } else {
-        // กรณีโครงสร้าง JSON เป็นรูปแบบพิเศษ ให้แนบข้อมูลดิบไว้ในชีตที่ 2 ด้วย
         Object.entries(storeObj).forEach(([k, v], i) => {
           sheet2.addRow([i + 1, k, 'Raw Data', '-', String(v).slice(0, 3000)]);
         });
@@ -5678,7 +5652,6 @@ document.addEventListener('DOMContentLoaded', () => {
         { width: 10 }, { width: 25 }, { width: 18 }, { width: 18 }, { width: 35 }
       ];
 
-      // สร้างไฟล์และสั่งดาวน์โหลดทันที
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
@@ -5690,98 +5663,46 @@ document.addEventListener('DOMContentLoaded', () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      showSyncStatus('✅ ดาวน์โหลดไฟล์ Excel (ก่อนเกลี่ยเวร) เรียบร้อย!', 'rgba(16, 185, 129, 0.95)', true);
+      showSyncStatus('✅ ดาวน์โหลด Excel (ก่อนเกลี่ย) เรียบร้อย!', 'rgba(16, 185, 129, 0.95)', true);
     } catch (err) {
       console.error('Excel export error:', err);
       alert('เกิดข้อผิดพลาดในการสร้างไฟล์ Excel: ' + err.message);
     }
   }
 
-  function restoreBackupBeforeOptimize() {
-    const rawBackup = localStorage.getItem(BACKUP_KEY);
-    const backupTime = localStorage.getItem(BACKUP_TIME_KEY) || 'ไม่ระบุเวลา';
-    if (!rawBackup) {
-      alert('ยังไม่มีข้อมูลสำรองก่อนเกลี่ยเวรในระบบครับ');
-      return;
-    }
+  // สร้างเฉพาะปุ่ม "📊 Excel (ก่อนเกลี่ย)" ไปวางไว้ในแถบปุ่มด้านบน (ไม่ลอยบังตาราง)
+  function injectInlineTopExcelButton() {
+    if (document.getElementById('gh-inline-excel-btn')) return;
 
-    const confirmRestore = confirm(
-      `ต้องการย้อนตารางเวรกลับไปเป็นข้อมูลก่อนเกลี่ยเวรใช่หรือไม่?\n\n` +
-      `🕒 ข้อมูลสำรองเมื่อ: ${backupTime}\n` +
-      `(ตารางเวรที่ถูกเกลี่ยไปแล้วจะถูกแทนที่ด้วยข้อมูลที่พยาบาลจองเข้ามาตอนแรก)`
-    );
-    if (!confirmRestore) return;
+    // ค้นหาปุ่มด้านบนของหน้า Admin หรือหน้าสรุปตารางเวร (เช่น ปุ่มจัดตารางเวรอัตโนมัติ หรือปุ่ม Export เดิม)
+    const buttons = Array.from(document.querySelectorAll('button, a[role="button"]'));
+    let anchorBtn = buttons.find(b => {
+      const t = (b.textContent || '').trim();
+      return t.includes('จัดตารางเวรอัตโนมัติ') || t.includes('จัดเวรอัตโนมัติ');
+    });
 
-    try {
-      const snapshot = JSON.parse(rawBackup);
-      isSyncing = true;
-      for (const [k, v] of Object.entries(snapshot)) {
-        originalSetItem(k, v);
-      }
-      isSyncing = false;
-
-      showSyncStatus('⏪ กำลังกู้คืนข้อมูลก่อนเกลี่ยเวร...', 'rgba(245, 158, 11, 0.95)', false);
-      pushToGitHub().then(() => {
-        setTimeout(() => location.reload(), 400);
+    if (!anchorBtn) {
+      anchorBtn = buttons.find(b => {
+        const t = (b.textContent || '').trim();
+        return t.includes('Export') || t.includes('Excel') || t.includes('ดาวน์โหลด') || t.includes('พิมพ์');
       });
-    } catch (e) {
-      alert('เกิดข้อผิดพลาดในการกู้คืนข้อมูล');
-    }
-  }
-
-  // แถบปุ่มควบคุมมุมซ้ายล่าง (แสดงในหน้า Admin)
-  function updateBackupPanelUI() {
-    let panel = document.getElementById('gh-backup-panel');
-    const bodyText = document.body ? document.body.innerText : '';
-    const isAdminView = bodyText.includes('จัดตารางเวรอัตโนมัติ') ||
-                        bodyText.includes('จัดการระบบ') ||
-                        bodyText.includes('ตั้งค่าระบบ') ||
-                        bodyText.includes('โควตา');
-
-    if (!isAdminView) {
-      if (panel) panel.style.display = 'none';
-      return;
     }
 
-    if (!panel) {
-      panel = document.createElement('div');
-      panel.id = 'gh-backup-panel';
-      panel.style.cssText = 'position:fixed;bottom:75px;left:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;z-index:99998;background:rgba(15, 23, 42, 0.9);padding:7px 12px;border-radius:16px;backdrop-filter:blur(8px);box-shadow:0 4px 14px rgba(0,0,0,0.3);font-family:sans-serif;border:1px solid rgba(255,255,255,0.15);';
-
-      const btnBackup = document.createElement('button');
-      btnBackup.type = 'button';
-      btnBackup.textContent = '💾 สำรองก่อนเกลี่ย';
-      btnBackup.style.cssText = 'background:#2563eb;color:#fff;border:none;padding:6px 11px;border-radius:10px;font-size:12px;cursor:pointer;font-weight:bold;';
-      btnBackup.onclick = () => createBackupBeforeOptimize(true);
-
+    if (anchorBtn && anchorBtn.parentElement) {
       const btnExcel = document.createElement('button');
+      btnExcel.id = 'gh-inline-excel-btn';
       btnExcel.type = 'button';
-      btnExcel.textContent = '📊 Export Excel (ก่อนเกลี่ย)';
-      btnExcel.style.cssText = 'background:#10b981;color:#fff;border:none;padding:6px 11px;border-radius:10px;font-size:12px;cursor:pointer;font-weight:bold;';
-      btnExcel.onclick = exportBackupToExcel;
+      btnExcel.innerHTML = '📊 Excel (ก่อนเกลี่ย)';
+      btnExcel.title = 'ดาวน์โหลดตารางเวรที่พยาบาลจองเข้ามา (ก่อนเกลี่ยเวร) เป็นไฟล์ Excel';
+      btnExcel.style.cssText = 'background:linear-gradient(135deg, #10b981, #059669);color:#fff;border:none;padding:8px 14px;border-radius:12px;font-size:13px;cursor:pointer;font-weight:bold;display:inline-flex;align-items:center;gap:6px;box-shadow:0 3px 10px rgba(16,185,129,0.25);margin:4px;font-family:inherit;white-space:nowrap;';
+      btnExcel.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        exportBackupToExcel();
+      };
 
-      const btnRestore = document.createElement('button');
-      btnRestore.id = 'gh-btn-restore';
-      btnRestore.type = 'button';
-      btnRestore.style.cssText = 'background:#f59e0b;color:#fff;border:none;padding:6px 11px;border-radius:10px;font-size:12px;cursor:pointer;font-weight:bold;';
-      btnRestore.onclick = restoreBackupBeforeOptimize;
-
-      panel.appendChild(btnBackup);
-      panel.appendChild(btnExcel);
-      panel.appendChild(btnRestore);
-      document.body.appendChild(panel);
-    }
-
-    panel.style.display = 'flex';
-    const btnRestore = document.getElementById('gh-btn-restore');
-    const backupTime = localStorage.getItem(BACKUP_TIME_KEY);
-    if (btnRestore) {
-      if (backupTime) {
-        btnRestore.style.display = 'inline-block';
-        btnRestore.textContent = `⏪ ย้อนกลับก่อนเกลี่ย (${backupTime})`;
-      } else {
-        btnRestore.style.display = 'none';
-      }
+      // แทรกปุ่มไว้ข้างๆ ปุ่มด้านบนทันที
+      anchorBtn.parentElement.insertBefore(btnExcel, anchorBtn.nextSibling);
     }
   }
 
@@ -5815,7 +5736,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function applySafeUIFixes() {
     try {
       injectSafeStyles();
-      updateBackupPanelUI();
+      injectInlineTopExcelButton();
 
       const bodyText = document.body ? document.body.innerText : '';
       const is2Shift = bodyText.includes('โหมด: 2 เวร') ||
@@ -5893,16 +5814,15 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(applySafeUIFixes, 150);
 
     const btn = e.target.closest('button, input[type="submit"], a, [role="button"]');
-    if (!btn) return;
+    if (!btn || btn.id === 'gh-inline-excel-btn') return;
     const text = (btn.textContent || btn.value || '').trim();
 
-    if (
-      (text.includes('จัดตารางเวรอัตโนมัติ') || text.includes('จัดเวรอัตโนมัติ') || text.includes('ประมวลผลจัดเวร')) &&
-      !text.includes('สำรอง') && !text.includes('ย้อนกลับ') && !text.includes('Excel')
-    ) {
-      createBackupBeforeOptimize(false);
+    // สำรองข้อมูลอัตโนมัติทันทีเมื่อกดปุ่ม "จัดตารางเวรอัตโนมัติ"
+    if (text.includes('จัดตารางเวรอัตโนมัติ') || text.includes('จัดเวรอัตโนมัติ') || text.includes('ประมวลผลจัดเวร')) {
+      autoBackupBeforeOptimize();
     }
 
+    // บังคับกรอก PIN ก่อนเข้าสู่ระบบ
     if (text.includes('เข้าสู่ระบบจองเวร') || text.includes('ยืนยันรหัส')) {
       const visiblePinInputs = Array.from(document.querySelectorAll('input[type="password"], input[placeholder*="PIN"]'))
         .filter(el => el.offsetParent !== null);
@@ -5999,7 +5919,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
       isSyncing = false;
-      updateBackupPanelUI();
+      applySafeUIFixes();
 
       if (needsCleanPush) {
         pushToGitHub();
@@ -6044,7 +5964,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const body = {
-        message: 'Auto-sync shared duty data + backup snapshot',
+        message: 'Auto-sync shared duty data + auto backup',
         content: utf8ToBase64(JSON.stringify(sharedData, null, 2)),
         branch: GITHUB_CONFIG.branch
       };
