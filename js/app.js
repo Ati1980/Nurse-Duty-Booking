@@ -3,6 +3,7 @@
  * Modern Blue Glassmorphism Theme
  * Multi-Role Auth, Main Monthly Calendar with All Shifts, 
  * Shift Selection by Actual Nurse Count, User-Specific View & Shift Optimizer
+ * Github Start Line No.5325
  */
 
 // 1. Data Definitions
@@ -5323,7 +5324,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GITHUB CLOUD SYNC V6 (SAFE & STABLE - NO UI FREEZE)
+   GITHUB CLOUD SYNC V7 (100% ISOLATED DEVICE LOGIN + AUTO CLEAN SESSION)
    ============================================================================ */
 (function() {
   const GITHUB_CONFIG = {
@@ -5347,7 +5348,131 @@ document.addEventListener('DOMContentLoaded', () => {
   ];
 
   /* --------------------------------------------------------------------------
-     1. ใช้ CSS Rule จัดการการ์ดเวรดึก (ทำงานด้วย CSS ล้วน ไม่ทำให้เว็บค้าง 100%)
+     1. ตัวกรองแยก "ข้อมูลล็อกอินส่วนตัว" ออกจาก "ข้อมูลตารางเวรส่วนกลาง" แบบ 100%
+     -------------------------------------------------------------------------- */
+  function isPrivateSessionKey(key, val) {
+    if (!key) return true;
+    const k = key.toLowerCase();
+
+    // กฎเหล็กข้อที่ 1: ถ้าชื่อ Key มีคำที่เกี่ยวกับการล็อกอินหรือผู้ใช้ปัจจุบัน ห้ามซิงค์เด็ดขาด! (เช็คก่อนเสมอ)
+    if (
+      k.includes('current') ||
+      k.includes('session') ||
+      k.includes('logged') ||
+      k.includes('login') ||
+      k.includes('auth') ||
+      k.includes('active_user') ||
+      k.includes('active_nurse') ||
+      k.includes('selected_nurse') ||
+      k.includes('selected_user') ||
+      k.includes('current_nurse') ||
+      k.includes('current_user') ||
+      k.includes('nurse_user') ||
+      k.includes('user_role') ||
+      k.includes('role') ||
+      k.includes('view') ||
+      k.includes('tab') ||
+      k.includes('theme') ||
+      k.includes('dark') ||
+      k === 'user' ||
+      k === 'nurse' ||
+      k === 'admin' ||
+      k === 'isadmin' ||
+      k === 'is_admin' ||
+      k === 'gh_synced_reload'
+    ) {
+      return true; // ล็อกไว้เฉพาะเครื่องตัวเอง ห้ามส่งขึ้น GitHub!
+    }
+
+    // กฎเหล็กข้อที่ 2: เช็คจากเนื้อหาข้อมูล (Value)
+    if (typeof val === 'string') {
+      const v = val.trim();
+      // ถ้าเก็บค่าเป็นรหัสพนักงานเดี่ยวๆ (เช่น "6100074") หรือสถานะ true/false/admin/nurse เฉยๆ แปลว่าเป็น Session
+      if (
+        /^\d{5,10}$/.test(v) ||
+        /^"\d{5,10}"$/.test(v) ||
+        v === 'true' ||
+        v === 'false' ||
+        v === 'admin' ||
+        v === 'nurse' ||
+        v === 'user' ||
+        v === 'guest'
+      ) {
+        return true;
+      }
+
+      // ถ้าเป็น Object JSON ของพยาบาลคนเดียวที่กำลังล็อกอินอยู่ (ไม่ใช่ Array รายชื่อทั้งหมด และไม่ใช่ตารางเวร)
+      if (v.startsWith('{') && v.endsWith('}')) {
+        try {
+          const obj = JSON.parse(v);
+          if (obj && !Array.isArray(obj)) {
+            const keys = Object.keys(obj);
+            // ถ้าใน Object มีแค่ข้อมูลคนๆ เดียว เช่น { id: "6100074", name: "น.ส.วริศรา...", role: "nurse" }
+            const hasSingleUserProps = (obj.id || obj.code || obj.empId || obj.staffId || obj.username || obj.role);
+            const isNotScheduleMap = !keys.some( prop => /^\d{4}-\d{2}/.test(prop) || prop.includes('202') || prop.includes('256') );
+            if (hasSingleUserProps && isNotScheduleMap && keys.length <= 12) {
+              return true; // เป็นข้อมูลคนที่กำลังล็อกอิน ห้ามซิงค์!
+            }
+          }
+        } catch (e) {}
+      }
+    }
+
+    return false; // ข้อมูลตารางเวร, PIN ทั้งหมด, การตั้งค่าเวร ให้ซิงค์ตามปกติ
+  }
+
+  // ฟังก์ชันทำความสะอาดก้อน JSON (กรณีแอปเก็บ currentUser ซ้อนไว้ในก้อนข้อมูลรวม)
+  function sanitizeJsonValue(val) {
+    if (typeof val !== 'string') return val;
+    const v = val.trim();
+    if (v.startsWith('{') && v.endsWith('}')) {
+      try {
+        const obj = JSON.parse(v);
+        if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+          const sessionProps = [
+            'currentUser', 'currentNurse', 'loggedInUser', 'loggedInNurse',
+            'activeUser', 'activeNurse', 'selectedNurse', 'selectedNurseId',
+            'currentUserId', 'currentNurseId', 'isAdmin', 'isLoggedIn',
+            'role', 'currentRole', 'authUser', 'session', 'userSession'
+          ];
+          let modified = false;
+          sessionProps.forEach(prop => {
+            if (prop in obj && obj[prop] !== null) {
+              obj[prop] = null;
+              modified = true;
+            }
+          });
+          if (modified) return JSON.stringify(obj);
+        }
+      } catch (e) {}
+    }
+    return val;
+  }
+
+  // ล้างสถานะ Login ในเครื่องเมื่อเปิดเว็บครั้งแรกในแท็บใหม่ (เพื่อให้เครื่องอื่นที่ก๊อปปี้ลิงก์ไปเปิด ไม่ติด Login ค้าง)
+  function ensureFreshDeviceSession() {
+    if (!sessionStorage.getItem('device_login_active')) {
+      // ถ้าเพิ่งเปิดลิงก์เข้ามาใหม่ในเครื่องนี้ ให้ลบเฉพาะค่า Login ที่อาจหลงเหลือมาจาก db.json เก่าออกทันที
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        const v = localStorage.getItem(k);
+        if (isPrivateSessionKey(k, v)) {
+          keysToRemove.push(k);
+        } else {
+          // ถ้าเป็นก้อนข้อมูลรวม ให้ล้างเฉพาะฟิลด์ currentUser ข้างใน
+          const cleaned = sanitizeJsonValue(v);
+          if (cleaned !== v) originalSetItem(k, cleaned);
+        }
+      }
+      keysToRemove.forEach(k => originalRemoveItem(k));
+      sessionStorage.setItem('device_login_active', '1');
+    }
+  }
+  ensureFreshDeviceSession();
+
+  /* --------------------------------------------------------------------------
+     2. การตั้งค่า UI (ซ่อนเวรดึกเมื่อเลือกโหมด 2 เวร + เดือนเริ่มต้น + บังคับกรอก PIN)
      -------------------------------------------------------------------------- */
   function injectSafeStyles() {
     if (document.getElementById('nurse-custom-fixes')) return;
@@ -5373,20 +5498,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.head.appendChild(style);
   }
 
-  /* --------------------------------------------------------------------------
-     2. ฟังก์ชันปรับหน้าจอ (ทำงานเฉพาะตอนคลิกปุ่ม ไม่รบกวนนาฬิกา)
-     -------------------------------------------------------------------------- */
   function applySafeUIFixes() {
     try {
       injectSafeStyles();
-
-      // เช็คโหมด 2 เวร (ดูว่ามีป้ายเวรดึก (N) แสดงอยู่ด้านบนหรือไม่)
       const bodyText = document.body ? document.body.innerText : '';
       const is2Shift = bodyText.includes('โหมด: 2 เวร') ||
                        bodyText.includes('2 เวร/วัน') ||
                        (bodyText.includes('เวรเช้า (M)') && bodyText.includes('เวรบ่าย (A)') && !bodyText.includes('เวรดึก (N)'));
 
-      // จัดการการ์ด "เวรดึกของฉัน"
       const spans = document.querySelectorAll('div, span, p');
       for (let i = 0; i < spans.length; i++) {
         const el = spans[i];
@@ -5402,13 +5521,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
         }
-        // ปรับข้อความปุ่มกรองในโหมด 2 เวร
         if (is2Shift && el.children.length === 0 && el.textContent.includes('ทุกเวร (เช้า/บ่าย/ดึก)')) {
           el.textContent = el.textContent.replace('ทุกเวร (เช้า/บ่าย/ดึก)', 'ทุกเวร (เช้า/บ่าย)');
         }
       }
 
-      // อัปเดตข้อความหัวข้อ "ประจำเดือน ... | คลิกเลือกดูหรือจองเวรได้ทันที" ให้ตรงกับ Dropdown เดือนที่เลือก
       let selectedMonthName = null;
       let selectedYearText = null;
       const selects = document.querySelectorAll('select');
@@ -5435,7 +5552,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {}
   }
 
-  // ตั้งค่าเริ่มต้นเป็น "เดือนปัจจุบัน + 1" ครั้งเดียวตอนเปิดหน้าเว็บ
   function setInitialNextMonth() {
     try {
       if (sessionStorage.getItem('init_next_month_done')) return;
@@ -5457,11 +5573,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {}
   }
 
-  /* --------------------------------------------------------------------------
-     3. ป้องกันการปล่อยช่อง PIN ว่างแล้วกดเข้าสู่ระบบ
-     -------------------------------------------------------------------------- */
   document.addEventListener('click', function(e) {
-    // ทำงานปรับ UI เบาๆ หลังคลิกปุ่มใดๆ
     setTimeout(applySafeUIFixes, 150);
 
     const btn = e.target.closest('button, input[type="submit"], a, [role="button"]');
@@ -5491,42 +5603,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   /* --------------------------------------------------------------------------
-     4. ระบบซิงค์ข้อมูลอัตโนมัติ (แยก Session การล็อกอินของแต่ละเครื่อง)
+     3. ระบบซิงค์ GitHub (บันทึกและดึงเฉพาะตารางเวร ไม่เอา Login มาปน)
      -------------------------------------------------------------------------- */
-  function isPrivateSessionKey(key, val) {
-    if (!key) return true;
-    const k = key.toLowerCase();
-    if (
-      k.includes('password') || k.includes('pin') || k.includes('cred') ||
-      k.includes('schedule') || k.includes('shift') || k.includes('booking') ||
-      k.includes('roster') || k.includes('duty') || k.includes('config') ||
-      k.includes('setting') || k.includes('lock') || k.includes('holiday') ||
-      k.includes('nurses') || k.includes('nurse_list') || k.includes('users')
-    ) return false;
-
-    if (
-      k.includes('current') || k.includes('session') || k.includes('logged') ||
-      k.includes('login') || k.includes('auth') || k.includes('active') ||
-      k.includes('selected') || k.includes('view') || k.includes('tab') ||
-      k.includes('theme') || k.includes('dark') || k.includes('role') ||
-      k === 'user' || k === 'nurse' || k === 'gh_synced_reload'
-    ) return true;
-
-    if (typeof val === 'string') {
-      const v = val.trim();
-      if (/^\d{5,10}$/.test(v) || v === 'admin' || v === 'nurse' || v === 'user') return true;
-      if (v.startsWith('{') && v.endsWith('}')) {
-        try {
-          const obj = JSON.parse(v);
-          if (obj && !Array.isArray(obj) && (obj.id || obj.code || obj.empId || obj.username || obj.role) && Object.keys(obj).length <= 10) {
-            return true;
-          }
-        } catch (e) {}
-      }
-    }
-    return false;
-  }
-
   let badgeHideTimer = null;
   function showSyncStatus(text, bgColor = 'rgba(30, 58, 138, 0.85)', autoHide = true) {
     let badge = document.getElementById('gh-sync-badge');
@@ -5581,15 +5659,28 @@ document.addEventListener('DOMContentLoaded', () => {
       const cloudStore = JSON.parse(base64ToUtf8(fileData.content));
 
       let hasChanges = false;
+      let needsCleanPush = false;
       isSyncing = true;
+
       for (const [key, val] of Object.entries(cloudStore)) {
-        if (isPrivateSessionKey(key, val)) continue;
-        if (localStorage.getItem(key) !== val) {
-          originalSetItem(key, val);
+        // ถ้าในไฟล์ db.json มีคีย์ Login ติดมา ให้ลบทิ้งจากเครื่องและสั่งทำความสะอาด db.json
+        if (isPrivateSessionKey(key, val)) {
+          needsCleanPush = true;
+          continue;
+        }
+        const cleanVal = sanitizeJsonValue(val);
+        if (cleanVal !== val) needsCleanPush = true;
+
+        if (localStorage.getItem(key) !== cleanVal) {
+          originalSetItem(key, cleanVal);
           hasChanges = true;
         }
       }
       isSyncing = false;
+
+      if (needsCleanPush) {
+        pushToGitHub();
+      }
 
       if (hasChanges && !sessionStorage.getItem('gh_synced_reload')) {
         sessionStorage.setItem('gh_synced_reload', '1');
@@ -5616,7 +5707,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const k = localStorage.key(i);
         const v = localStorage.getItem(k);
         if (!isPrivateSessionKey(k, v)) {
-          sharedData[k] = v;
+          sharedData[k] = sanitizeJsonValue(v);
         }
       }
 
@@ -5630,7 +5721,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const body = {
-        message: 'Auto-sync shared duty data',
+        message: 'Auto-sync shared duty data (clean session)',
         content: utf8ToBase64(JSON.stringify(sharedData, null, 2)),
         branch: GITHUB_CONFIG.branch
       };
@@ -5686,7 +5777,6 @@ document.addEventListener('DOMContentLoaded', () => {
     pullFromGitHub(false);
   });
 
-  // เช็คข้อมูลใหม่อัตโนมัติทุก 12 วินาที
   setInterval(() => {
     if (!document.hidden) pullFromGitHub(true);
   }, 12000);
