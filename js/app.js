@@ -177,8 +177,8 @@ try {
 function initTheme() {
   try {
     const saved = localStorage.getItem('nurse_roster_theme');
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const isDark = saved ? (saved === 'dark') : prefersDark;
+    // ให้เป็นโหมดสว่าง (Light) เป็นค่าเริ่มต้นเสมอ เว้นแต่ผู้ใช้จะเคยกดเปลี่ยนเป็น dark ไว้เอง
+    const isDark = (saved === 'dark');
     applyTheme(isDark);
   } catch (e) {
     applyTheme(false);
@@ -809,8 +809,16 @@ window.handleNurseChangePassword = function(e) {
 window.handleLogout = function() {
   currentUser = null;
   localStorage.removeItem('nurse_current_user');
+  sessionStorage.removeItem('nurse_current_user');
+  
+  // บังคับเปลี่ยน View กลับหน้าปฏิทินหลักทันที
+  activeView = 'dashboard';
   updateAuthUI();
   switchView('dashboard');
+  
+  if (typeof window.showToast === 'function') {
+    window.showToast('🚪 ออกจากระบบเรียบร้อยแล้ว');
+  }
 };
 
 window.logout = window.handleLogout;
@@ -5254,9 +5262,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('regenerateOptimizeBtn')?.addEventListener('click', runOptimization);
   document.getElementById('confirmOptimizeBtn')?.addEventListener('click', confirmOptimization);
 
-  // Initial View: Keep current session view if user is logged in, or start at dashboard
+// Initial View: ตรวจสอบ currentUser ล่าสุดจาก Storage อีกครั้ง
   initShiftToggleListeners();
-  if (currentUser && currentUser.role === 'admin') {
+  const verifyUser = localStorage.getItem('nurse_current_user');
+  if (!verifyUser) {
+    currentUser = null;
+    switchView('dashboard');
+  } else if (currentUser && currentUser.role === 'admin') {
     switchView('admin');
   } else if (currentUser && currentUser.role === 'nurse') {
     switchView('personal');
@@ -5360,6 +5372,17 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     if (typeof window.loadMonthState === 'function') {
       try { window.loadMonthState(); } catch (e) {}
     }
+// สั่งวาดหน้าจอที่ตรงกับฟังก์ชันปัจจุบันในระบบ
+    try {
+      if (typeof renderPublicDashboard === 'function') renderPublicDashboard();
+      if (typeof renderNurseCalendar === 'function' && activeView === 'personal') renderNurseCalendar();
+      if (typeof renderAdminView === 'function' && activeView === 'admin') renderAdminView();
+      if (typeof renderExcelView === 'function' && activeView === 'excel') renderExcelView('userExcelViewContent');
+    } catch (e) {
+      console.error('Error reloading app memory state:', e);
+    }
+  }
+  
     ['renderAll', 'render', 'updateUI', 'renderMainCalendar', 'renderUserCalendar'].forEach(fn => {
       if (typeof window[fn] === 'function') {
         try { window[fn](); } catch (e) {}
@@ -5393,6 +5416,9 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
       originalSetItem('nurse_booking_v4_clean_reset', 'true');
       isSyncing = false;
       hasPulledFromCloud = true;
+
+      // สั่งเรนเดอร์ข้อมูลสดลงตารางทันทีตั้งแต่เปิดหน้าเว็บครั้งแรก
+      reloadAppMemoryState();
 
       if (hasChanges) {
         reloadAppMemoryState();
