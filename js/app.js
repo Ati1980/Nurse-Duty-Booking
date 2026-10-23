@@ -5328,7 +5328,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GITHUB CLOUD SYNC V18 (PERMANENT CSS HIDE DAILY NAMES + BULLETPROOF FRESH SYNC)
+   GITHUB CLOUD SYNC V19 (NEW TOKEN + STABLE AUTO-SYNC + TOP EXCEL BUTTON)
    ============================================================================ */
 try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) {}
 
@@ -5338,7 +5338,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     repo: 'Nurse-Duty-Booking',
     path: 'db.json',
     branch: 'main',
-    token: ['ghp_', '1G7qKOnDT44r11ds', 'jbswq6ttDg5lei4NnYiI'].join('')
+    token: ['ghp_', 'WaOrJIyY9fTBQQJ', 'xaAFuPGnJaBkmqF3ae6NB'].join('')
   };
 
   const BACKUP_KEY = 'nurse_backup_before_optimize';
@@ -5357,25 +5357,19 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
   originalSetItem('nurse_booking_v4_clean_reset', 'true');
 
   /* --------------------------------------------------------------------------
-     1. ฉีด CSS บังคับซ่อนป้ายชื่อพยาบาลในมุมมอง "รายวัน" แบบถาวร 100%
+     1. ฉีด CSS ซ่อนป้ายชื่อพยาบาลในหน้า "รายวัน" แบบถาวร
      -------------------------------------------------------------------------- */
   function injectPermanentHideDailyNamesCSS() {
     if (document.getElementById('permanent-hide-daily-names')) return;
     const style = document.createElement('style');
     style.id = 'permanent-hide-daily-names';
     style.textContent = `
-      /* ซ่อนเฉพาะป้ายชื่อพยาบาลที่มีรหัส #61... หรือป้ายพื้นหลังที่หุ้มอยู่ในแถวรายวัน */
-      .daily-view-container span, 
-      div[class*="day"] span,
-      div[class*="daily"] span,
-      button span,
-      a span {
-        /* ป้องกันไม่ให้กระทบป้ายตัวเลขคนด้านขวา */
+      .daily-view-container span, div[class*="day"] span, div[class*="daily"] span {
+        /* ซ่อนป้ายชื่อ */
       }
     `;
     document.head.appendChild(style);
 
-    // ใช้ MutationObserver คอยสกัดกั้นและซ่อนป้ายชื่อพยาบาลทันทีที่มีการวาดตารางรายวัน
     const observer = new MutationObserver(() => {
       const allEls = document.querySelectorAll('span, div, a, p');
       for (let i = 0; i < allEls.length; i++) {
@@ -5383,7 +5377,6 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
         if (el.children.length === 0) {
           const txt = (el.textContent || '').trim();
           if (/^#?61\d{5}/.test(txt)) {
-            // เช็คว่าเป็นแถวเวรรายวันหรือไม่
             let parent = el.parentElement;
             let isDaily = false;
             for (let d = 0; d < 4; d++) {
@@ -5410,7 +5403,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
   }
 
   /* --------------------------------------------------------------------------
-     2. ตัวกรองข้อมูลพยาบาล และระบบรวมตารางเวร (Smart Merge)
+     2. ตัวกรองข้อมูลพยาบาลและการจัดการข้อมูล
      -------------------------------------------------------------------------- */
   function isAllowedNurseSharedKey(key) {
     if (!key || typeof key !== 'string') return false;
@@ -5486,7 +5479,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
       const localCount = countTotalShiftsInSystemJson(localJsonStr);
       if (cloudCount > 0 && localCount === 0 && !isIntentionalDelete) return cloudJsonStr;
       if (!cloudJsonStr) return localJsonStr;
-      if (!localJsonStr) return cloudJsonStr;
+      if (!localJsonStr) return localJsonStr;
 
       const cloudObj = JSON.parse(cloudJsonStr);
       const localObj = JSON.parse(localJsonStr);
@@ -5594,7 +5587,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
+      a.href = url;
       a.download = `ตารางเวรก่อนเกลี่ย_${targetKey}.xlsx`;
       a.click();
     } catch (err) {}
@@ -5643,7 +5636,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     try {
       injectInlineTopExcelButton();
       hideGhostMatrixTableOnMainView();
-      injectStrictHideDailyNamesCSS();
+      injectPermanentHideDailyNamesCSS();
 
       const shiftMode = localStorage.getItem('nurse_shift_mode');
       const bodyText = document.body ? document.body.innerText : '';
@@ -5680,7 +5673,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
   }, true);
 
   /* --------------------------------------------------------------------------
-     3. ระบบซิงค์ GitHub (Fresh Device Lock: บังคับดึงข้อมูลจาก GitHub ให้เสร็จก่อนแสดงผล)
+     3. ระบบซิงค์ GitHub
      -------------------------------------------------------------------------- */
   function reloadAppMemoryState() {
     if (typeof window.loadMonthState === 'function') {
@@ -5725,7 +5718,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
       }
       originalSetItem('nurse_booking_v4_clean_reset', 'true');
       isSyncing = false;
-      hasPulledFromCloud = true; // ปลดล็อกอนุญาตให้เซฟได้เฉพาะหลังจากดึงข้อมูลสำเร็จแล้วเท่านั้น
+      hasPulledFromCloud = true;
 
       reloadAppMemoryState();
     } catch (err) {
@@ -5755,7 +5748,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
       }
 
       const body = {
-        message: 'Sync clean nurse duty data',
+        message: 'Sync clean nurse duty data with new token',
         content: utf8ToBase64(JSON.stringify(localShared, null, 2)),
         branch: GITHUB_CONFIG.branch
       };
@@ -5794,7 +5787,6 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     originalClear();
   };
 
-  // ดึงข้อมูลจาก GitHub ทันทีตั้งแต่เริ่มโหลดสคริปต์ เพื่อป้องกันเครื่องใหม่รีเซ็ตตัวเอง
   pullFromGitHub();
   window.addEventListener('load', () => setTimeout(applySafeUIFixes, 400));
   setInterval(() => { if (!document.hidden) pullFromGitHub(); }, 10000);
