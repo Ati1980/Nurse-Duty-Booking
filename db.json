@@ -1,5 +1,5 @@
 {
-  "nurse_system_2026_10": "{\"round\":1,\"round1\":{},\"round2\":{},\"roster\":{\"6100001\":{}},\"isConfirmed\":false}",
+  "nurse_system_2026_10": "{\"round\":1,\"round1\":{},\"round2\":{},\"roster\":{\"6100001\":{\"1\":[\"M\",\"A\"],\"2\":[\"M\",\"A\"]}},\"isConfirmed\":false}",
   "nurse_admin_password": "2910",
   "nurse_shift_mode": "2",
   "loglevel": "ERROR",
