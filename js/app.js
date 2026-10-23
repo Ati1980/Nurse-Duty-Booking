@@ -5323,7 +5323,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GITHUB CLOUD SYNC V11 (ANTI-RESET GUARD + SAFE CLOUD LOCK + TOP EXCEL BUTTON)
+   GITHUB CLOUD SYNC V12 (STRICT NURSE_ FILTER + SMART ROSTER MERGE + EXCEL)
    ============================================================================ */
 (function() {
   const GITHUB_CONFIG = {
@@ -5338,10 +5338,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const BACKUP_TIME_KEY = 'nurse_backup_timestamp';
 
   let isSyncing = false;
-  let hasPulledFromCloud = false; // เกราะชั้นที่ 1: ห้าม Push เด็ดขาดถ้ายังไม่ได้ Pull ข้อมูลจาก GitHub!
+  let hasPulledFromCloud = false;
   let syncTimeout = null;
   let fileSha = null;
-  let lastKnownCloudBookingCount = 0; // จำจำนวนข้อมูลเวรบน Cloud เพื่อกันตารางว่างเซฟทับ
 
   const originalSetItem = localStorage.setItem.bind(localStorage);
   const originalRemoveItem = localStorage.removeItem.bind(localStorage);
@@ -5352,42 +5351,17 @@ document.addEventListener('DOMContentLoaded', () => {
     'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
   ];
 
-  const oldFloatingPanel = document.getElementById('gh-backup-panel');
-  if (oldFloatingPanel) oldFloatingPanel.remove();
-
   /* --------------------------------------------------------------------------
-     1. ตัวกรองแยก "ข้อมูลล็อกอินส่วนตัว" (ระบุเฉพาะคีย์ Session เท่านั้น ไม่บล็อกข้อมูลเวร)
+     1. กรองเฉพาะข้อมูลของระบบพยาบาล (nurse_*) เท่านั้น! ตัด manpower_* และขยะอื่นทิ้ง 100%
      -------------------------------------------------------------------------- */
-  function isPrivateSessionKey(key) {
-    if (!key) return true;
+  function isAllowedNurseSharedKey(key) {
+    if (!key || typeof key !== 'string') return false;
     const k = key.toLowerCase();
 
-    if (key === BACKUP_KEY || key === BACKUP_TIME_KEY) return false;
+    // ต้องขึ้นต้นด้วยคำว่า nurse_ เท่านั้น ถึงจะยอมให้เซฟลง db.json (ป้องกัน manpower_* เข้ามาปน)
+    if (!k.startsWith('nurse_')) return false;
 
-    // รายการคีย์ที่เป็นข้อมูลตารางเวรและข้อมูลหลัก (ต้องซิงค์และเก็บรักษาไว้ 100%)
-    if (
-      k.includes('schedule') ||
-      k.includes('shift') ||
-      k.includes('booking') ||
-      k.includes('roster') ||
-      k.includes('duty') ||
-      k.includes('calendar') ||
-      k.includes('password') ||
-      k.includes('pin') ||
-      k.includes('cred') ||
-      k.includes('config') ||
-      k.includes('setting') ||
-      k.includes('quota') ||
-      k.includes('lock') ||
-      k.includes('holiday') ||
-      k.includes('nurses') ||
-      k.includes('nurse_list') ||
-      k.includes('data')
-    ) {
-      return false; // ซิงค์ขึ้น GitHub เสมอ
-    }
-
-    // คีย์ที่เป็นสถานะการล็อกอินของแต่ละเครื่อง (ไม่ซิงค์ข้ามเครื่อง)
+    // ยกเว้นคีย์ที่เป็นสถานะการล็อกอินส่วนตัว หรือธีมหน้าจอของแต่ละเครื่อง ห้ามซิงค์ข้ามเครื่อง
     if (
       k.includes('current') ||
       k.includes('session') ||
@@ -5397,101 +5371,70 @@ document.addEventListener('DOMContentLoaded', () => {
       k.includes('active_user') ||
       k.includes('active_nurse') ||
       k.includes('selected_nurse') ||
-      k.includes('selected_user') ||
       k.includes('role') ||
-      k.includes('view') ||
-      k.includes('tab') ||
-      k.includes('theme') ||
-      k.includes('dark') ||
-      k === 'user' ||
-      k === 'nurse' ||
-      k === 'admin' ||
-      k === 'isadmin' ||
-      k === 'is_admin' ||
-      k === 'gh_synced_reload'
+      k.includes('theme')
     ) {
-      return true;
+      return false;
     }
 
-    return false;
-  }
-
-  // ล้างเฉพาะฟิลด์การล็อกอิน หากซ่อนอยู่ในก้อน JSON รวม (โดยไม่แตะต้องข้อมูลตารางเวร)
-  function sanitizeJsonValue(val) {
-    if (typeof val !== 'string') return val;
-    const v = val.trim();
-    if (v.startsWith('{') && v.endsWith('}')) {
-      try {
-        const obj = JSON.parse(v);
-        if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
-          // เช็คก่อนว่าถ้าเป็น Object ของผู้ใช้คนเดียวล้วนๆ (ไม่ใช่ก้อนข้อมูลตารางเวร)
-          const keys = Object.keys(obj);
-          const hasScheduleData = keys.some(p =>
-            p.includes('schedule') || p.includes('shift') || p.includes('booking') ||
-            p.includes('roster') || p.includes('duty') || /^\d{4}-\d{2}/.test(p) ||
-            p.includes('202') || p.includes('256') || p === 'M' || p === 'A' || p === 'N'
-          );
-          if (!hasScheduleData && (obj.id || obj.code || obj.empId || obj.staffId || obj.username) && keys.length <= 10) {
-            return val;
-          }
-
-          const sessionProps = [
-            'currentUser', 'currentNurse', 'loggedInUser', 'loggedInNurse',
-            'activeUser', 'activeNurse', 'selectedNurse', 'selectedNurseId',
-            'currentUserId', 'currentNurseId', 'isAdmin', 'isLoggedIn',
-            'currentRole', 'authUser', 'session', 'userSession'
-          ];
-          let modified = false;
-          sessionProps.forEach(prop => {
-            if (prop in obj && obj[prop] !== null) {
-              obj[prop] = null;
-              modified = true;
-            }
-          });
-          if (modified) return JSON.stringify(obj);
-        }
-      } catch (e) {}
-    }
-    return val;
-  }
-
-  // นับจำนวนรหัสพยาบาล (61xxxxx) ที่ถูกจองอยู่ในตารางเวร เพื่อเช็คว่าตารางเวรมีข้อมูลอยู่เท่าไหร่
-  function countBookingEntriesInStore(storeObj) {
-    let count = 0;
-    for (const [k, v] of Object.entries(storeObj)) {
-      if (!k || k === BACKUP_KEY || k === BACKUP_TIME_KEY) continue;
-      const kl = k.toLowerCase();
-      // ข้ามคีย์ที่เป็นแค่รายชื่อพยาบาลตั้งต้นหรือรหัสผ่าน
-      if (kl === 'nurses' || kl === 'nurse_list' || kl.includes('password') || kl.includes('pin')) continue;
-      if (typeof v === 'string') {
-        const matches = v.match(/\b61\d{5}\b/g);
-        if (matches) count += matches.length;
-      }
-    }
-    return count;
+    return true;
   }
 
   /* --------------------------------------------------------------------------
-     2. ระบบสำรองข้อมูลอัตโนมัติเมื่อกดปุ่มจัดตารางเวร + ปุ่ม Export Excel ด้านบน
+     2. ระบบรวมตารางเวรอัจฉริยะ (Smart Roster Merge) ป้องกันข้อมูลพยาบาลคนอื่นหาย
      -------------------------------------------------------------------------- */
-  function getCurrentSnapshotObject() {
-    const snapshot = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      const v = localStorage.getItem(k);
-      if (k !== BACKUP_KEY && k !== BACKUP_TIME_KEY && !isPrivateSessionKey(k)) {
-        snapshot[k] = sanitizeJsonValue(v);
+  function mergeNurseSystemData(cloudJsonStr, localJsonStr) {
+    try {
+      const cloudObj = cloudJsonStr ? JSON.parse(cloudJsonStr) : null;
+      const localObj = localJsonStr ? JSON.parse(localJsonStr) : null;
+      if (!cloudObj) return localJsonStr;
+      if (!localObj) return cloudJsonStr;
+
+      // รวมข้อมูลใน roster ของพยาบาลแต่ละรหัสเข้าด้วยกัน เพื่อไม่ให้เครื่องที่เพิ่งเปิดไปลบข้อมูลคนที่คีย์ไว้แล้ว
+      const mergedRoster = Object.assign({}, cloudObj.roster || {}, localObj.roster || {});
+      for (const empId of Object.keys(mergedRoster)) {
+        const cDays = (cloudObj.roster && cloudObj.roster[empId]) || {};
+        const lDays = (localObj.roster && localObj.roster[empId]) || {};
+        // ถ้าในเครื่องเพิ่งเปิดมาว่างเปล่า แต่บน Cloud มีเวรของคนนี้อยู่ ให้ใช้ข้อมูลจาก Cloud
+        if (Object.keys(lDays).length === 0 && Object.keys(cDays).length > 0) {
+          mergedRoster[empId] = cDays;
+        } else if (Object.keys(lDays).length > 0) {
+          mergedRoster[empId] = lDays;
+        }
       }
+
+      const result = Object.assign({}, cloudObj, localObj, {
+        roster: mergedRoster
+      });
+      return JSON.stringify(result);
+    } catch (e) {
+      return localJsonStr || cloudJsonStr;
     }
-    return snapshot;
   }
 
+  function getCleanNurseSharedData() {
+    const shared = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (isAllowedNurseSharedKey(k)) {
+        shared[k] = localStorage.getItem(k);
+      }
+    }
+    return shared;
+  }
+
+  /* --------------------------------------------------------------------------
+     3. ระบบสำรองข้อมูลอัตโนมัติเมื่อกดจัดเวร + ปุ่ม Export Excel (ก่อนเกลี่ย) ด้านบน
+     -------------------------------------------------------------------------- */
   function autoBackupBeforeOptimize() {
     try {
-      const snapshot = getCurrentSnapshotObject();
+      const snapshot = getCleanNurseSharedData();
+      delete snapshot[BACKUP_KEY];
+      delete snapshot[BACKUP_TIME_KEY];
+
       const nowStr = new Date().toLocaleString('th-TH', {
         day: '2-digit', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit', second: '2-digit'
+        hour: '2-digit', minute: '2-digit'
       });
 
       originalSetItem(BACKUP_KEY, JSON.stringify(snapshot));
@@ -5499,219 +5442,126 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (hasPulledFromCloud) {
         clearTimeout(syncTimeout);
-        syncTimeout = setTimeout(() => pushToGitHub(true), 400);
+        syncTimeout = setTimeout(() => pushToGitHub(true), 300);
       }
-      showSyncStatus('🛡️ สำรองข้อมูลก่อนเกลี่ยเวรอัตโนมัติแล้ว (' + nowStr + ')', 'rgba(124, 58, 237, 0.95)', true);
-    } catch (e) {
-      console.error('Auto-backup error:', e);
-    }
-  }
-
-  function extractShiftRecordsFromStore(storeObj) {
-    let nurseList = window.NURSES || window.nurses || window.nurseList || [];
-    if (!Array.isArray(nurseList) || nurseList.length === 0) {
-      for (const [k, v] of Object.entries(storeObj)) {
-        if (k.toLowerCase().includes('nurse')) {
-          try {
-            const parsed = JSON.parse(v);
-            if (Array.isArray(parsed) && parsed.length > 0 && (parsed[0].name || parsed[0].id)) {
-              nurseList = parsed;
-              break;
-            }
-          } catch (e) {}
-        }
-      }
-    }
-
-    const nurseMap = {};
-    nurseList.forEach((n, idx) => {
-      const id = String(n.id || n.code || n.empId || n.staffId || (6100001 + idx));
-      const name = String(n.name || n.fullName || `พยาบาล ${idx + 1}`);
-      nurseMap[id] = { id, name, M: 0, A: 0, N: 0, total: 0, dates: [] };
-    });
-
-    const dailyRecords = [];
-
-    function scanScheduleNode(node, pathPrefix = '') {
-      if (!node || typeof node !== 'object') return;
-
-      ['M', 'A', 'N', 'morning', 'afternoon', 'night', 'เช้า', 'บ่าย', 'ดึก'].forEach(shiftKey => {
-        if (shiftKey in node) {
-          const val = node[shiftKey];
-          const normShift = (shiftKey === 'M' || shiftKey === 'morning' || shiftKey === 'เช้า') ? 'M'
-                          : (shiftKey === 'A' || shiftKey === 'afternoon' || shiftKey === 'บ่าย') ? 'A' : 'N';
-          const arr = Array.isArray(val) ? val : (typeof val === 'string' || typeof val === 'number' ? [val] : []);
-          arr.forEach(item => {
-            const empId = typeof item === 'object' && item !== null ? String(item.id || item.code || item.empId || '') : String(item);
-            if (/^\d{5,10}$/.test(empId)) {
-              if (!nurseMap[empId]) {
-                nurseMap[empId] = { id: empId, name: `รหัส ${empId}`, M: 0, A: 0, N: 0, total: 0, dates: [] };
-              }
-              nurseMap[empId][normShift]++;
-              nurseMap[empId].total++;
-              nurseMap[empId].dates.push(`${pathPrefix}(${normShift})`);
-              dailyRecords.push({
-                date: pathPrefix || '-',
-                shift: normShift === 'M' ? 'เวรเช้า (M)' : normShift === 'A' ? 'เวรบ่าย (A)' : 'เวรดึก (N)',
-                nurseId: empId,
-                nurseName: nurseMap[empId].name
-              });
-            }
-          });
-        }
-      });
-
-      for (const [k, v] of Object.entries(node)) {
-        if (['M', 'A', 'N', 'morning', 'afternoon', 'night', 'เช้า', 'บ่าย', 'ดึก'].includes(k)) continue;
-        if (v && typeof v === 'object') {
-          const nextPath = /^\d{4}-\d{2}-\d{2}$/.test(k) || /^\d{1,2}$/.test(k) ? k : (pathPrefix ? `${pathPrefix}/${k}` : k);
-          scanScheduleNode(v, nextPath);
-        }
-      }
-    }
-
-    for (const [k, v] of Object.entries(storeObj)) {
-      const kl = k.toLowerCase();
-      if (kl.includes('password') || kl.includes('pin') || kl === 'nurses' || kl === 'nurse_list') continue;
-      try {
-        const parsed = JSON.parse(v);
-        if (parsed && typeof parsed === 'object') {
-          scanScheduleNode(parsed, k);
-        }
-      } catch (e) {}
-    }
-
-    return { nurseSummary: Object.values(nurseMap), dailyRecords, rawStore: storeObj };
+      showSyncStatus('🛡️ สำรองตารางเวรก่อนเกลี่ยอัตโนมัติแล้ว (' + nowStr + ')', 'rgba(124, 58, 237, 0.95)', true);
+    } catch (e) {}
   }
 
   async function exportBackupToExcel() {
     try {
       const rawBackup = localStorage.getItem(BACKUP_KEY);
       const backupTime = localStorage.getItem(BACKUP_TIME_KEY) || 'ข้อมูลปัจจุบัน (ก่อนเกลี่ย)';
-      const storeObj = rawBackup ? JSON.parse(rawBackup) : getCurrentSnapshotObject();
+      const storeObj = rawBackup ? JSON.parse(rawBackup) : getCleanNurseSharedData();
 
       if (typeof window.ExcelJS === 'undefined') {
-        const blob = new Blob([JSON.stringify(storeObj, null, 2)], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `ตารางเวรก่อนเกลี่ย_${new Date().toISOString().slice(0,10)}.json`;
-        a.click();
+        alert('ไม่พบ ExcelJS ในระบบ');
         return;
       }
 
       showSyncStatus('📊 กำลังสร้างไฟล์ Excel (ก่อนเกลี่ย)...', 'rgba(16, 185, 129, 0.95)', false);
-      const { nurseSummary, dailyRecords } = extractShiftRecordsFromStore(storeObj);
+
+      // ดึงรายชื่อพยาบาลจาก nurse_master_list
+      let masterList = [];
+      try {
+        masterList = JSON.parse(storeObj['nurse_master_list'] || localStorage.getItem('nurse_master_list') || '[]');
+      } catch (e) {}
+
+      // ค้นหาคีย์ตารางเวรเดือนล่าสุด เช่น nurse_system_2026_10
+      const systemKeys = Object.keys(storeObj).filter(k => k.startsWith('nurse_system_')).sort();
+      const targetKey = systemKeys[systemKeys.length - 1] || 'nurse_system_2026_10';
+      let rosterData = {};
+      try {
+        const parsedSys = JSON.parse(storeObj[targetKey] || '{}');
+        rosterData = parsedSys.roster || {};
+      } catch (e) {}
 
       const workbook = new window.ExcelJS.Workbook();
-      workbook.creator = 'Nurse Duty Booking System';
-      workbook.created = new Date();
+      const sheet = workbook.addWorksheet('ตารางเวรก่อนเกลี่ย');
 
-      const sheet1 = workbook.addWorksheet('สรุปยอดจองก่อนเกลี่ย');
-      sheet1.mergeCells('A1:G1');
-      const titleCell = sheet1.getCell('A1');
-      titleCell.value = `รายงานสรุปยอดการจองเวรพยาบาล (ก่อนเกลี่ยเวร) | ข้อมูลเมื่อ: ${backupTime}`;
-      titleCell.font = { name: 'Tahoma', size: 13, bold: true, color: { argb: 'FFFFFFFF' } };
-      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } };
-      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-      sheet1.getRow(1).height = 28;
+      // สร้างหัวตารางแนวนอน วันที่ 1 - 31 เหมือนหน้าเว็บ
+      const headerCols = ['#', 'รหัส', 'ชื่อ - สกุล'];
+      for (let d = 1; d <= 31; d++) headerCols.push(String(d));
+      headerCols.push('เวรเช้า (M)', 'เวรบ่าย (A)', 'เวรดึก (N)', 'รวมเวร', 'รวมชั่วโมง');
 
-      const headers1 = ['ลำดับ', 'รหัสประจำตัว', 'ชื่อ-นามสกุล พยาบาล', 'เวรเช้า (M)', 'เวรบ่าย (A)', 'เวรดึก (N)', 'รวมเวรที่เลือก (ชม.)'];
-      const headerRow1 = sheet1.addRow(headers1);
-      headerRow1.height = 24;
-      headerRow1.eachCell(cell => {
-        cell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: 'FF1E293B' } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
-        cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+      const titleRow = sheet.addRow([`ตารางเวรพยาบาล (ก่อนเกลี่ยเวร) | ข้อมูล: ${targetKey} | บันทึกเมื่อ: ${backupTime}`]);
+      titleRow.font = { name: 'Tahoma', size: 12, bold: true };
+      sheet.mergeCells(1, 1, 1, headerCols.length);
+
+      const hRow = sheet.addRow(headerCols);
+      hRow.height = 24;
+      hRow.eachCell(c => {
+        c.font = { name: 'Tahoma', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } };
+        c.alignment = { vertical: 'middle', horizontal: 'center' };
+        c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
       });
 
-      nurseSummary.forEach((n, idx) => {
-        const row = sheet1.addRow([idx + 1, n.id, n.name, n.M, n.A, n.N, `${n.total} เวร (${n.total * 8} ชม.)`]);
-        row.height = 22;
-        row.eachCell((cell, colNumber) => {
-          cell.font = { name: 'Tahoma', size: 11 };
-          cell.alignment = { vertical: 'middle', horizontal: colNumber === 3 ? 'left' : 'center' };
-          cell.border = {
-            top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-            left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-            bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-            right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
-          };
+      masterList.forEach((nurse, idx) => {
+        const empId = String(nurse.id);
+        const empShifts = rosterData[empId] || {};
+        let countM = 0, countA = 0, countN = 0;
+
+        const rowVals = [idx + 1, empId, nurse.name];
+        for (let d = 1; d <= 31; d++) {
+          const dayArr = empShifts[String(d)] || [];
+          if (dayArr.includes('M')) countM++;
+          if (dayArr.includes('A')) countA++;
+          if (dayArr.includes('N')) countN++;
+          const label = dayArr.map(s => s === 'M' ? 'ช' : s === 'A' ? 'บ' : 'ด').join('/');
+          rowVals.push(label || '');
+        }
+
+        const totalShifts = countM + countA + countN;
+        rowVals.push(countM, countA, countN, totalShifts, totalShifts * 8);
+
+        const r = sheet.addRow(rowVals);
+        r.height = 20;
+        r.eachCell((c, colIdx) => {
+          c.font = { name: 'Tahoma', size: 10 };
+          c.alignment = { vertical: 'middle', horizontal: colIdx === 3 ? 'left' : 'center' };
+          c.border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } }, left: { style: 'thin', color: { argb: 'FFCBD5E1' } }, bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } }, right: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
         });
       });
 
-      sheet1.columns = [
-        { width: 10 }, { width: 16 }, { width: 32 },
-        { width: 15 }, { width: 15 }, { width: 15 }, { width: 22 }
-      ];
-
-      const sheet2 = workbook.addWorksheet('รายละเอียดการจองรายวัน');
-      const headerRow2 = sheet2.addRow(['ลำดับ', 'วันที่ / คีย์ตาราง', 'ช่วงเวร', 'รหัสพยาบาล', 'ชื่อ-นามสกุล พยาบาล']);
-      headerRow2.height = 24;
-      headerRow2.eachCell(cell => {
-        cell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } };
-        cell.alignment = { vertical: 'middle', horizontal: 'center' };
-      });
-
-      if (dailyRecords.length > 0) {
-        dailyRecords.forEach((rec, i) => {
-          const r = sheet2.addRow([i + 1, rec.date, rec.shift, rec.nurseId, rec.nurseName]);
-          r.eachCell((cell, col) => {
-            cell.font = { name: 'Tahoma', size: 11 };
-            cell.alignment = { vertical: 'middle', horizontal: col === 5 ? 'left' : 'center' };
-          });
-        });
-      } else {
-        Object.entries(storeObj).forEach(([k, v], i) => {
-          sheet2.addRow([i + 1, k, 'Raw Data', '-', String(v).slice(0, 3000)]);
-        });
-      }
-
-      sheet2.columns = [
-        { width: 10 }, { width: 25 }, { width: 18 }, { width: 18 }, { width: 35 }
-      ];
+      sheet.getColumn(1).width = 6;
+      sheet.getColumn(2).width = 12;
+      sheet.getColumn(3).width = 28;
+      for (let c = 4; c <= 34; c++) sheet.getColumn(c).width = 5;
 
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `ตารางเวรก่อนเกลี่ย_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      document.body.appendChild(a);
+      a.download = `ตารางเวรก่อนเกลี่ย_${targetKey}.xlsx`;
       a.click();
-      document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
       showSyncStatus('✅ ดาวน์โหลด Excel (ก่อนเกลี่ย) เรียบร้อย!', 'rgba(16, 185, 129, 0.95)', true);
     } catch (err) {
-      console.error('Excel export error:', err);
-      alert('เกิดข้อผิดพลาดในการสร้างไฟล์ Excel: ' + err.message);
+      alert('เกิดข้อผิดพลาดในการสร้าง Excel: ' + err.message);
     }
   }
 
   function injectInlineTopExcelButton() {
     if (document.getElementById('gh-inline-excel-btn')) return;
-
     const buttons = Array.from(document.querySelectorAll('button, a[role="button"]'));
     let anchorBtn = buttons.find(b => {
       const t = (b.textContent || '').trim();
       return t.includes('จัดตารางเวรอัตโนมัติ') || t.includes('จัดเวรอัตโนมัติ');
     });
-
     if (!anchorBtn) {
       anchorBtn = buttons.find(b => {
         const t = (b.textContent || '').trim();
-        return t.includes('Export') || t.includes('Excel') || t.includes('ดาวน์โหลด') || t.includes('พิมพ์');
+        return t.includes('Export') || t.includes('Excel') || t.includes('ดาวน์โหลด');
       });
     }
-
     if (anchorBtn && anchorBtn.parentElement) {
       const btnExcel = document.createElement('button');
       btnExcel.id = 'gh-inline-excel-btn';
       btnExcel.type = 'button';
       btnExcel.innerHTML = '📊 Excel (ก่อนเกลี่ย)';
-      btnExcel.title = 'ดาวน์โหลดตารางเวรที่พยาบาลจองเข้ามา (ก่อนเกลี่ยเวร) เป็นไฟล์ Excel';
       btnExcel.style.cssText = 'background:linear-gradient(135deg, #10b981, #059669);color:#fff;border:none;padding:8px 14px;border-radius:12px;font-size:13px;cursor:pointer;font-weight:bold;display:inline-flex;align-items:center;gap:6px;box-shadow:0 3px 10px rgba(16,185,129,0.25);margin:4px;font-family:inherit;white-space:nowrap;';
       btnExcel.onclick = (e) => {
         e.preventDefault();
@@ -5723,7 +5573,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* --------------------------------------------------------------------------
-     3. การตั้งค่า UI (ซ่อนเวรดึกเมื่อเลือกโหมด 2 เวร + เดือนเริ่มต้น + บังคับกรอก PIN)
+     4. การตั้งค่า UI (ซ่อนเวรดึกเมื่อเลือกโหมด 2 เวร + เดือนเริ่มต้น + บังคับกรอก PIN)
      -------------------------------------------------------------------------- */
   function injectSafeStyles() {
     if (document.getElementById('nurse-custom-fixes')) return;
@@ -5754,10 +5604,9 @@ document.addEventListener('DOMContentLoaded', () => {
       injectSafeStyles();
       injectInlineTopExcelButton();
 
+      const shiftMode = localStorage.getItem('nurse_shift_mode');
       const bodyText = document.body ? document.body.innerText : '';
-      const is2Shift = bodyText.includes('โหมด: 2 เวร') ||
-                       bodyText.includes('2 เวร/วัน') ||
-                       (bodyText.includes('เวรเช้า (M)') && bodyText.includes('เวรบ่าย (A)') && !bodyText.includes('เวรดึก (N)'));
+      const is2Shift = shiftMode === '2' || bodyText.includes('โหมด: 2 เวร') || bodyText.includes('2 เวร/วัน');
 
       const spans = document.querySelectorAll('div, span, p');
       for (let i = 0; i < spans.length; i++) {
@@ -5860,7 +5709,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   /* --------------------------------------------------------------------------
-     4. ระบบซิงค์ GitHub (พร้อมเกราะป้องกันข้อมูลว่างเซฟทับข้อมูลจริง)
+     5. ระบบซิงค์ GitHub (สะอาด ปลอดภัย ไม่รีเซ็ตข้อมูล)
      -------------------------------------------------------------------------- */
   let badgeHideTimer = null;
   function showSyncStatus(text, bgColor = 'rgba(30, 58, 138, 0.85)', autoHide = true) {
@@ -5885,20 +5734,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function base64ToUtf8(str) {
     return decodeURIComponent(Array.prototype.map.call(atob(str.replace(/\s/g, '')), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-  }
-
-  // Re-render หน้าเว็บทันทีเมื่อดึงข้อมูลจาก Cloud เสร็จ
-  function refreshAppViewAfterPull() {
-    const fns = ['loadData', 'init', 'renderAll', 'render', 'renderMainCalendar', 'renderUserCalendar', 'updateUI'];
-    let called = false;
-    fns.forEach(fn => {
-      if (typeof window[fn] === 'function') {
-        try { window[fn](); called = true; } catch (e) {}
-      }
-    });
-    window.dispatchEvent(new Event('storage'));
-    applySafeUIFixes();
-    return called;
   }
 
   async function pullFromGitHub(isBackgroundCheck = false) {
@@ -5930,34 +5765,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
       fileSha = fileData.sha;
       const cloudStore = JSON.parse(base64ToUtf8(fileData.content));
-      const cloudBookings = countBookingEntriesInStore(cloudStore);
-      lastKnownCloudBookingCount = cloudBookings;
 
       let hasChanges = false;
+      let hadNonNurseKeys = false;
       isSyncing = true;
 
       for (const [key, val] of Object.entries(cloudStore)) {
-        if (isPrivateSessionKey(key)) continue;
-        const cleanVal = sanitizeJsonValue(val);
-        if (localStorage.getItem(key) !== cleanVal) {
-          originalSetItem(key, cleanVal);
+        // ถ้าเจอคีย์ของโปรเจกต์อื่น เช่น manpower_* หรือ __scdn_ga_sid ให้ข้ามและสั่งล้างออกจาก db.json
+        if (!isAllowedNurseSharedKey(key)) {
+          hadNonNurseKeys = true;
+          continue;
+        }
+
+        if (localStorage.getItem(key) !== val) {
+          originalSetItem(key, val);
           hasChanges = true;
         }
       }
 
       isSyncing = false;
-      hasPulledFromCloud = true; // ปลดล็อกอนุญาตให้บันทึกได้หลังจากดึงข้อมูลจริงจาก GitHub ลงเครื่องเสร็จแล้วเท่านั้น!
+      hasPulledFromCloud = true;
       applySafeUIFixes();
 
-      if (hasChanges) {
-        const canSoftRefresh = refreshAppViewAfterPull();
-        if (!canSoftRefresh && !sessionStorage.getItem('gh_synced_reload')) {
-          sessionStorage.setItem('gh_synced_reload', '1');
-          showSyncStatus('🔔 โหลดข้อมูลที่บันทึกไว้แล้ว...', 'rgba(16, 185, 129, 0.95)', false);
-          setTimeout(() => location.reload(), 300);
-          return;
-        }
-        showSyncStatus('☁️ อัปเดตข้อมูลล่าสุดเรียบร้อย', 'rgba(16, 185, 129, 0.95)', true);
+      // ล้างคีย์ manpower_* ออกจากไฟล์ db.json บน GitHub ให้อัตโนมัติ
+      if (hadNonNurseKeys) {
+        pushToGitHub(true);
+      }
+
+      if (hasChanges && !sessionStorage.getItem('gh_synced_reload')) {
+        sessionStorage.setItem('gh_synced_reload', '1');
+        showSyncStatus('🔔 โหลดตารางเวรล่าสุดแล้ว...', 'rgba(16, 185, 129, 0.95)', false);
+        setTimeout(() => location.reload(), 300);
       } else {
         sessionStorage.removeItem('gh_synced_reload');
         if (!isBackgroundCheck) {
@@ -5966,18 +5804,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch (err) {
       isSyncing = false;
-      console.error('Pull error:', err);
     }
   }
 
-  async function pushToGitHub(isForcedByUserAction = false) {
-    // เกราะชั้นที่ 1: ถ้ายังไม่ได้ดึงข้อมูลจาก GitHub ลงมา ห้ามเซฟขึ้นไปทับเด็ดขาด!
+  async function pushToGitHub() {
     if (isSyncing || !hasPulledFromCloud) return;
-
     try {
       isSyncing = true;
-      const sharedData = getCurrentSnapshotObject();
-      const localBookings = countBookingEntriesInStore(sharedData);
+      const localShared = getCleanNurseSharedData();
 
       const apiUrl = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}`;
       const checkRes = await fetch(`${apiUrl}?ref=${GITHUB_CONFIG.branch}&t=${Date.now()}`, {
@@ -5988,32 +5822,22 @@ document.addEventListener('DOMContentLoaded', () => {
       if (checkRes.ok) {
         const checkData = await checkRes.json();
         fileSha = checkData.sha;
-        const currentCloudStore = JSON.parse(base64ToUtf8(checkData.content));
-        const currentCloudBookings = countBookingEntriesInStore(currentCloudStore);
+        const cloudStore = JSON.parse(base64ToUtf8(checkData.content));
 
-        // เกราะชั้นที่ 2 (Anti-Reset Guard):
-        // ถ้าบน GitHub มีข้อมูลเวรที่พยาบาลคีย์ไว้แล้ว (เช่น > 0 เวร) แต่ข้อมูลในเครื่องตอนนี้กลับเป็น 0 เวร (เพราะแอปเพิ่งรีเซ็ตตัวเอง)
-        // ห้ามเอาค่า 0 เวรไปเซฟทับบน GitHub เด็ดขาด! แต่ให้ดึงข้อมูลจาก GitHub กลับมาใส่เครื่องแทนทันที
-        if (currentCloudBookings > 0 && localBookings === 0 && !isForcedByUserAction) {
-          console.warn('Anti-Reset Guard: Blocked empty state overwrite! Restoring from GitHub...');
-          for (const [k, v] of Object.entries(currentCloudStore)) {
-            if (!isPrivateSessionKey(k)) {
-              originalSetItem(k, sanitizeJsonValue(v));
-            }
+        // รวมตารางเวร (Merge Roster) ระหว่างบน Cloud กับในเครื่อง ป้องกันข้อมูลคนอื่นหาย
+        for (const [k, cloudVal] of Object.entries(cloudStore)) {
+          if (k.startsWith('nurse_system_')) {
+            localShared[k] = mergeNurseSystemData(cloudVal, localShared[k]);
+            originalSetItem(k, localShared[k]);
           }
-          isSyncing = false;
-          showSyncStatus('🛡️ กู้คืนข้อมูลที่คีย์ไว้จากระบบออนไลน์แล้ว', 'rgba(16, 185, 129, 0.95)', true);
-          setTimeout(() => location.reload(), 300);
-          return;
         }
-        lastKnownCloudBookingCount = localBookings;
       }
 
       showSyncStatus('⏳ กำลังบันทึกตารางเวรออนไลน์...', 'rgba(30, 58, 138, 0.85)', false);
 
       const body = {
-        message: 'Update nurse duty data (' + localBookings + ' bookings)',
-        content: utf8ToBase64(JSON.stringify(sharedData, null, 2)),
+        message: 'Sync clean nurse duty data',
+        content: utf8ToBase64(JSON.stringify(localShared, null, 2)),
         branch: GITHUB_CONFIG.branch
       };
       if (fileSha) body.sha = fileSha;
@@ -6040,24 +5864,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ดักจับการแก้ไขข้อมูลในแอป
   localStorage.setItem = function(key, value) {
     originalSetItem(key, value);
     setTimeout(applySafeUIFixes, 100);
-
-    // จะส่งขึ้น GitHub ก็ต่อเมื่อเปิดเว็บและดึงข้อมูลเก่าจาก GitHub เสร็จเรียบร้อยแล้วเท่านั้น!
-    if (!isSyncing && hasPulledFromCloud && !isPrivateSessionKey(key)) {
+    if (!isSyncing && hasPulledFromCloud && isAllowedNurseSharedKey(key)) {
       clearTimeout(syncTimeout);
-      syncTimeout = setTimeout(() => pushToGitHub(false), 900);
+      syncTimeout = setTimeout(pushToGitHub, 800);
     }
   };
 
   localStorage.removeItem = function(key) {
     originalRemoveItem(key);
     setTimeout(applySafeUIFixes, 100);
-    if (!isSyncing && hasPulledFromCloud && !isPrivateSessionKey(key)) {
+    if (!isSyncing && hasPulledFromCloud && isAllowedNurseSharedKey(key)) {
       clearTimeout(syncTimeout);
-      syncTimeout = setTimeout(() => pushToGitHub(false), 900);
+      syncTimeout = setTimeout(pushToGitHub, 800);
     }
   };
 
@@ -6065,13 +5886,11 @@ document.addEventListener('DOMContentLoaded', () => {
     originalClear();
   };
 
-  // ดึงข้อมูลจาก GitHub ทันทีตั้งแต่เริ่มรันสคริปต์ (ไม่ต้องรอ window.load เพื่อตัดหน้าไม่ให้แอปตั้งค่าเริ่มต้นทับ)
   pullFromGitHub(false);
 
   window.addEventListener('load', () => {
     setTimeout(setInitialNextMonth, 300);
     setTimeout(applySafeUIFixes, 500);
-    if (!hasPulledFromCloud) pullFromGitHub(false);
   });
 
   setInterval(() => {
