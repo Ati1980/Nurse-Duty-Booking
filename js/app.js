@@ -3,7 +3,7 @@
  * Modern Blue Glassmorphism Theme
  * Multi-Role Auth, Main Monthly Calendar with All Shifts, 
  * Shift Selection by Actual Nurse Count, User-Specific View & Shift Optimizer
- * Github Start Line No.5330
+ * Github Start Line No.5300
  */
 
 // 1. Data Definitions
@@ -5295,6 +5295,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+
+
 /* ============================================================================
    GITHUB CLOUD SYNC V20.2 (STABLE ORIGINAL LAYOUT + NEW TOKEN SYNC)
    ============================================================================ */
@@ -5372,7 +5374,6 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     if (typeof loadMonthState === 'function') {
       try { loadMonthState(); } catch (e) {}
     }
-    // สั่งวาดหน้าจอที่ตรงกับฟังก์ชันปัจจุบันในระบบ
     try {
       if (typeof renderPublicDashboard === 'function') renderPublicDashboard();
       if (typeof renderNurseCalendar === 'function' && activeView === 'personal') renderNurseCalendar();
@@ -5410,11 +5411,10 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
       isSyncing = false;
       hasPulledFromCloud = true;
 
-      // สั่งเรนเดอร์ข้อมูลสดลงตารางทันทีตั้งแต่เปิดหน้าเว็บครั้งแรก
+      // สั่งเรนเดอร์ข้อมูลสดลงตารางทันที
       reloadAppMemoryState();
 
       if (hasChanges) {
-        reloadAppMemoryState();
         showSyncStatus('☁️ ซิงค์ข้อมูลล่าสุดสำเร็จ', 'rgba(16, 185, 129, 0.95)', true);
       } else {
         showSyncStatus('☁️ ข้อมูลเป็นปัจจุบัน', 'rgba(16, 185, 129, 0.85)', true);
