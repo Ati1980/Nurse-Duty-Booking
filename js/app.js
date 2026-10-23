@@ -5328,7 +5328,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GITHUB CLOUD SYNC V21 (REMOVE DAILY VIEW TAB + FIX ADMIN REFRESH GLITCH)
+   GITHUB CLOUD SYNC V20.2 (STABLE ORIGINAL LAYOUT + NEW TOKEN SYNC)
    ============================================================================ */
 try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) {}
 
@@ -5352,124 +5352,25 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
 
   originalSetItem('nurse_booking_v4_clean_reset', 'true');
 
-  /* --------------------------------------------------------------------------
-     1. ซ่อนและตัดแท็บ/มุมมอง "รายวัน" ออกจากหน้าหลักแบบถาวร 100%
-     -------------------------------------------------------------------------- */
-  function removeAndHideDailyViewTab() {
-    try {
-      const buttons = Array.from(document.querySelectorAll('button, a, div[role="button"], span'));
-      buttons.forEach(btn => {
-        const txt = (btn.textContent || '').trim();
-        // ค้นหาปุ่มหรือแท็บที่เขียนว่า "รายวัน"
-        if (txt === 'รายวัน' || txt === '📅 รายวัน' || txt === '📋 รายวัน') {
-          const tabItem = btn.closest('button, a, div.tab, li') || btn;
-          if (tabItem && tabItem !== document.body) {
-            tabItem.style.setProperty('display', 'none', 'important');
-          }
-        }
-      });
-
-      // ซ่อนคอนเทนเนอร์หรือเนื้อหาของหน้า "รายวัน" หากถูกเปิดค้างไว้
-      const allDivs = document.querySelectorAll('div, section');
-      allDivs.forEach(div => {
-        const dText = div.textContent || '';
-        // ถ้าเป็นกล่องเนื้อหาของรายวันที่มีคำว่าเวรเช้า/เวรบ่ายและมีรายชื่อพยาบาล
-        if ((dText.includes('เวรเช้า') || dText.includes('เวรบ่าย')) && dText.includes('61000')) {
-          const viewContainer = div.closest('div[id*="daily" i], div[class*="daily" i]') || div;
-          if (viewContainer && !viewContainer.textContent.includes('ปฏิทินจองเวรประจำเดือน')) {
-            // ซ่อนเฉพาะส่วนที่เป็นรายชื่อในมุมมองรายวัน
-            const badges = viewContainer.querySelectorAll('span, div');
-            badges.forEach(b => {
-              if (/^#?61\d{5}/.test(b.textContent || '')) {
-                b.style.setProperty('display', 'none', 'important');
-              }
-            });
-          }
-        }
-      });
-    } catch (e) {}
-  }
-
-  /* --------------------------------------------------------------------------
-     2. ป้องกันไม่ให้หน้าเว็บเด้งเข้าหน้า Admin เองหลังกด Refresh (ถ้าไม่ได้สิทธิ์)
-     -------------------------------------------------------------------------- */
-  function preventUnwantedAdminView() {
-    try {
-      const allHeadings = Array.from(document.querySelectorAll('h1, h2, h3, h4, div'));
-      const isAdminPortalOpen = allHeadings.some(el => 
-        el.children.length === 0 && 
-        (el.textContent.includes('พื้นที่ผู้ดูแลระบบ (Admin Portal)') || el.textContent.includes('แผงควบคุมผู้ดูแลระบบ')) &&
-        el.offsetParent !== null
-      );
-
-      // ถ้ารีเฟรชแล้วเจอหน้า Admin แต่ใน Session ไม่มีสถานะล็อกอิน Admin ให้ซ่อนหน้า Admin แล้วสลับกลับหน้าปฏิทินหลัก
-      const adminUnlocked = sessionStorage.getItem('admin_unlocked') === 'true' || localStorage.getItem('admin_unlocked') === 'true';
-      if (isAdminPortalOpen && !adminUnlocked) {
-        const adminSection = allHeadings.find(el => el.textContent.includes('พื้นที่ผู้ดูแลระบบ')).closest('div, section');
-        if (adminSection) {
-          adminSection.style.setProperty('display', 'none', 'important');
-        }
-        // พยายามคลิกปุ่ม "ปฏิทินหลัก" เพื่อพาผู้ใช้กลับหน้า User
-        const navButtons = document.querySelectorAll('button, a');
-        const mainCalBtn = Array.from(navButtons).find(b => (b.textContent || '').trim().includes('ปฏิทินหลัก'));
-        if (mainCalBtn) mainCalBtn.click();
-      }
-    } catch (e) {}
-  }
-
-  function applySafeUIFixes() {
-    try {
-      removeAndHideDailyViewTab();
-      preventUnwantedAdminView();
-
-      const shiftMode = localStorage.getItem('nurse_shift_mode');
-      const bodyText = document.body ? document.body.innerText : '';
-      const is2Shift = shiftMode === '2' || bodyText.includes('โหมด: 2 เวร') || bodyText.includes('2 เวร/วัน');
-
-      const spans = document.querySelectorAll('div, span, p');
-      for (let i = 0; i < spans.length; i++) {
-        const el = spans[i];
-        if (el.children.length === 0 && el.textContent.trim() === 'เวรดึกของฉัน') {
-          const card = el.parentElement ? el.parentElement.parentElement : null;
-          if (card) card.style.setProperty('display', is2Shift ? 'none' : 'flex', 'important');
-        }
-      }
-    } catch (e) {}
-  }
-
-  document.addEventListener('click', function(e) {
-    setTimeout(applySafeUIFixes, 60);
-    const btn = e.target.closest('button, input[type="submit"], a, [role="button"]');
-    if (!btn) return;
-    const text = (btn.textContent || btn.value || '').trim();
-
-    if (text.includes('ผู้ดูแลระบบ') || text.includes('Admin')) {
-      sessionStorage.setItem('admin_unlocked', 'true');
-    }
-    if (text.includes('ออกจากระบบ') || text.toLowerCase().includes('logout')) {
-      sessionStorage.removeItem('admin_unlocked');
-      localStorage.removeItem('admin_unlocked');
-      setTimeout(() => { location.reload(); }, 150);
-      return;
-    }
-  }, true);
-
-  /* --------------------------------------------------------------------------
-     3. ระบบซิงค์ GitHub (Smart Auto-Sync)
-     -------------------------------------------------------------------------- */
   function showSyncStatus(text, bgColor = 'rgba(30, 58, 138, 0.85)', autoHide = true) {
     let badge = document.getElementById('gh-sync-badge');
     if (!badge) {
       badge = document.createElement('div');
       badge.id = 'gh-sync-badge';
       badge.style.cssText = 'position:fixed;bottom:12px;right:12px;padding:8px 16px;border-radius:20px;color:#fff;font-size:12px;z-index:99999;backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.25);cursor:pointer;font-family:sans-serif;transition:opacity 0.4s, background 0.3s;';
-      badge.onclick = () => pushToGitHub(true);
+      badge.title = 'คลิกเพื่อบังคับซิงค์ข้อมูลทันที';
+      badge.onclick = () => {
+        showSyncStatus('🔄 กำลังซิงค์ข้อมูลด่วน...', 'rgba(30, 58, 138, 0.95)', false);
+        pushToGitHub(true);
+      };
       document.body.appendChild(badge);
     }
     badge.style.opacity = '1';
     badge.style.background = bgColor;
     badge.textContent = text;
-    if (autoHide) setTimeout(() => { badge.style.opacity = '0.85'; }, 4000);
+    if (autoHide) {
+      setTimeout(() => { badge.style.opacity = '0.85'; }, 4000);
+    }
   }
 
   function utf8ToBase64(str) {
@@ -5491,7 +5392,9 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     const shared = {};
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (isAllowedNurseSharedKey(k)) shared[k] = localStorage.getItem(k);
+      if (isAllowedNurseSharedKey(k)) {
+        shared[k] = localStorage.getItem(k);
+      }
     }
     shared['nurse_booking_v4_clean_reset'] = 'true';
     return shared;
@@ -5513,7 +5416,10 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     try {
       const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}?ref=${GITHUB_CONFIG.branch}&t=${Date.now()}`;
       const res = await fetch(url, { cache: 'no-store', headers: { 'Authorization': `token ${GITHUB_CONFIG.token}` } });
-      if (!res.ok) { hasPulledFromCloud = true; return; }
+      if (!res.ok) {
+        hasPulledFromCloud = true;
+        return;
+      }
 
       const fileData = await res.json();
       fileSha = fileData.sha;
@@ -5559,7 +5465,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
 
       const localShared = getCleanNurseSharedData();
       const body = {
-        message: 'Smart auto-sync nurse duty data v21',
+        message: 'Restore original layout and sync data',
         content: utf8ToBase64(JSON.stringify(localShared, null, 2)),
         branch: GITHUB_CONFIG.branch
       };
@@ -5579,7 +5485,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
         showSyncStatus('⚠️ บันทึกไม่สำเร็จ', 'rgba(220, 38, 38, 0.85)', true);
       }
     } catch (err) {
-      showSyncStatus('❌ เกิดข้อผิดพลาด', 'rgba(220, 38, 38, 0.85)', true);
+      showSyncStatus('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ', 'rgba(220, 38, 38, 0.85)', true);
     } finally {
       isSyncing = false;
     }
@@ -5590,15 +5496,25 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     if (!isSyncing && hasPulledFromCloud && isAllowedNurseSharedKey(key)) {
       showSyncStatus('💾 รอการบันทึก...', 'rgba(217, 119, 6, 0.85)', true);
       clearTimeout(syncTimeout);
-      syncTimeout = setTimeout(() => { pushToGitHub(false); }, 4000);
+      syncTimeout = setTimeout(() => {
+        pushToGitHub(false);
+      }, 4000);
     }
   };
 
-  localStorage.removeItem = function(key) { originalRemoveItem(key); };
-  localStorage.clear = function() { originalClear(); };
+  localStorage.removeItem = function(key) {
+    originalRemoveItem(key);
+  };
+
+  localStorage.clear = function() {
+    originalClear();
+  };
 
   pullFromGitHub();
-  window.addEventListener('load', () => setTimeout(applySafeUIFixes, 400));
-  setInterval(() => { if (!document.hidden) pullFromGitHub(); }, 15000);
+
+  setInterval(() => {
+    if (!document.hidden) pullFromGitHub();
+  }, 15000);
+
   window.addEventListener('focus', () => pullFromGitHub());
 })();
