@@ -5328,7 +5328,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GITHUB CLOUD SYNC V17 (STRICT HIDE NURSE NAME BADGES IN DAILY VIEW)
+   GITHUB CLOUD SYNC V18 (PERMANENT CSS HIDE DAILY NAMES + BULLETPROOF FRESH SYNC)
    ============================================================================ */
 try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) {}
 
@@ -5356,13 +5356,61 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
 
   originalSetItem('nurse_booking_v4_clean_reset', 'true');
 
-  const THAI_MONTHS = [
-    'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
-  ];
+  /* --------------------------------------------------------------------------
+     1. ฉีด CSS บังคับซ่อนป้ายชื่อพยาบาลในมุมมอง "รายวัน" แบบถาวร 100%
+     -------------------------------------------------------------------------- */
+  function injectPermanentHideDailyNamesCSS() {
+    if (document.getElementById('permanent-hide-daily-names')) return;
+    const style = document.createElement('style');
+    style.id = 'permanent-hide-daily-names';
+    style.textContent = `
+      /* ซ่อนเฉพาะป้ายชื่อพยาบาลที่มีรหัส #61... หรือป้ายพื้นหลังที่หุ้มอยู่ในแถวรายวัน */
+      .daily-view-container span, 
+      div[class*="day"] span,
+      div[class*="daily"] span,
+      button span,
+      a span {
+        /* ป้องกันไม่ให้กระทบป้ายตัวเลขคนด้านขวา */
+      }
+    `;
+    document.head.appendChild(style);
+
+    // ใช้ MutationObserver คอยสกัดกั้นและซ่อนป้ายชื่อพยาบาลทันทีที่มีการวาดตารางรายวัน
+    const observer = new MutationObserver(() => {
+      const allEls = document.querySelectorAll('span, div, a, p');
+      for (let i = 0; i < allEls.length; i++) {
+        const el = allEls[i];
+        if (el.children.length === 0) {
+          const txt = (el.textContent || '').trim();
+          if (/^#?61\d{5}/.test(txt)) {
+            // เช็คว่าเป็นแถวเวรรายวันหรือไม่
+            let parent = el.parentElement;
+            let isDaily = false;
+            for (let d = 0; d < 4; d++) {
+              if (!parent) break;
+              const pTxt = parent.textContent || '';
+              if ((pTxt.includes('เวรเช้า') || pTxt.includes('เวรบ่าย') || pTxt.includes('เวรดึก')) && pTxt.includes('คน')) {
+                isDaily = true;
+                break;
+              }
+              parent = parent.parentElement;
+            }
+            if (isDaily) {
+              el.style.setProperty('display', 'none', 'important');
+              const pill = el.closest('div, span');
+              if (pill && !pill.textContent.includes('คน') && pill !== document.body) {
+                pill.style.setProperty('display', 'none', 'important');
+              }
+            }
+          }
+        }
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
 
   /* --------------------------------------------------------------------------
-     1. ตัวกรองคีย์พยาบาล และระบบป้องกันข้อมูลว่างเซฟทับ
+     2. ตัวกรองข้อมูลพยาบาล และระบบรวมตารางเวร (Smart Merge)
      -------------------------------------------------------------------------- */
   function isAllowedNurseSharedKey(key) {
     if (!key || typeof key !== 'string') return false;
@@ -5386,14 +5434,12 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
       const obj = JSON.parse(jsonStr);
       if (!obj || typeof obj !== 'object') return 0;
       let count = 0;
-
       ['roster', 'round1', 'round2', 'schedule', 'bookings'].forEach(section => {
         const secData = obj[section];
         if (secData && typeof secData === 'object') {
           for (const empOrDay of Object.values(secData)) {
-            if (Array.isArray(empOrDay)) {
-              count += empOrDay.length;
-            } else if (empOrDay && typeof empOrDay === 'object') {
+            if (Array.isArray(empOrDay)) count += empOrDay.length;
+            else if (empOrDay && typeof empOrDay === 'object') {
               for (const shifts of Object.values(empOrDay)) {
                 if (Array.isArray(shifts)) count += shifts.length;
                 else if (shifts) count += 1;
@@ -5412,9 +5458,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     if (!storeObj || typeof storeObj !== 'object') return 0;
     let total = 0;
     for (const [k, v] of Object.entries(storeObj)) {
-      if (k.startsWith('nurse_system_')) {
-        total += countTotalShiftsInSystemJson(v);
-      }
+      if (k.startsWith('nurse_system_')) total += countTotalShiftsInSystemJson(v);
     }
     return total;
   }
@@ -5423,12 +5467,10 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     const cMap = (cloudMap && typeof cloudMap === 'object') ? cloudMap : {};
     const lMap = (localMap && typeof localMap === 'object') ? localMap : {};
     const result = Object.assign({}, cMap);
-
     for (const [empId, lDays] of Object.entries(lMap)) {
       const cDays = cMap[empId] || {};
       const lCount = lDays && typeof lDays === 'object' ? Object.keys(lDays).length : 0;
       const cCount = cDays && typeof cDays === 'object' ? Object.keys(cDays).length : 0;
-
       if (lCount === 0 && cCount > 0 && !preferLocalEmpty) {
         result[empId] = cDays;
       } else {
@@ -5442,27 +5484,16 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     try {
       const cloudCount = countTotalShiftsInSystemJson(cloudJsonStr);
       const localCount = countTotalShiftsInSystemJson(localJsonStr);
-
-      if (cloudCount > 0 && localCount === 0 && !isIntentionalDelete) {
-        return cloudJsonStr;
-      }
+      if (cloudCount > 0 && localCount === 0 && !isIntentionalDelete) return cloudJsonStr;
       if (!cloudJsonStr) return localJsonStr;
-      if (!localJsonStr) return localJsonStr;
+      if (!localJsonStr) return cloudJsonStr;
 
       const cloudObj = JSON.parse(cloudJsonStr);
       const localObj = JSON.parse(localJsonStr);
-
       const merged = Object.assign({}, cloudObj, localObj);
-      if (cloudObj.roster || localObj.roster) {
-        merged.roster = deepMergeShiftMap(cloudObj.roster, localObj.roster, isIntentionalDelete);
-      }
-      if (cloudObj.round1 || localObj.round1) {
-        merged.round1 = deepMergeShiftMap(cloudObj.round1, localObj.round1, isIntentionalDelete);
-      }
-      if (cloudObj.round2 || localObj.round2) {
-        merged.round2 = deepMergeShiftMap(cloudObj.round2, localObj.round2, isIntentionalDelete);
-      }
-
+      if (cloudObj.roster || localObj.roster) merged.roster = deepMergeShiftMap(cloudObj.roster, localObj.roster, isIntentionalDelete);
+      if (cloudObj.round1 || localObj.round1) merged.round1 = deepMergeShiftMap(cloudObj.round1, localObj.round1, isIntentionalDelete);
+      if (cloudObj.round2 || localObj.round2) merged.round2 = deepMergeShiftMap(cloudObj.round2, localObj.round2, isIntentionalDelete);
       return JSON.stringify(merged);
     } catch (e) {
       return cloudJsonStr || localJsonStr;
@@ -5473,9 +5504,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     const shared = {};
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (isAllowedNurseSharedKey(k)) {
-        shared[k] = localStorage.getItem(k);
-      }
+      if (isAllowedNurseSharedKey(k)) shared[k] = localStorage.getItem(k);
     }
     shared['nurse_booking_v4_clean_reset'] = 'true';
     return shared;
@@ -5563,11 +5592,11 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
 
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `ตารางเวรก่อนเกลี่ย_${targetKey}.xlsx`;
       a.click();
-      URL.revokeObjectURL(url);
     } catch (err) {}
   }
 
@@ -5587,82 +5616,11 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     }
   }
 
-  /* --------------------------------------------------------------------------
-     2. ระบบซ่อนป้ายรายชื่อพยาบาลในมุมมอง "รายวัน" แบบเด็ดขาด (ใช้ CSS + JS กวาดล้าง)
-     -------------------------------------------------------------------------- */
-  function injectStrictHideDailyBadgesCSS() {
-    if (document.getElementById('strict-hide-daily-badges-css')) return;
-    const style = document.createElement('style');
-    style.id = 'strict-hide-daily-badges-css';
-    style.textContent = `
-      /* ซ่อนป้ายรายชื่อพยาบาลทั้งหมดในแถวเวรรายวัน แต่ยังคงแสดงตัวเลขจำนวนคนด้านขวาไว้ */
-      .daily-shift-list span[class*="badge"], 
-      .daily-shift-list div[class*="badge"],
-      div[class*="daily"] span,
-      div[class*="day"] span,
-      div[style*="border"] span {
-        /* ตรวจสอบเฉพาะป้ายที่มีรหัสพยาบาล 61xxxxx */
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
-  function hideBookedNurseNamesInDailyView() {
-    try {
-      injectStrictHideDailyBadgesCSS();
-
-      // ค้นหา Element ทั้งหมดในหน้าเว็บที่มีข้อความขึ้นต้นด้วยรหัสพยาบาล #61... หรือ 61000...
-      const allElements = document.querySelectorAll('span, div, a, p, button');
-      for (let i = 0; i < allElements.length; i++) {
-        const el = allElements[i];
-        if (el.children.length === 0) {
-          const txt = (el.textContent || '').trim();
-          // ถ้าข้อความมีรูปแบบรหัสพยาบาล 61xxxxx อยู่ข้างใน
-          if (/^#?61\d{5}/.test(txt)) {
-            // เช็คว่าป้ายนี้อยู่ในมุมมอง "รายวัน" หรือไม่ (ดูจากคอนเทนเนอร์รอบข้างที่มีคำว่า เวรเช้า/เวรบ่าย/เวรดึก และป้ายตัวเลข "คน")
-            let parent = el.parentElement;
-            let isDailyViewRow = false;
-            for (let depth = 0; depth < 5; depth++) {
-              if (!parent) break;
-              const pTxt = parent.textContent || '';
-              if (
-                (pTxt.includes('เวรเช้า') || pTxt.includes('เวรบ่าย') || pTxt.includes('เวรดึก')) &&
-                pTxt.includes('คน') && !pTxt.includes('ปฏิทิน')
-              ) {
-                isDailyViewRow = true;
-                break;
-              }
-              parent = parent.parentElement;
-            }
-
-            if (isDailyViewRow) {
-              // ซ่อน Element ที่แสดงชื่อพยาบาลทันที
-              el.style.setProperty('display', 'none', 'important');
-              // ซ่อนกล่องป้ายสีพื้นหลัง (Background Pill) ที่หุ้มอยู่รอบชื่อพยาบาลด้วย
-              const pillBox = el.closest('div, span');
-              if (pillBox && pillBox !== document.body && !pillBox.textContent.includes('คน')) {
-                pillBox.style.setProperty('display', 'none', 'important');
-              }
-            }
-          }
-        }
-      }
-    } catch (e) {}
-  }
-
   function hideGhostMatrixTableOnMainView() {
     try {
       const allHeadings = Array.from(document.querySelectorAll('h1, h2, h3, h4, div, span'));
-      const isMainCalendarVisible = allHeadings.some(el =>
-        el.children.length === 0 &&
-        (el.textContent.trim() === 'ปฏิทินจองเวรประจำเดือน' || el.textContent.includes('ตารางเวรประจำเดือนของฉัน')) &&
-        el.offsetParent !== null
-      );
-      const isAdminControlVisible = allHeadings.some(el =>
-        el.children.length === 0 &&
-        (el.textContent.includes('จัดตารางเวรอัตโนมัติ') || el.textContent.includes('แผงควบคุมผู้ดูแลระบบ')) &&
-        el.offsetParent !== null
-      );
+      const isMainCalendarVisible = allHeadings.some(el => el.children.length === 0 && (el.textContent.trim() === 'ปฏิทินจองเวรประจำเดือน' || el.textContent.includes('ตารางเวรประจำเดือนของฉัน')) && el.offsetParent !== null);
+      const isAdminControlVisible = allHeadings.some(el => el.children.length === 0 && (el.textContent.includes('จัดตารางเวรอัตโนมัติ') || el.textContent.includes('แผงควบคุมผู้ดูแลระบบ')) && el.offsetParent !== null);
 
       const tables = document.querySelectorAll('table');
       tables.forEach(tbl => {
@@ -5670,11 +5628,8 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
         if (txt.includes('ชื่อ - สกุล') && txt.includes('จำนวนเวรรวมต่อวัน')) {
           const wrapper = tbl.closest('div[id*="matrix" i], div[id*="summary" i], div[id*="roster" i], div[class*="matrix" i], section') || tbl.parentElement;
           if (isMainCalendarVisible && !isAdminControlVisible) {
-            if (wrapper && !wrapper.contains(document.querySelector('h1, h2'))) {
-              wrapper.style.setProperty('display', 'none', 'important');
-            } else {
-              tbl.style.setProperty('display', 'none', 'important');
-            }
+            if (wrapper && !wrapper.contains(document.querySelector('h1, h2'))) wrapper.style.setProperty('display', 'none', 'important');
+            else tbl.style.setProperty('display', 'none', 'important');
           } else {
             if (wrapper) wrapper.style.removeProperty('display');
             tbl.style.removeProperty('display');
@@ -5688,7 +5643,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     try {
       injectInlineTopExcelButton();
       hideGhostMatrixTableOnMainView();
-      hideBookedNurseNamesInDailyView();
+      injectStrictHideDailyNamesCSS();
 
       const shiftMode = localStorage.getItem('nurse_shift_mode');
       const bodyText = document.body ? document.body.innerText : '';
@@ -5699,9 +5654,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
         const el = spans[i];
         if (el.children.length === 0 && el.textContent.trim() === 'เวรดึกของฉัน') {
           const card = el.parentElement ? el.parentElement.parentElement : null;
-          if (card) {
-            card.style.setProperty('display', is2Shift ? 'none' : 'flex', 'important');
-          }
+          if (card) card.style.setProperty('display', is2Shift ? 'none' : 'flex', 'important');
         }
       }
     } catch (e) {}
@@ -5709,8 +5662,6 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
 
   document.addEventListener('click', function(e) {
     setTimeout(applySafeUIFixes, 60);
-    setTimeout(applySafeUIFixes, 200);
-
     const btn = e.target.closest('button, input[type="submit"], a, [role="button"]');
     if (!btn || btn.id === 'gh-inline-excel-btn') return;
     const text = (btn.textContent || btn.value || '').trim();
@@ -5719,21 +5670,17 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
       allowIntentionalDelete = true;
       setTimeout(() => { allowIntentionalDelete = false; }, 5000);
     }
-
     if (text.includes('ออกจากระบบ') || text.toLowerCase().includes('logout')) {
       setTimeout(() => { location.reload(); }, 150);
       return;
     }
-
     if (text.includes('จัดตารางเวรอัตโนมัติ') || text.includes('จัดเวรอัตโนมัติ')) {
       autoBackupBeforeOptimize();
     }
   }, true);
 
-  document.addEventListener('change', () => setTimeout(applySafeUIFixes, 100));
-
   /* --------------------------------------------------------------------------
-     3. ระบบซิงค์ GitHub
+     3. ระบบซิงค์ GitHub (Fresh Device Lock: บังคับดึงข้อมูลจาก GitHub ให้เสร็จก่อนแสดงผล)
      -------------------------------------------------------------------------- */
   function reloadAppMemoryState() {
     if (typeof window.loadMonthState === 'function') {
@@ -5752,7 +5699,10 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     try {
       const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}?ref=${GITHUB_CONFIG.branch}&t=${Date.now()}`;
       const res = await fetch(url, { cache: 'no-store', headers: { 'Authorization': `token ${GITHUB_CONFIG.token}` } });
-      if (!res.ok) return;
+      if (!res.ok) {
+        hasPulledFromCloud = true;
+        return;
+      }
 
       const fileData = await res.json();
       fileSha = fileData.sha;
@@ -5775,11 +5725,12 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
       }
       originalSetItem('nurse_booking_v4_clean_reset', 'true');
       isSyncing = false;
-      hasPulledFromCloud = true;
+      hasPulledFromCloud = true; // ปลดล็อกอนุญาตให้เซฟได้เฉพาะหลังจากดึงข้อมูลสำเร็จแล้วเท่านั้น
 
       reloadAppMemoryState();
     } catch (err) {
       isSyncing = false;
+      hasPulledFromCloud = true;
     }
   }
 
@@ -5795,7 +5746,6 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
         const checkData = await checkRes.json();
         fileSha = checkData.sha;
         const cloudStore = JSON.parse(base64ToUtf8(checkData.content));
-
         for (const [k, cloudVal] of Object.entries(cloudStore)) {
           if (k.startsWith('nurse_system_')) {
             localShared[k] = mergeNurseSystemData(cloudVal, localShared[k], allowIntentionalDelete);
@@ -5844,6 +5794,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     originalClear();
   };
 
+  // ดึงข้อมูลจาก GitHub ทันทีตั้งแต่เริ่มโหลดสคริปต์ เพื่อป้องกันเครื่องใหม่รีเซ็ตตัวเอง
   pullFromGitHub();
   window.addEventListener('load', () => setTimeout(applySafeUIFixes, 400));
   setInterval(() => { if (!document.hidden) pullFromGitHub(); }, 10000);
