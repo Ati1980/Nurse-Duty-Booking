@@ -1,5 +1,5 @@
 {
-  "nurse_cal_view_mode": "grid",
+  "nurse_cal_view_mode": "daily",
   "nurse_admin_password": "2910",
   "nurse_shift_mode": "2",
   "nurse_current_user": "{\"role\":\"admin\",\"name\":\"ผู้ดูแลระบบ (Admin)\"}",
