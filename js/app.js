@@ -1256,7 +1256,7 @@ function updateCalendarViewDisplay() {
   }
 }
 
-// Render Mobile Agenda Cards (มุมมองรายวัน - Matches Image 3)
+// Render Mobile Agenda Cards (มุมมองรายวัน)
 function renderPublicDashboardDailyCards(activeShifts) {
   const dailyContainer = document.getElementById('mainCalendarDailyContainer');
   if (!dailyContainer) return;
@@ -1288,7 +1288,6 @@ function renderPublicDashboardDailyCards(activeShifts) {
       dayBadge = '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">เสาร์</span>';
     }
 
-    // Build shift rows for this day
     let shiftRowsHtml = '';
     let visibleShiftsCount = 0;
 
@@ -1303,7 +1302,6 @@ function renderPublicDashboardDailyCards(activeShifts) {
       const count = assigned.length;
       const isUnassigned = (count === 0);
 
-      // Check Dashboard Filter
       if (dashboardShiftFilter === 'UNASSIGNED' && !isUnassigned) return;
       if (dashboardShiftFilter === 'M' && s !== 'M') return;
       if (dashboardShiftFilter === 'A' && s !== 'A') return;
@@ -1311,7 +1309,6 @@ function renderPublicDashboardDailyCards(activeShifts) {
 
       visibleShiftsCount++;
 
-      // Shift row styling
       let rowBorder = 'border-slate-200/90 dark:border-slate-700/80 bg-white dark:bg-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800';
       let nurseBadgesHtml = '';
 
@@ -1324,46 +1321,31 @@ function renderPublicDashboardDailyCards(activeShifts) {
           </span>
         `;
       } else {
-        nurseBadgesHtml = assigned.map(n => {
-          const nurseNum = n.id.replace(/\D/g, '') || n.id;
-          const cleanName = n.name.replace(/^พว\.\s*/, '');
-          const badgeBg = n.color || '#2563eb';
-          return `
-            <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-xl text-white shadow-2xs transition transform hover:scale-105"
-                  style="background-color: ${badgeBg};">
-              <span class="opacity-90 font-mono">#${nurseNum}</span>
-              <span>${cleanName}</span>
-            </span>
-          `;
-        }).join('');
+        // [แก้ไขจุดที่ 1] ตัดรายชื่อพยาบาลออก ให้แสดงเป็นค่าว่าง ไม่แสดงป้ายชื่อรายบุคคล
+        nurseBadgesHtml = '';
       }
 
-      // Person count badge
       const countBadge = isUnassigned
         ? `<span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60">0 คน</span>`
         : `<span class="px-2.5 py-1 rounded-xl text-xs font-black bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-600">${count} คน</span>`;
 
-      // Shift time display
       let timeStr = '08:30';
       if (s === 'A') timeStr = '16:30';
       if (s === 'N') timeStr = '00:30';
 
       shiftRowsHtml += `
         <div class="flex items-center justify-between p-3 sm:p-3.5 rounded-2xl border ${rowBorder} transition cursor-pointer gap-2 shadow-2xs"
-             onclick="handleShiftClick(${d}, '${s}')" title="แตะเพื่อดูรายชื่อหรือเลือกจองเวรนี้">
+             onclick="handleShiftClick(${d}, '${s}')" title="แตะเพื่อดูรายละเอียดหรือเลือกจองเวรนี้">
           <div class="flex items-center gap-2.5 flex-wrap flex-1 min-w-0">
             <div class="flex items-center gap-1.5 shrink-0">
               <span class="text-xl sm:text-2xl">${shiftObj.icon}</span>
               <span class="font-black text-xs sm:text-sm text-slate-800 dark:text-slate-100">${shiftObj.name}</span>
               <span class="text-[11px] text-slate-500 dark:text-slate-400 font-mono font-medium">(${timeStr})</span>
             </div>
-
-            <!-- Nurse Badges -->
             <div class="flex items-center gap-1.5 flex-wrap">
               ${nurseBadgesHtml}
             </div>
           </div>
-
           <div class="shrink-0">
             ${countBadge}
           </div>
@@ -1371,13 +1353,10 @@ function renderPublicDashboardDailyCards(activeShifts) {
       `;
     });
 
-    if (visibleShiftsCount === 0 && dashboardShiftFilter !== 'ALL') {
-      continue;
-    }
+    if (visibleShiftsCount === 0 && dashboardShiftFilter !== 'ALL') continue;
 
     html += `
       <div class="glass-card rounded-3xl p-4 sm:p-5 border ${dayCardBorder} shadow-sm space-y-3">
-        <!-- Day Card Header -->
         <div class="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl ${dateBadgeBg} border flex items-center justify-center font-black text-lg sm:text-xl shadow-inner shrink-0">
@@ -1394,20 +1373,9 @@ function renderPublicDashboardDailyCards(activeShifts) {
             </div>
           </div>
         </div>
-
-        <!-- Shift Rows -->
         <div class="space-y-2 pt-0.5">
           ${shiftRowsHtml}
         </div>
-      </div>
-    `;
-  }
-
-  if (!html) {
-    html = `
-      <div class="glass-card rounded-3xl p-8 text-center border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">
-        <div class="text-3xl mb-2">🔍</div>
-        <div class="font-bold text-sm">ไม่พบเวรที่ตรงกับตัวกรองที่เลือก</div>
       </div>
     `;
   }
@@ -1422,14 +1390,12 @@ window.handleShiftClick = function(day, shift) {
   const dt = new Date(currentYear, currentMonth, day);
   const dayName = CALENDAR_HEADERS[dt.getDay()].th;
 
-  // Check currently assigned nurses
   const assigned = [];
   NURSES.forEach(n => {
     const shifts = (monthState.roster[n.id] && monthState.roster[n.id][day]) || [];
     if (shifts.includes(shift)) assigned.push(n);
   });
 
-  // If user is NOT logged in: If confirmed, show read-only details; else prompt Nurse login
   if (!currentUser) {
     if (monthState && monthState.isConfirmed) {
       document.getElementById('shiftModalIcon').innerText = shiftObj.icon;
@@ -1455,7 +1421,7 @@ window.handleShiftClick = function(day, shift) {
         </div>
         <div class="p-3 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold flex items-center gap-2">
           <span>🔒</span>
-          <span>ตารางเวรประจำเดือนนี้ได้รับการยืนยันและประกาศอย่างเป็นทางการแล้ว (ปิดรับการจองหรือแก้ไข)</span>
+          <span>ตารางเวรประจำเดือนนี้ได้รับการยืนยันและประกาศอย่างเป็นทางการแล้ว</span>
         </div>
       `;
 
@@ -1474,7 +1440,6 @@ window.handleShiftClick = function(day, shift) {
     return;
   }
 
-  // If logged in as Nurse
   if (currentUser.role === 'nurse') {
     const nurseId = currentUser.nurseId;
     const nurseName = currentUser.name;
@@ -1541,21 +1506,13 @@ window.handleShiftClick = function(day, shift) {
       `;
     } else if (isAlreadyBooked) {
       footerEl.innerHTML = `
-        <button onclick="closeShiftActionModal()" class="flex-1 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-semibold">
-          ปิด
-        </button>
-        <button onclick="confirmToggleShiftBooking(false)" class="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow transition">
-          🗑️ ยกเลิกการเลือกเวรนี้
-        </button>
+        <button onclick="closeShiftActionModal()" class="flex-1 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-semibold">ปิด</button>
+        <button onclick="confirmToggleShiftBooking(false)" class="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow transition">🗑️ ยกเลิกการเลือกเวรนี้</button>
       `;
     } else {
       footerEl.innerHTML = `
-        <button onclick="closeShiftActionModal()" class="flex-1 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-semibold">
-          ยกเลิก
-        </button>
-        <button onclick="confirmToggleShiftBooking(true)" class="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow transition">
-          ✓ ยืนยันการเลือกเวรนี้
-        </button>
+        <button onclick="closeShiftActionModal()" class="flex-1 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-semibold">ยกเลิก</button>
+        <button onclick="confirmToggleShiftBooking(true)" class="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow transition">✓ ยืนยันการเลือกเวรนี้</button>
       `;
     }
 
@@ -1563,11 +1520,10 @@ window.handleShiftClick = function(day, shift) {
     return;
   }
 
-    // If logged in as Admin: Open booking for vacancy or cell editor
-    if (currentUser.role === 'admin') {
-      openBookingForVacancy(day, shift);
-    }
-  };
+  if (currentUser.role === 'admin') {
+    openBookingForVacancy(day, shift);
+  }
+};
 
   window.closeShiftActionModal = function() {
     document.getElementById('shiftActionModal').classList.add('hidden');
