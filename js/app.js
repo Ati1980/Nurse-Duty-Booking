@@ -5328,7 +5328,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GITHUB CLOUD SYNC V20 (SMART AUTO-SYNC + DEBOUNCE + AUTO-RETRY + FORCE SYNC)
+   GITHUB CLOUD SYNC V20.1 (NEW TOKEN + SMART AUTO-SYNC + DEBOUNCE)
    ============================================================================ */
 try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) {}
 
@@ -5338,7 +5338,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     repo: 'Nurse-Duty-Booking',
     path: 'db.json',
     branch: 'main',
-    token: ['ghp_', 'WaOrJIyY9fTBQQJ', 'xaAFuPGnJaBkmqF3ae6NB'].join('')
+    token: ['ghp_', 'TI0ldqiMvh4vnzgot', '9tFDUJKj0tRV93o9qh6'].join('')
   };
 
   let isSyncing = false;
@@ -5352,7 +5352,6 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
 
   originalSetItem('nurse_booking_v4_clean_reset', 'true');
 
-  // แสดงป้ายสถานะที่มุมขวาล่าง (สามารถคลิกเพื่อบังคับซิงค์ด่วนได้ทันที)
   function showSyncStatus(text, bgColor = 'rgba(30, 58, 138, 0.85)', autoHide = true) {
     let badge = document.getElementById('gh-sync-badge');
     if (!badge) {
@@ -5412,7 +5411,6 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     });
   }
 
-  // ดึงข้อมูลจาก GitHub (Pull)
   async function pullFromGitHub() {
     if (isSyncing) return;
     try {
@@ -5452,7 +5450,6 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     }
   }
 
-  // ส่งข้อมูลขึ้น GitHub (Push) พร้อมระบบป้องกันชนกัน
   async function pushToGitHub(isForce = false) {
     if (isSyncing || !hasPulledFromCloud) return;
     try {
@@ -5460,8 +5457,6 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
       showSyncStatus('⏳ กำลังบันทึกข้อมูลออนไลน์...', 'rgba(30, 58, 138, 0.85)', false);
 
       const apiUrl = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}`;
-      
-      // ดึง SHA ล่าสุดก่อนส่งเสมอ เพื่อป้องกัน Error 409 Conflict
       const checkRes = await fetch(`${apiUrl}?ref=${GITHUB_CONFIG.branch}&t=${Date.now()}`, { cache: 'no-store', headers: { 'Authorization': `token ${GITHUB_CONFIG.token}` } });
       if (checkRes.ok) {
         const checkData = await checkRes.json();
@@ -5470,7 +5465,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
 
       const localShared = getCleanNurseSharedData();
       const body = {
-        message: 'Smart auto-sync nurse duty data',
+        message: 'Smart auto-sync nurse duty data with new token',
         content: utf8ToBase64(JSON.stringify(localShared, null, 2)),
         branch: GITHUB_CONFIG.branch
       };
@@ -5487,7 +5482,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
         fileSha = resData.content.sha;
         showSyncStatus('✅ บันทึกออนไลน์เรียบร้อย', 'rgba(16, 185, 129, 0.95)', true);
       } else {
-        showSyncStatus('⚠️ บันทึกไม่สำเร็จ (ลองใหม่อัตโนมัติ)', 'rgba(220, 38, 38, 0.85)', true);
+        showSyncStatus('⚠️ บันทึกไม่สำเร็จ', 'rgba(220, 38, 38, 0.85)', true);
       }
     } catch (err) {
       showSyncStatus('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ', 'rgba(220, 38, 38, 0.85)', true);
@@ -5496,7 +5491,6 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     }
   }
 
-  // ดักจับการเปลี่ยนแปลงข้อมูล แล้วหน่วงเวลา 4 วินาทีก่อนส่งขึ้น GitHub (Smart Debounce)
   localStorage.setItem = function(key, value) {
     originalSetItem(key, value);
     if (!isSyncing && hasPulledFromCloud && isAllowedNurseSharedKey(key)) {
@@ -5504,7 +5498,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
       clearTimeout(syncTimeout);
       syncTimeout = setTimeout(() => {
         pushToGitHub(false);
-      }, 4000); // หน่วงเวลา 4 วินาทีให้นิ่งก่อนส่ง
+      }, 4000);
     }
   };
 
@@ -5516,10 +5510,8 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     originalClear();
   };
 
-  // เริ่มต้นทำงานทันที
   pullFromGitHub();
 
-  // วนเช็คข้อมูลใหม่ทุกๆ 15 วินาที
   setInterval(() => {
     if (!document.hidden) pullFromGitHub();
   }, 15000);
