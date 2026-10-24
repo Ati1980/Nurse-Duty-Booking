@@ -372,16 +372,20 @@ function saveMonthState() {
 }
 
 function loadMonthState() {
-  const raw = localStorage.getItem(getStorageKey());
-  if (raw) {
+  const key = `nurse_system_${currentYear}_${currentMonth}`;
+  const saved = localStorage.getItem(key);
+  if (saved) {
     try {
-      monthState = JSON.parse(raw);
-      if (monthState.isConfirmed === undefined) monthState.isConfirmed = false;
+      monthState = JSON.parse(saved);
+      // ตรวจสอบโครงสร้างพื้นฐาน
+      if (!monthState.roster) monthState.roster = {};
+      if (typeof monthState.isConfirmed === 'undefined') monthState.isConfirmed = false;
     } catch (e) {
-      initFreshMonth();
+      console.error('Error parsing month state:', e);
+      monthState = { roster: {}, isConfirmed: false };
     }
   } else {
-    initFreshMonth();
+    monthState = { roster: {}, isConfirmed: false };
   }
 }
 
@@ -5322,19 +5326,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GOOGLE APPS SCRIPT SYNC V4.5 (BULLETPROOF CLIENT & CLOUD MERGE)
+   GOOGLE APPS SCRIPT SYNC V5.0 (DIRECT SYNC - NO RACE CONDITION)
    ============================================================================ */
 (function() {
-  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxR2zLF6pgISxpUyCKycyj22QuWZ265QMPjGq0Pya9pzS0LQYm1cfhRexymB4OYyXW8AQ/exec";
+  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzScoDAtaM1oRT8SF5plzPjmHVKe3kF7rdlGbxb88-7QAmYBu-DJcFBqT1MTxbwRMhPVA/exec";
 
   let isSyncing = false;
   let isPushing = false;
-  let lastActionTime = 0; // หน่วงการ Pull หลังกดจอง/ลบ
-  let syncTimeout = null;
-
-  const originalSetItem = localStorage.setItem.bind(localStorage);
-  const originalRemoveItem = localStorage.removeItem.bind(localStorage);
-  const originalClear = localStorage.clear.bind(localStorage);
 
   function showSyncStatus(text, bgColor = 'rgba(30, 58, 138, 0.85)', autoHide = true) {
     let badge = document.getElementById('gh-sync-badge');
@@ -5371,54 +5369,16 @@ document.addEventListener('DOMContentLoaded', () => {
     return shared;
   }
 
-  function reloadAppMemoryState() {
-    const syncedMode = localStorage.getItem('nurse_shift_mode');
-    if (syncedMode && typeof updateShiftModeUI === 'function') {
-      shiftMode = parseInt(syncedMode, 10);
-      updateShiftModeUI();
-    }
-    if (typeof loadMonthState === 'function') {
-      try { loadMonthState(); } catch (e) {}
-    }
-    try {
-      if (typeof renderPublicDashboard === 'function') renderPublicDashboard();
-      if (typeof renderNurseCalendar === 'function' && activeView === 'personal') renderNurseCalendar();
-      if (typeof renderAdminView === 'function' && activeView === 'admin') renderAdminView();
-      if (typeof renderExcelView === 'function' && activeView === 'excel') renderExcelView('userExcelViewContent');
-    } catch (e) {
-      console.error('Error reloading app memory state:', e);
-    }
-  }
-
-  // ผสานตารางเวรฝั่ง Client: เอาเวรของคนอื่นใน Cloud มารวม โดยไม่ทับเวรของคนที่กำลังล็อกอินอยู่
-  function mergeRosterData(localJsonStr, cloudJsonStr) {
-    if (!localJsonStr) return cloudJsonStr;
-    if (!cloudJsonStr) return localJsonStr;
-    try {
-      const localObj = JSON.parse(localJsonStr);
-      const cloudObj = JSON.parse(cloudJsonStr);
-
-      if (!localObj.roster || !cloudObj.roster) return cloudJsonStr;
-
-      // ผสาน roster: เอาข้อมูลของ Cloud มาตั้งต้น
-      const mergedRoster = Object.assign({}, cloudObj.roster);
-
-      // ถ้าในเครื่องเรามีผู้ใช้ล็อกอินอยู่ ให้ยึดข้อมูลของตัวเราในเครื่องเป็นหลักเสมอ ไม่ให้ถูกเขียนทับเป็นค่าว่าง
-      if (currentUser && currentUser.id && localObj.roster[currentUser.id] !== undefined) {
-        mergedRoster[currentUser.id] = localObj.roster[currentUser.id];
-      }
-
-      cloudObj.roster = mergedRoster;
-      return JSON.stringify(cloudObj);
-    } catch (e) {
-      return cloudJsonStr;
-    }
+  function refreshAllViews() {
+    loadMonthState();
+    if (typeof renderPublicDashboard === 'function') renderPublicDashboard();
+    if (typeof renderNurseCalendar === 'function' && activeView === 'personal') renderNurseCalendar();
+    if (typeof renderAdminView === 'function' && activeView === 'admin') renderAdminView();
+    if (typeof renderExcelView === 'function' && activeView === 'excel') renderExcelView('userExcelViewContent');
   }
 
   async function pullFromCloud(force = false) {
-    // 🛡️ หากเพิ่งกดจองหรือลบเวรภายใน 6 วินาที ห้ามดึงข้อมูลเด็ดขาด ป้องกันการเด้งกลับ
-    const timeSinceAction = Date.now() - lastActionTime;
-    if (!force && (isPushing || timeSinceAction < 6000)) return;
+    if (isPushing && !force) return;
     if (isSyncing) return;
 
     try {
@@ -5432,24 +5392,35 @@ document.addEventListener('DOMContentLoaded', () => {
       for (const [key, val] of Object.entries(cloudStore)) {
         if (!isAllowedSharedKey(key)) continue;
 
-        const currentLocalVal = localStorage.getItem(key);
-        let finalValToStore = val;
-
-        // ถ้าเป็นคีย์เวรประจำเดือน ให้ผสานข้อมูลแทนการเขียนทับ
-        if (key.startsWith('nurse_system_') && currentLocalVal) {
-          finalValToStore = mergeRosterData(currentLocalVal, val);
+        // ผสานเข้า localStorage ทันที
+        if (key.startsWith('nurse_system_')) {
+          const localStr = localStorage.getItem(key);
+          if (localStr) {
+            try {
+              const localObj = JSON.parse(localStr);
+              const cloudObj = JSON.parse(val);
+              // รวม roster ของทุกคน
+              const merged = Object.assign({}, cloudObj.roster, localObj.roster);
+              cloudObj.roster = merged;
+              const mergedStr = JSON.stringify(cloudObj);
+              if (localStr !== mergedStr) {
+                localStorage.setItem(key, mergedStr);
+                hasChanges = true;
+              }
+              continue;
+            } catch (e) {}
+          }
         }
 
-        if (currentLocalVal !== finalValToStore) {
-          originalSetItem(key, finalValToStore);
+        if (localStorage.getItem(key) !== val) {
+          localStorage.setItem(key, val);
           hasChanges = true;
         }
       }
 
       isSyncing = false;
-
       if (hasChanges) {
-        reloadAppMemoryState();
+        refreshAllViews();
         showSyncStatus('☁️ ซิงค์ข้อมูลล่าสุดสำเร็จ', 'rgba(16, 185, 129, 0.95)', true);
       } else if (force) {
         showSyncStatus('☁️ ข้อมูลเป็นปัจจุบัน', 'rgba(16, 185, 129, 0.85)', true);
@@ -5460,65 +5431,44 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function pushToCloud() {
+    if (isPushing) return;
     try {
       isPushing = true;
-      lastActionTime = Date.now();
       showSyncStatus('⏳ กำลังบันทึกข้อมูลออนไลน์...', 'rgba(30, 58, 138, 0.85)', false);
 
       const localShared = getCleanSharedData();
+      const formBody = new URLSearchParams();
+      formBody.append('data', JSON.stringify(localShared));
 
       await fetch(GAS_API_URL, {
         method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(localShared)
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+        body: formBody
       });
 
+      showSyncStatus('✅ บันทึกออนไลน์เรียบร้อย', 'rgba(16, 185, 129, 0.95)', true);
+    } catch (err) {
+      showSyncStatus('⚠️ เชื่อมต่อคลาวด์ไม่สำเร็จ', 'rgba(220, 38, 38, 0.85)', true);
+    } finally {
       setTimeout(() => {
         isPushing = false;
-        showSyncStatus('✅ บันทึกออนไลน์เรียบร้อย', 'rgba(16, 185, 129, 0.95)', true);
-      }, 1200);
-
-    } catch (err) {
-      isPushing = false;
-      showSyncStatus('❌ การเชื่อมต่อขัดข้อง', 'rgba(220, 38, 38, 0.85)', true);
+      }, 1000);
     }
   }
 
-  window.forcePushToCloud = function() {
-    lastActionTime = Date.now();
-    clearTimeout(syncTimeout);
-    pushToCloud();
-  };
+  // ให้ระบบภายนอกสั่งบันทึกได้โดยตรง
+  window.forcePushToCloud = pushToCloud;
+  window.forcePullFromCloud = () => pullFromCloud(true);
 
-  localStorage.setItem = function(key, value) {
-    originalSetItem(key, value);
-    if (!isSyncing && isAllowedSharedKey(key)) {
-      lastActionTime = Date.now();
-      clearTimeout(syncTimeout);
-      syncTimeout = setTimeout(() => {
-        pushToCloud();
-      }, 400);
-    }
-  };
-
-  localStorage.removeItem = function(key) {
-    originalRemoveItem(key);
-  };
-
-  localStorage.clear = function() {
-    originalClear();
-  };
-
-  // ดึงข้อมูลครั้งแรกตอนเปิดหน้าเว็บ
+  // ดึงข้อมูลครั้งแรก
   pullFromCloud(true);
 
-  // ตรวจสอบข้อมูลใหม่ทุก 10 วินาที
+  // ตรวจสอบข้อมูลรอบใหม่ทุกๆ 12 วินาที
   setInterval(() => {
     if (!document.hidden && !isPushing) {
       pullFromCloud(false);
     }
-  }, 10000);
+  }, 12000);
 
   window.addEventListener('focus', () => {
     if (!isPushing) pullFromCloud(false);
