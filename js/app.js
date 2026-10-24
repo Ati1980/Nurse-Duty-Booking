@@ -5322,14 +5322,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GOOGLE APPS SCRIPT SYNC V3.5 (MULTI-DEVICE REALTIME SYNC)
+   GOOGLE APPS SCRIPT SYNC V4.1 (OPTIMIZED FOR 20 CONCURRENT USERS)
    ============================================================================ */
 (function() {
-  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwtHcqKqpDyGPlpcf7gyIIm1p07VCnZRZibXx-dIJ2LchSbu_5zWVwWlTnwRS91Hxg_4Q/exec";
+  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxtAAmJZGMr6DKrzxY-5gcOvGH-FmWClZZu4HyjbAeVNuVc75Rkovr5Nj5_gcBJmbBLzw/exec";
 
   let isSyncing = false;
   let isPushing = false;
-  let lastLocalSaveTime = 0; // ป้องกันไม่ให้เครื่องที่เพิ่งกดบันทึก ดึงข้อมูลกลับมาชนตัวเอง
   let syncTimeout = null;
 
   const originalSetItem = localStorage.setItem.bind(localStorage);
@@ -5342,7 +5341,7 @@ document.addEventListener('DOMContentLoaded', () => {
       badge = document.createElement('div');
       badge.id = 'gh-sync-badge';
       badge.style.cssText = 'position:fixed;bottom:12px;right:12px;padding:8px 16px;border-radius:20px;color:#fff;font-size:12px;z-index:99999;backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.25);cursor:pointer;font-family:sans-serif;transition:opacity 0.4s, background 0.3s;';
-      badge.title = 'คลิกเพื่อซิงค์ข้อมูลสดทันที';
+      badge.title = 'คลิกเพื่อรีเฟรชข้อมูล';
       badge.onclick = () => pullFromCloud(true);
       document.body.appendChild(badge);
     }
@@ -5390,40 +5389,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // ดึงข้อมูลจาก Cloud และอัปเดตลงเครื่อง
   async function pullFromCloud(force = false) {
-    // ถ้าเครื่องนี้เพิ่งกดบันทึกหรือลบเวรภายใน 4 วินาที ให้รอจนกว่าเซฟจะเสร็จสมบูรณ์
-    const timeSinceLastSave = Date.now() - lastLocalSaveTime;
-    if (!force && (isPushing || timeSinceLastSave < 4000)) {
-      return;
-    }
-
+    if (isPushing && !force) return;
     if (isSyncing) return;
 
     try {
       isSyncing = true;
-      const res = await fetch(`${GAS_API_URL}?_nocache=${Date.now()}`);
+      const res = await fetch(`${GAS_API_URL}?_t=${Date.now()}`);
       if (!res.ok) { isSyncing = false; return; }
 
       const cloudStore = await res.json();
       let hasChanges = false;
 
-      // 1. ตรวจสอบข้อมูลจาก Cloud มาเขียนลงเครื่อง
       for (const [key, val] of Object.entries(cloudStore)) {
         if (!isAllowedSharedKey(key)) continue;
-        if (localStorage.getItem(key) !== val) {
+        
+        const localVal = localStorage.getItem(key);
+        if (localVal !== val) {
           originalSetItem(key, val);
           hasChanges = true;
-        }
-      }
-
-      // 2. ถ้าใน Cloud ลบคีย์เดือนนั้นออกไปแล้ว แต่ในเครื่องยังมี ให้เคลียร์ตาม Cloud
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (isAllowedSharedKey(k) && k.startsWith('nurse_system_')) {
-          if (!cloudStore[k]) {
-            originalRemoveItem(k);
-            hasChanges = true;
-          }
         }
       }
 
@@ -5440,10 +5425,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // ส่งข้อมูลขึ้น Cloud พร้อมรอรอบบันทึกเสร็จ
   async function pushToCloud() {
     try {
       isPushing = true;
-      lastLocalSaveTime = Date.now();
       showSyncStatus('⏳ กำลังบันทึกข้อมูลออนไลน์...', 'rgba(30, 58, 138, 0.85)', false);
 
       const localShared = getCleanSharedData();
@@ -5455,9 +5440,11 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(localShared)
       });
 
+      // หน่วงดึงข้อมูลกลับมาซิงค์ 1 วินาที เพื่อดึงเวรของเพื่อนคนอื่นที่เพิ่งเซฟพร้อมกันมาด้วย
       setTimeout(() => {
         isPushing = false;
         showSyncStatus('✅ บันทึกออนไลน์เรียบร้อย', 'rgba(16, 185, 129, 0.95)', true);
+        pullFromCloud(false);
       }, 1000);
 
     } catch (err) {
@@ -5467,23 +5454,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.forcePushToCloud = function() {
-    lastLocalSaveTime = Date.now();
     clearTimeout(syncTimeout);
     pushToCloud();
-  };
-
-  window.forcePullFromCloud = function() {
-    pullFromCloud(true);
   };
 
   localStorage.setItem = function(key, value) {
     originalSetItem(key, value);
     if (!isSyncing && isAllowedSharedKey(key)) {
-      lastLocalSaveTime = Date.now();
       clearTimeout(syncTimeout);
       syncTimeout = setTimeout(() => {
         pushToCloud();
-      }, 300);
+      }, 350);
     }
   };
 
@@ -5495,18 +5476,17 @@ document.addEventListener('DOMContentLoaded', () => {
     originalClear();
   };
 
-  // ดึงข้อมูลครั้งแรกเมื่อเปิดหน้าเว็บ
+  // ดึงข้อมูลครั้งแรกเมื่อโหลดหน้าเว็บ
   pullFromCloud(true);
 
-  // 🔄 เช็คข้อมูลใหม่ทุกๆ 8 วินาทีอัตโนมัติ (ทำให้ฝั่ง Admin และ User ซิงค์ตรงกันเสมอ)
+  // ปรับรอบตรวจจับอัตโนมัติเป็นทุก 8 วินาที (เหมาะสมสำหรับ 15-20 คน ไม่โหลดเซิร์ฟเวอร์หนักเกินไป)
   setInterval(() => {
-    if (!document.hidden) {
+    if (!document.hidden && !isPushing) {
       pullFromCloud(false);
     }
   }, 8000);
 
-  // ⚡ เมื่อสลับกลับมาที่หน้าเว็บ (Focus Tab) ให้ดึงข้อมูลสดทันที
   window.addEventListener('focus', () => {
-    pullFromCloud(false);
+    if (!isPushing) pullFromCloud(false);
   });
 })();
