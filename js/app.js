@@ -5322,13 +5322,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GOOGLE APPS SCRIPT SYNC V4.1 (OPTIMIZED FOR 20 CONCURRENT USERS)
+   GOOGLE APPS SCRIPT SYNC V4.5 (BULLETPROOF CLIENT & CLOUD MERGE)
    ============================================================================ */
 (function() {
-  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxtAAmJZGMr6DKrzxY-5gcOvGH-FmWClZZu4HyjbAeVNuVc75Rkovr5Nj5_gcBJmbBLzw/exec";
+  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxR2zLF6pgISxpUyCKycyj22QuWZ265QMPjGq0Pya9pzS0LQYm1cfhRexymB4OYyXW8AQ/exec";
 
   let isSyncing = false;
   let isPushing = false;
+  let lastActionTime = 0; // หน่วงการ Pull หลังกดจอง/ลบ
   let syncTimeout = null;
 
   const originalSetItem = localStorage.setItem.bind(localStorage);
@@ -5389,14 +5390,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ดึงข้อมูลจาก Cloud และอัปเดตลงเครื่อง
+  // ผสานตารางเวรฝั่ง Client: เอาเวรของคนอื่นใน Cloud มารวม โดยไม่ทับเวรของคนที่กำลังล็อกอินอยู่
+  function mergeRosterData(localJsonStr, cloudJsonStr) {
+    if (!localJsonStr) return cloudJsonStr;
+    if (!cloudJsonStr) return localJsonStr;
+    try {
+      const localObj = JSON.parse(localJsonStr);
+      const cloudObj = JSON.parse(cloudJsonStr);
+
+      if (!localObj.roster || !cloudObj.roster) return cloudJsonStr;
+
+      // ผสาน roster: เอาข้อมูลของ Cloud มาตั้งต้น
+      const mergedRoster = Object.assign({}, cloudObj.roster);
+
+      // ถ้าในเครื่องเรามีผู้ใช้ล็อกอินอยู่ ให้ยึดข้อมูลของตัวเราในเครื่องเป็นหลักเสมอ ไม่ให้ถูกเขียนทับเป็นค่าว่าง
+      if (currentUser && currentUser.id && localObj.roster[currentUser.id] !== undefined) {
+        mergedRoster[currentUser.id] = localObj.roster[currentUser.id];
+      }
+
+      cloudObj.roster = mergedRoster;
+      return JSON.stringify(cloudObj);
+    } catch (e) {
+      return cloudJsonStr;
+    }
+  }
+
   async function pullFromCloud(force = false) {
-    if (isPushing && !force) return;
+    // 🛡️ หากเพิ่งกดจองหรือลบเวรภายใน 6 วินาที ห้ามดึงข้อมูลเด็ดขาด ป้องกันการเด้งกลับ
+    const timeSinceAction = Date.now() - lastActionTime;
+    if (!force && (isPushing || timeSinceAction < 6000)) return;
     if (isSyncing) return;
 
     try {
       isSyncing = true;
-      const res = await fetch(`${GAS_API_URL}?_t=${Date.now()}`);
+      const res = await fetch(`${GAS_API_URL}?_nocache=${Date.now()}`);
       if (!res.ok) { isSyncing = false; return; }
 
       const cloudStore = await res.json();
@@ -5404,10 +5431,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
       for (const [key, val] of Object.entries(cloudStore)) {
         if (!isAllowedSharedKey(key)) continue;
-        
-        const localVal = localStorage.getItem(key);
-        if (localVal !== val) {
-          originalSetItem(key, val);
+
+        const currentLocalVal = localStorage.getItem(key);
+        let finalValToStore = val;
+
+        // ถ้าเป็นคีย์เวรประจำเดือน ให้ผสานข้อมูลแทนการเขียนทับ
+        if (key.startsWith('nurse_system_') && currentLocalVal) {
+          finalValToStore = mergeRosterData(currentLocalVal, val);
+        }
+
+        if (currentLocalVal !== finalValToStore) {
+          originalSetItem(key, finalValToStore);
           hasChanges = true;
         }
       }
@@ -5425,10 +5459,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ส่งข้อมูลขึ้น Cloud พร้อมรอรอบบันทึกเสร็จ
   async function pushToCloud() {
     try {
       isPushing = true;
+      lastActionTime = Date.now();
       showSyncStatus('⏳ กำลังบันทึกข้อมูลออนไลน์...', 'rgba(30, 58, 138, 0.85)', false);
 
       const localShared = getCleanSharedData();
@@ -5440,12 +5474,10 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(localShared)
       });
 
-      // หน่วงดึงข้อมูลกลับมาซิงค์ 1 วินาที เพื่อดึงเวรของเพื่อนคนอื่นที่เพิ่งเซฟพร้อมกันมาด้วย
       setTimeout(() => {
         isPushing = false;
         showSyncStatus('✅ บันทึกออนไลน์เรียบร้อย', 'rgba(16, 185, 129, 0.95)', true);
-        pullFromCloud(false);
-      }, 1000);
+      }, 1200);
 
     } catch (err) {
       isPushing = false;
@@ -5454,6 +5486,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.forcePushToCloud = function() {
+    lastActionTime = Date.now();
     clearTimeout(syncTimeout);
     pushToCloud();
   };
@@ -5461,10 +5494,11 @@ document.addEventListener('DOMContentLoaded', () => {
   localStorage.setItem = function(key, value) {
     originalSetItem(key, value);
     if (!isSyncing && isAllowedSharedKey(key)) {
+      lastActionTime = Date.now();
       clearTimeout(syncTimeout);
       syncTimeout = setTimeout(() => {
         pushToCloud();
-      }, 350);
+      }, 400);
     }
   };
 
@@ -5476,15 +5510,15 @@ document.addEventListener('DOMContentLoaded', () => {
     originalClear();
   };
 
-  // ดึงข้อมูลครั้งแรกเมื่อโหลดหน้าเว็บ
+  // ดึงข้อมูลครั้งแรกตอนเปิดหน้าเว็บ
   pullFromCloud(true);
 
-  // ปรับรอบตรวจจับอัตโนมัติเป็นทุก 8 วินาที (เหมาะสมสำหรับ 15-20 คน ไม่โหลดเซิร์ฟเวอร์หนักเกินไป)
+  // ตรวจสอบข้อมูลใหม่ทุก 10 วินาที
   setInterval(() => {
     if (!document.hidden && !isPushing) {
       pullFromCloud(false);
     }
-  }, 8000);
+  }, 10000);
 
   window.addEventListener('focus', () => {
     if (!isPushing) pullFromCloud(false);
