@@ -5326,13 +5326,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GOOGLE APPS SCRIPT SYNC V5.2 (INSTANT CLOUD HYDRATE ON BOOT)
+   GOOGLE APPS SCRIPT SYNC V5.3 (DEBOUNCE QUEUE & DEEP DAY MERGE)
    ============================================================================ */
 (function() {
-  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzScoDAtaM1oRT8SF5plzPjmHVKe3kF7rdlGbxb88-7QAmYBu-DJcFBqT1MTxbwRMhPVA/exec";
+  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyGiQjh8LYrQZOrx9278ywp60_gm-mQObwuzKoMae2VwpONzI_AP2b6nS4QdkjUIJPd6Q/exec";
 
   let isSyncing = false;
   let isPushing = false;
+  let hasPendingPush = false;
+  let pushDebounceTimer = null;
 
   function showSyncStatus(text, bgColor = 'rgba(30, 58, 138, 0.85)', autoHide = true) {
     let badge = document.getElementById('gh-sync-badge');
@@ -5369,12 +5371,9 @@ document.addEventListener('DOMContentLoaded', () => {
     return shared;
   }
 
-  // ฟังก์ชันบังคับอัปเดตตัวแปรในหน่วยความจำและวาดทุกหน้าจอใหม่ทันที
   function refreshAllViews() {
     try {
-      if (typeof loadMonthState === 'function') {
-        loadMonthState();
-      }
+      if (typeof loadMonthState === 'function') loadMonthState();
       if (typeof renderPublicDashboard === 'function') renderPublicDashboard();
       if (typeof renderNurseCalendar === 'function' && typeof activeView !== 'undefined' && activeView === 'personal') {
         renderNurseCalendar();
@@ -5391,7 +5390,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function pullFromCloud(force = false) {
-    if (isPushing && !force) return;
+    if ((isPushing || hasPendingPush) && !force) return;
     if (isSyncing) return;
 
     try {
@@ -5416,7 +5415,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       isSyncing = false;
 
-      // ถ้ามีข้อมูลใหม่ หรือเป็นการสั่งดึงครั้งแรก ให้วาดหน้าจอใหม่ทั้งหมดทันที
       if (hasChanges || force) {
         refreshAllViews();
         showSyncStatus('☁️ ซิงค์ข้อมูลล่าสุดสำเร็จ', 'rgba(16, 185, 129, 0.95)', true);
@@ -5429,10 +5427,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  async function pushToCloud() {
-    if (isPushing) return;
+  async function executePush() {
+    if (isPushing) {
+      hasPendingPush = true;
+      return;
+    }
+
     try {
       isPushing = true;
+      hasPendingPush = false;
       showSyncStatus('⏳ กำลังบันทึกข้อมูลออนไลน์...', 'rgba(30, 58, 138, 0.85)', false);
 
       const localShared = getCleanSharedData();
@@ -5449,27 +5452,33 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       showSyncStatus('⚠️ บันทึกไม่สำเร็จ', 'rgba(220, 38, 38, 0.85)', true);
     } finally {
-      setTimeout(() => {
-        isPushing = false;
-      }, 1000);
+      isPushing = false;
+      if (hasPendingPush) {
+        hasPendingPush = false;
+        executePush();
+      }
     }
   }
 
-  window.forcePushToCloud = pushToCloud;
+  function queuePushToCloud() {
+    clearTimeout(pushDebounceTimer);
+    pushDebounceTimer = setTimeout(() => {
+      executePush();
+    }, 400);
+  }
+
+  window.forcePushToCloud = queuePushToCloud;
   window.forcePullFromCloud = () => pullFromCloud(true);
 
-  // 1. ดึงข้อมูลทันทีเมื่อเปิดหน้าเว็บ (Force Refresh หน้าจอเมื่อโหลดเสร็จ)
   pullFromCloud(true);
 
-  // 2. ตรวจสอบข้อมูลใหม่ทุก 8 วินาที
   setInterval(() => {
-    if (!document.hidden && !isPushing) {
+    if (!document.hidden && !isPushing && !hasPendingPush) {
       pullFromCloud(false);
     }
   }, 8000);
 
-  // 3. เมื่อสลับกลับมาที่แท็บเว็บนี้ ให้ดึงข้อมูลสดทันที
   window.addEventListener('focus', () => {
-    if (!isPushing) pullFromCloud(false);
+    if (!isPushing && !hasPendingPush) pullFromCloud(false);
   });
 })();
