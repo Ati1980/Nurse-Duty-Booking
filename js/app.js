@@ -369,6 +369,16 @@ function getStorageKey() {
 
 function saveMonthState() {
   localStorage.setItem(getStorageKey(), JSON.stringify(monthState));
+  
+  // บันทึกเวลาเพื่อระงับการดึงข้อมูลจาก Cloud ทับหน้าจอ
+  if (typeof window.recordLocalAction === 'function') {
+    window.recordLocalAction();
+  }
+  
+  // สั่งส่งขึ้น Google Sheet ทันที
+  if (typeof window.forcePushToCloud === 'function') {
+    window.forcePushToCloud();
+  }
 }
 
 function loadMonthState() {
@@ -5324,7 +5334,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GOOGLE APPS SCRIPT SYNC V5.5 (CLEAN MERGE & ANTI-BOUNCE)
+   GOOGLE APPS SCRIPT SYNC V6.0 (SOLID REALTIME SYNC & LOCAL LOCK)
    ============================================================================ */
 (function() {
   const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxvhFvh8Wmks0SNCycEFeD6MoWbbKhCjMl_16OLBaoufpwXvBJnFmMM5xEB6cJiHKZMQA/exec";
@@ -5410,8 +5420,25 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isAllowedSharedKey(key)) continue;
 
         const localVal = localStorage.getItem(key);
-        if (localVal !== val) {
-          localStorage.setItem(key, val);
+        let finalValToStore = val;
+
+        // ผสานข้อมูลเข้ากับเครื่อง ไม่ให้ข้อมูลของพยาบาลที่กำลังใช้งานอยู่ถูก Cloud เขียนทับ
+        if (key.startsWith('nurse_system_') && localVal && currentUser && currentUser.role === 'nurse') {
+          try {
+            const localObj = JSON.parse(localVal);
+            const cloudObj = JSON.parse(val);
+            if (localObj.roster && cloudObj.roster) {
+              // ถือว่าตารางของคนที่กำลังล็อกอินในเครื่องนี้เป็นข้อมูลล่าสุดเสมอ
+              if (localObj.roster[currentUser.nurseId] !== undefined) {
+                cloudObj.roster[currentUser.nurseId] = localObj.roster[currentUser.nurseId];
+              }
+              finalValToStore = JSON.stringify(cloudObj);
+            }
+          } catch (e) {}
+        }
+
+        if (localVal !== finalValToStore) {
+          localStorage.setItem(key, finalValToStore);
           hasChanges = true;
         }
       }
