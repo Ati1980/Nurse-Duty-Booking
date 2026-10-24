@@ -1550,12 +1550,11 @@ window.confirmToggleShiftBooking = function(addShift) {
     if (!monthState.roster[nurseId]) monthState.roster[nurseId] = {};
     if (!monthState.roster[nurseId][day]) monthState.roster[nurseId][day] = [];
 
-    if (addShift) {
+if (addShift) {
       if (!monthState.roster[nurseId][day].includes(shift)) {
         monthState.roster[nurseId][day].push(shift);
       }
     } else {
-      // ทำการลบเวรออกจริง
       monthState.roster[nurseId][day] = monthState.roster[nurseId][day].filter(s => s !== shift);
       if (monthState.roster[nurseId][day].length === 0) {
         delete monthState.roster[nurseId][day];
@@ -1566,9 +1565,8 @@ window.confirmToggleShiftBooking = function(addShift) {
     closeShiftActionModal();
     renderPublicDashboard();
     if (activeView === 'personal') renderNurseCalendar();
-    if (activeView === 'admin') renderAdminView();
+    if (activeView === 'admin') renderAdminSubView();
 
-    // ล็อคเวลาทันทีเพื่อไม่ให้ดึงของเก่าจาก Cloud มาทับ
     if (typeof window.forcePushToCloud === 'function') {
       window.forcePushToCloud();
     }
@@ -3660,21 +3658,20 @@ function clearCellShifts() {
     return;
   }
 
-  // 1. ลบข้อมูลในตัวแปรหน่วยความจำ
-  if (monthState.roster && monthState.roster[activeEditNurseId]) {
-    delete monthState.roster[activeEditNurseId][activeEditDay];
+  // เคลียร์ค่าของวันนั้นให้เป็น Array ว่างอย่างชัดเจน
+  if (!monthState.roster[activeEditNurseId]) {
+    monthState.roster[activeEditNurseId] = {};
   }
-  
-  // 2. บันทึกลง Storage ทันที
+  delete monthState.roster[activeEditNurseId][activeEditDay];
+
+  // บันทึกลง Storage ทันที
   saveMonthState();
   closeCellEditor();
-  
-  // 3. วาดหน้าจอใหม่ทันที
   renderPublicDashboard();
   if (activeView === 'personal') renderNurseCalendar();
   if (activeView === 'admin') renderAdminSubView();
-  
-  // 4. บังคับยิงข้อมูลที่ลบแล้วขึ้น Google Sheets ทันที ไม่รอดีเลย์
+
+  // ส่งขึ้น Google Sheet ทันที
   if (typeof window.forcePushToCloud === 'function') {
     window.forcePushToCloud();
   }
@@ -5322,10 +5319,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GOOGLE APPS SCRIPT SYNC V3.0 (MANual PULL + OPTIMISTIC UI LOCK)
+   GOOGLE APPS SCRIPT SYNC V3.1 (FULL OVERWRITE & CLEAN DELETION)
    ============================================================================ */
 (function() {
-  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzrJLW4aPnH_qLPC72g91ebd1RFflpnmjdknupifamoyjroE9cLFv0VRnbbt-dCbJIL4w/exec";
+  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwtHcqKqpDyGPlpcf7gyIIm1p07VCnZRZibXx-dIJ2LchSbu_5zWVwWlTnwRS91Hxg_4Q/exec";
 
   let isSyncing = false;
   let isPushing = false;
@@ -5341,7 +5338,7 @@ document.addEventListener('DOMContentLoaded', () => {
       badge = document.createElement('div');
       badge.id = 'gh-sync-badge';
       badge.style.cssText = 'position:fixed;bottom:12px;right:12px;padding:8px 16px;border-radius:20px;color:#fff;font-size:12px;z-index:99999;backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.25);cursor:pointer;font-family:sans-serif;transition:opacity 0.4s, background 0.3s;';
-      badge.title = 'คลิกเพื่อรีเฟรชข้อมูลล่าสุดจากเซิร์ฟเวอร์';
+      badge.title = 'คลิกเพื่อรีเฟรชข้อมูล';
       badge.onclick = () => pullFromCloud(true);
       document.body.appendChild(badge);
     }
@@ -5389,9 +5386,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ดึงข้อมูลจาก Cloud
   async function pullFromCloud(force = false) {
-    if (isPushing && !force) return; // ถ้ากำลังส่งข้อมูลขึ้น Cloud ห้ามดึงเด็ดขาด
+    if (isPushing && !force) return;
     if (isSyncing) return;
 
     try {
@@ -5403,6 +5399,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const cloudStore = await res.json();
       let hasChanges = false;
+
+      // อัปเดตข้อมูลที่มีใน Cloud ลงเครื่อง
       for (const [key, val] of Object.entries(cloudStore)) {
         if (!isAllowedSharedKey(key)) continue;
         if (localStorage.getItem(key) !== val) {
@@ -5410,6 +5408,7 @@ document.addEventListener('DOMContentLoaded', () => {
           hasChanges = true;
         }
       }
+
       isSyncing = false;
 
       if (hasChanges) {
@@ -5424,7 +5423,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ส่งข้อมูลขึ้น Cloud ทันที
   async function pushToCloud() {
     try {
       isPushing = true;
@@ -5439,7 +5437,6 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(localShared)
       });
 
-      // หน่วงเคลียร์สถานะ 1 วินาที เพื่อให้ Google Sheet เขียนแถวเสร็จ
       setTimeout(() => {
         isPushing = false;
         showSyncStatus('✅ บันทึกออนไลน์เรียบร้อย', 'rgba(16, 185, 129, 0.95)', true);
@@ -5474,10 +5471,9 @@ document.addEventListener('DOMContentLoaded', () => {
     originalClear();
   };
 
-  // ดึงข้อมูลเพียงครั้งแรกเมื่อเปิดหน้าเว็บเท่านั้น
+  // ดึงข้อมูลครั้งแรกเมื่อเปิดหน้าเว็บ
   pullFromCloud(true);
 
-  // ปุ่มรีเฟรชหน้าเว็บ Admin ให้เชื่อมโยงกับการดึงข้อมูลสด
   window.handleAdminRefresh = function() {
     pullFromCloud(true);
   };
