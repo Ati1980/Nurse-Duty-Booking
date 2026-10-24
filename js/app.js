@@ -5322,14 +5322,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GOOGLE APPS SCRIPT SYNC V2.1 (STABLE LOCK & INSTANT SYNC)
+   GOOGLE APPS SCRIPT SYNC V3.0 (MANual PULL + OPTIMISTIC UI LOCK)
    ============================================================================ */
 (function() {
   const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzrJLW4aPnH_qLPC72g91ebd1RFflpnmjdknupifamoyjroE9cLFv0VRnbbt-dCbJIL4w/exec";
 
   let isSyncing = false;
-  let isSavingToCloud = false;
-  let lastLocalSaveTime = 0; // บันทึกเวลาที่มีการแก้ไข ลบ หรือจองเวรล่าสุด
+  let isPushing = false;
   let syncTimeout = null;
 
   const originalSetItem = localStorage.setItem.bind(localStorage);
@@ -5342,7 +5341,7 @@ document.addEventListener('DOMContentLoaded', () => {
       badge = document.createElement('div');
       badge.id = 'gh-sync-badge';
       badge.style.cssText = 'position:fixed;bottom:12px;right:12px;padding:8px 16px;border-radius:20px;color:#fff;font-size:12px;z-index:99999;backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.25);cursor:pointer;font-family:sans-serif;transition:opacity 0.4s, background 0.3s;';
-      badge.title = 'คลิกเพื่อรีเฟรชข้อมูล';
+      badge.title = 'คลิกเพื่อรีเฟรชข้อมูลล่าสุดจากเซิร์ฟเวอร์';
       badge.onclick = () => pullFromCloud(true);
       document.body.appendChild(badge);
     }
@@ -5350,18 +5349,14 @@ document.addEventListener('DOMContentLoaded', () => {
     badge.style.background = bgColor;
     badge.textContent = text;
     if (autoHide) {
-      setTimeout(() => { badge.style.opacity = '0.85'; }, 3500);
+      setTimeout(() => { badge.style.opacity = '0.85'; }, 3000);
     }
   }
 
   function isAllowedSharedKey(key) {
     if (!key || typeof key !== 'string') return false;
     const k = key.toLowerCase();
-    // แชร์เฉพาะตารางเวร รายชื่อพยาบาล และโหมดเวร ห้ามแชร์สิทธิ์หรือ session
-    if (k.startsWith('nurse_system_') || k === 'nurse_master_list' || k === 'nurse_shift_mode') {
-      return true;
-    }
-    return false;
+    return (k.startsWith('nurse_system_') || k === 'nurse_master_list' || k === 'nurse_shift_mode');
   }
 
   function getCleanSharedData() {
@@ -5394,21 +5389,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  async function pullFromCloud(isManual = false) {
-    // 🛡️ ป้องกันการดึงข้อมูลเก่ามาเขียนทับ: ถ้ากำลังส่งขึ้นคลาวด์ หรือเพิ่งบันทึก/ลบเวรภายใน 5 วินาที ห้าม Pull เด็ดขาด
-    const timeSinceLastSave = Date.now() - lastLocalSaveTime;
-    if (isSavingToCloud || (!isManual && timeSinceLastSave < 5000)) {
-      return;
-    }
-
+  // ดึงข้อมูลจาก Cloud
+  async function pullFromCloud(force = false) {
+    if (isPushing && !force) return; // ถ้ากำลังส่งข้อมูลขึ้น Cloud ห้ามดึงเด็ดขาด
     if (isSyncing) return;
+
     try {
       isSyncing = true;
+      showSyncStatus('🔄 กำลังโหลดข้อมูล...', 'rgba(30, 58, 138, 0.85)', false);
+
       const res = await fetch(`${GAS_API_URL}?_t=${Date.now()}`);
-      if (!res.ok) { 
-        isSyncing = false; 
-        return; 
-      }
+      if (!res.ok) { isSyncing = false; return; }
 
       const cloudStore = await res.json();
       let hasChanges = false;
@@ -5429,19 +5420,18 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch (err) {
       isSyncing = false;
+      showSyncStatus('☁️ ใช้งานโหมดออฟไลน์', 'rgba(100, 116, 139, 0.85)', true);
     }
   }
 
+  // ส่งข้อมูลขึ้น Cloud ทันที
   async function pushToCloud() {
-    if (isSavingToCloud) return;
     try {
-      isSavingToCloud = true;
-      lastLocalSaveTime = Date.now();
-      showSyncStatus('⏳ กำลังบันทึกข้อมูลออนไลน์...', 'rgba(30, 58, 138, 0.85)', false);
+      isPushing = true;
+      showSyncStatus('⏳ กำลังบันทึกข้อมูลออนไลน์...', 'rgba(217, 119, 6, 0.95)', false);
 
       const localShared = getCleanSharedData();
-      
-      // ส่งผ่าน mode: 'no-cors' เพื่อไม่ให้เบราว์เซอร์บล็อก Redirect 302 ของ Google Apps Script
+
       await fetch(GAS_API_URL, {
         method: 'POST',
         mode: 'no-cors',
@@ -5449,21 +5439,19 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(localShared)
       });
 
-      // หน่วงเวลา 1.2 วินาทีเพื่อให้ Google Sheets เขียนข้อมูลลงแผ่นงานจริงเสร็จสิ้น
+      // หน่วงเคลียร์สถานะ 1 วินาที เพื่อให้ Google Sheet เขียนแถวเสร็จ
       setTimeout(() => {
-        isSavingToCloud = false;
+        isPushing = false;
         showSyncStatus('✅ บันทึกออนไลน์เรียบร้อย', 'rgba(16, 185, 129, 0.95)', true);
-      }, 1200);
+      }, 1000);
 
     } catch (err) {
-      isSavingToCloud = false;
-      showSyncStatus('❌ การเชื่อมต่อขัดข้อง', 'rgba(220, 38, 38, 0.85)', true);
+      isPushing = false;
+      showSyncStatus('⚠️ บันทึกไม่สำเร็จ', 'rgba(220, 38, 38, 0.85)', true);
     }
   }
 
-  // ฟังก์ชันส่วนกลางให้ฟังก์ชันจองหรือลบเวรเรียกส่งข้อมูลขึ้น Cloud ทันที
   window.forcePushToCloud = function() {
-    lastLocalSaveTime = Date.now();
     clearTimeout(syncTimeout);
     pushToCloud();
   };
@@ -5471,12 +5459,10 @@ document.addEventListener('DOMContentLoaded', () => {
   localStorage.setItem = function(key, value) {
     originalSetItem(key, value);
     if (!isSyncing && isAllowedSharedKey(key)) {
-      lastLocalSaveTime = Date.now(); // บันทึก timestamp ล่าสุดทันทีที่มีการแก้ Storage
-      showSyncStatus('💾 กำลังบันทึกข้อมูล...', 'rgba(217, 119, 6, 0.85)', false);
       clearTimeout(syncTimeout);
       syncTimeout = setTimeout(() => {
         pushToCloud();
-      }, 350);
+      }, 300);
     }
   };
 
@@ -5488,15 +5474,11 @@ document.addEventListener('DOMContentLoaded', () => {
     originalClear();
   };
 
-  // ดึงข้อมูลครั้งแรกเมื่อเปิดหน้าเว็บ
+  // ดึงข้อมูลเพียงครั้งแรกเมื่อเปิดหน้าเว็บเท่านั้น
   pullFromCloud(true);
 
-  // รอบตรวจสอบข้อมูลใหม่ทุกๆ 15 วินาที (หากไม่ได้อยู่ในช่วงแก้ไข)
-  setInterval(() => {
-    if (!document.hidden) pullFromCloud(false);
-  }, 15000);
-
-  window.addEventListener('focus', () => {
-    pullFromCloud(false);
-  });
+  // ปุ่มรีเฟรชหน้าเว็บ Admin ให้เชื่อมโยงกับการดึงข้อมูลสด
+  window.handleAdminRefresh = function() {
+    pullFromCloud(true);
+  };
 })();
