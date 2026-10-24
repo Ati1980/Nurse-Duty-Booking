@@ -5337,7 +5337,7 @@ document.addEventListener('DOMContentLoaded', () => {
    GOOGLE APPS SCRIPT SYNC V6.0 (SOLID REALTIME SYNC & LOCAL LOCK)
    ============================================================================ */
 (function() {
-  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxvhFvh8Wmks0SNCycEFeD6MoWbbKhCjMl_16OLBaoufpwXvBJnFmMM5xEB6cJiHKZMQA/exec";
+  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyyXLK0M-d53FMlNWbm_iZT_WxusZrJPSuCczH867Z2prfCBps0DQsNDQUiiLUdGjPhuw/exec";
 
   let isSyncing = false;
   let isPushing = false;
