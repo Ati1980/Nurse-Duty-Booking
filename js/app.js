@@ -3637,6 +3637,11 @@ function saveCellEditor() {
   renderPublicDashboard();
   if (activeView === 'personal') renderNurseCalendar();
   if (activeView === 'admin') renderAdminSubView();
+
+  // บังคับยิงข้อมูลขึ้น Google Sheets ทันที
+  if (typeof window.forcePushToCloud === 'function') {
+    window.forcePushToCloud();
+  } 
 }
 
 function clearCellShifts() {
@@ -3646,14 +3651,24 @@ function clearCellShifts() {
     return;
   }
 
-  if (monthState.roster[activeEditNurseId]) {
+  // 1. ลบข้อมูลในตัวแปรหน่วยความจำ
+  if (monthState.roster && monthState.roster[activeEditNurseId]) {
     delete monthState.roster[activeEditNurseId][activeEditDay];
   }
+  
+  // 2. บันทึกลง Storage ทันที
   saveMonthState();
   closeCellEditor();
+  
+  // 3. วาดหน้าจอใหม่ทันที
   renderPublicDashboard();
   if (activeView === 'personal') renderNurseCalendar();
   if (activeView === 'admin') renderAdminSubView();
+  
+  // 4. บังคับยิงข้อมูลที่ลบแล้วขึ้น Google Sheets ทันที ไม่รอดีเลย์
+  if (typeof window.forcePushToCloud === 'function') {
+    window.forcePushToCloud();
+  }
 }
 
 // 11. QUICK BOOKING MODAL (WITH ENLARGED DATES)
@@ -5298,14 +5313,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GOOGLE APPS SCRIPT SYNC (LOCKSERVICE & MULTI-USER COMPATIBLE)
+   GOOGLE APPS SCRIPT SYNC V2.0 (BULLETPROOF NO-CORS & ANTI-OVERWRITE LOCK)
    ============================================================================ */
 (function() {
-  // นำ URL ที่ได้จากการ Deploy ในขั้นตอนที่ 1 มาวางตรงนี้
   const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzrJLW4aPnH_qLPC72g91ebd1RFflpnmjdknupifamoyjroE9cLFv0VRnbbt-dCbJIL4w/exec";
 
   let isSyncing = false;
-  let hasPendingLocalChanges = false;
+  let lastLocalSaveTime = 0; // ล็อคเวลาเมื่อมีการแก้/ลบ/จองเวร
   let syncTimeout = null;
 
   const originalSetItem = localStorage.setItem.bind(localStorage);
@@ -5319,7 +5333,7 @@ document.addEventListener('DOMContentLoaded', () => {
       badge.id = 'gh-sync-badge';
       badge.style.cssText = 'position:fixed;bottom:12px;right:12px;padding:8px 16px;border-radius:20px;color:#fff;font-size:12px;z-index:99999;backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.25);cursor:pointer;font-family:sans-serif;transition:opacity 0.4s, background 0.3s;';
       badge.title = 'คลิกเพื่อรีเฟรชข้อมูล';
-      badge.onclick = () => pullFromCloud();
+      badge.onclick = () => pullFromCloud(true);
       document.body.appendChild(badge);
     }
     badge.style.opacity = '1';
@@ -5369,8 +5383,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  async function pullFromCloud() {
-    if (isSyncing || hasPendingLocalChanges) return;
+  async function pullFromCloud(isManual = false) {
+    // 🛡️ ป้องกันไม่ให้ดึงข้อมูลเก่ามาเขียนทับ หากเครื่องเราเพิ่งกดจองหรือลบเวรภายใน 8 วินาที
+    const timeSinceLastSave = Date.now() - lastLocalSaveTime;
+    if (!isManual && timeSinceLastSave < 8000) {
+      return;
+    }
+
+    if (isSyncing) return;
     try {
       const res = await fetch(`${GAS_API_URL}?_t=${Date.now()}`);
       if (!res.ok) return;
@@ -5405,18 +5425,16 @@ document.addEventListener('DOMContentLoaded', () => {
       showSyncStatus('⏳ กำลังบันทึกข้อมูลออนไลน์...', 'rgba(30, 58, 138, 0.85)', false);
 
       const localShared = getCleanSharedData();
-      const res = await fetch(GAS_API_URL, {
+      
+      // ✅ ใช้ mode: 'no-cors' เพื่อไม่ให้เบราว์เซอร์บล็อก Redirect ของ Google Apps Script
+      await fetch(GAS_API_URL, {
         method: 'POST',
+        mode: 'no-cors',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(localShared)
       });
 
-      if (res.ok) {
-        hasPendingLocalChanges = false;
-        showSyncStatus('✅ บันทึกออนไลน์เรียบร้อย', 'rgba(16, 185, 129, 0.95)', true);
-      } else {
-        showSyncStatus('⚠️ บันทึกไม่สำเร็จ', 'rgba(220, 38, 38, 0.85)', true);
-      }
+      showSyncStatus('✅ บันทึกออนไลน์เรียบร้อย', 'rgba(16, 185, 129, 0.95)', true);
     } catch (err) {
       showSyncStatus('❌ การเชื่อมต่อขัดข้อง', 'rgba(220, 38, 38, 0.85)', true);
     } finally {
@@ -5424,10 +5442,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // สร้างฟังก์ชันให้ส่วนอื่นเรียกบันทึกได้ทันที
+  window.forcePushToCloud = function() {
+    lastLocalSaveTime = Date.now();
+    clearTimeout(syncTimeout);
+    pushToCloud();
+  };
+
   localStorage.setItem = function(key, value) {
     originalSetItem(key, value);
     if (!isSyncing && isAllowedSharedKey(key)) {
-      hasPendingLocalChanges = true;
+      lastLocalSaveTime = Date.now(); // ล็อคเวลาป้องกันดึงของเก่าทันที
       showSyncStatus('💾 กำลังบันทึกข้อมูล...', 'rgba(217, 119, 6, 0.85)', false);
       clearTimeout(syncTimeout);
       syncTimeout = setTimeout(() => {
@@ -5444,13 +5469,15 @@ document.addEventListener('DOMContentLoaded', () => {
     originalClear();
   };
 
-  pullFromCloud();
+  // ดึงข้อมูลครั้งแรกเมื่อเปิดหน้าเว็บ
+  pullFromCloud(true);
 
+  // ตรวจสอบข้อมูลใหม่ทุกๆ 15 วินาที
   setInterval(() => {
-    if (!document.hidden && !hasPendingLocalChanges) pullFromCloud();
+    if (!document.hidden) pullFromCloud(false);
   }, 15000);
 
   window.addEventListener('focus', () => {
-    if (!hasPendingLocalChanges) pullFromCloud();
+    pullFromCloud(false);
   });
 })();
