@@ -1557,12 +1557,14 @@ window.confirmToggleShiftBooking = function(addShift) {
     if (!monthState.roster[nurseId]) monthState.roster[nurseId] = {};
     if (!monthState.roster[nurseId][day]) monthState.roster[nurseId][day] = [];
 
-if (addShift) {
+    if (addShift) {
       if (!monthState.roster[nurseId][day].includes(shift)) {
         monthState.roster[nurseId][day].push(shift);
       }
     } else {
+      // เอาเวรนั้นออก
       monthState.roster[nurseId][day] = monthState.roster[nurseId][day].filter(s => s !== shift);
+      // หากวันนั้นไม่เหลือเวรใดๆ แล้ว ให้ลบ Key วันนั้นทิ้งทันที
       if (monthState.roster[nurseId][day].length === 0) {
         delete monthState.roster[nurseId][day];
       }
@@ -1572,7 +1574,7 @@ if (addShift) {
     closeShiftActionModal();
     renderPublicDashboard();
     if (activeView === 'personal') renderNurseCalendar();
-    if (activeView === 'admin') renderAdminSubView();
+    if (activeView === 'admin') renderAdminView();
 
     if (typeof window.forcePushToCloud === 'function') {
       window.forcePushToCloud();
@@ -3665,20 +3667,16 @@ function clearCellShifts() {
     return;
   }
 
-  // เคลียร์ค่าของวันนั้นให้เป็น Array ว่างอย่างชัดเจน
-  if (!monthState.roster[activeEditNurseId]) {
-    monthState.roster[activeEditNurseId] = {};
+  if (monthState.roster && monthState.roster[activeEditNurseId]) {
+    delete monthState.roster[activeEditNurseId][activeEditDay];
   }
-  delete monthState.roster[activeEditNurseId][activeEditDay];
-
-  // บันทึกลง Storage ทันที
+  
   saveMonthState();
   closeCellEditor();
   renderPublicDashboard();
   if (activeView === 'personal') renderNurseCalendar();
   if (activeView === 'admin') renderAdminSubView();
 
-  // ส่งขึ้น Google Sheet ทันที
   if (typeof window.forcePushToCloud === 'function') {
     window.forcePushToCloud();
   }
@@ -5326,14 +5324,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GOOGLE APPS SCRIPT SYNC V5.3 (DEBOUNCE QUEUE & DEEP DAY MERGE)
+   GOOGLE APPS SCRIPT SYNC V5.5 (CLEAN MERGE & ANTI-BOUNCE)
    ============================================================================ */
 (function() {
-  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyGiQjh8LYrQZOrx9278ywp60_gm-mQObwuzKoMae2VwpONzI_AP2b6nS4QdkjUIJPd6Q/exec";
+  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxvhFvh8Wmks0SNCycEFeD6MoWbbKhCjMl_16OLBaoufpwXvBJnFmMM5xEB6cJiHKZMQA/exec";
 
   let isSyncing = false;
   let isPushing = false;
   let hasPendingPush = false;
+  let lastActionTime = 0;
   let pushDebounceTimer = null;
 
   function showSyncStatus(text, bgColor = 'rgba(30, 58, 138, 0.85)', autoHide = true) {
@@ -5390,7 +5389,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function pullFromCloud(force = false) {
-    if ((isPushing || hasPendingPush) && !force) return;
+    // ระงับการดึงข้อมูล 10 วินาทีหลังการกดจองหรือลบเวร เพื่อไม่ให้ดึงข้อมูลเดิมมาทับหน้าจอ
+    const timeSinceAction = Date.now() - lastActionTime;
+    if (!force && (isPushing || hasPendingPush || timeSinceAction < 10000)) {
+      return;
+    }
     if (isSyncing) return;
 
     try {
@@ -5436,6 +5439,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       isPushing = true;
       hasPendingPush = false;
+      lastActionTime = Date.now();
       showSyncStatus('⏳ กำลังบันทึกข้อมูลออนไลน์...', 'rgba(30, 58, 138, 0.85)', false);
 
       const localShared = getCleanSharedData();
@@ -5461,22 +5465,28 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function queuePushToCloud() {
+    lastActionTime = Date.now();
     clearTimeout(pushDebounceTimer);
     pushDebounceTimer = setTimeout(() => {
       executePush();
-    }, 400);
+    }, 300);
   }
+
+  window.recordLocalAction = function() {
+    lastActionTime = Date.now();
+  };
 
   window.forcePushToCloud = queuePushToCloud;
   window.forcePullFromCloud = () => pullFromCloud(true);
 
   pullFromCloud(true);
 
+  // ตรวจสอบข้อมูลใหม่รอบละ 10 วินาที
   setInterval(() => {
     if (!document.hidden && !isPushing && !hasPendingPush) {
       pullFromCloud(false);
     }
-  }, 8000);
+  }, 10000);
 
   window.addEventListener('focus', () => {
     if (!isPushing && !hasPendingPush) pullFromCloud(false);
