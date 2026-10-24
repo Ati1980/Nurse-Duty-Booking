@@ -1539,7 +1539,7 @@ window.handleShiftClick = function(day, shift) {
     activeModalShiftContext = null;
   };
 
-  window.confirmToggleShiftBooking = function(addShift) {
+window.confirmToggleShiftBooking = function(addShift) {
     if (monthState.isConfirmed && (!currentUser || currentUser.role !== 'admin')) {
       alert('🔒 ตารางเวรประจำเดือนนี้ปิดรับการจองแล้ว');
       return;
@@ -1555,7 +1555,11 @@ window.handleShiftClick = function(day, shift) {
         monthState.roster[nurseId][day].push(shift);
       }
     } else {
+      // ทำการลบเวรออกจริง
       monthState.roster[nurseId][day] = monthState.roster[nurseId][day].filter(s => s !== shift);
+      if (monthState.roster[nurseId][day].length === 0) {
+        delete monthState.roster[nurseId][day];
+      }
     }
 
     saveMonthState();
@@ -1563,6 +1567,11 @@ window.handleShiftClick = function(day, shift) {
     renderPublicDashboard();
     if (activeView === 'personal') renderNurseCalendar();
     if (activeView === 'admin') renderAdminView();
+
+    // ล็อคเวลาทันทีเพื่อไม่ให้ดึงของเก่าจาก Cloud มาทับ
+    if (typeof window.forcePushToCloud === 'function') {
+      window.forcePushToCloud();
+    }
   };
 
 // 8. NURSE PERSONAL CALENDAR VIEW (PAGE หน้า USER จะมองเห็นเฉพาะ USER เลือก)
@@ -5313,13 +5322,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GOOGLE APPS SCRIPT SYNC V2.0 (BULLETPROOF NO-CORS & ANTI-OVERWRITE LOCK)
+   GOOGLE APPS SCRIPT SYNC V2.1 (STABLE LOCK & INSTANT SYNC)
    ============================================================================ */
 (function() {
   const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzrJLW4aPnH_qLPC72g91ebd1RFflpnmjdknupifamoyjroE9cLFv0VRnbbt-dCbJIL4w/exec";
 
   let isSyncing = false;
-  let lastLocalSaveTime = 0; // ล็อคเวลาเมื่อมีการแก้/ลบ/จองเวร
+  let isSavingToCloud = false;
+  let lastLocalSaveTime = 0; // บันทึกเวลาที่มีการแก้ไข ลบ หรือจองเวรล่าสุด
   let syncTimeout = null;
 
   const originalSetItem = localStorage.setItem.bind(localStorage);
@@ -5347,6 +5357,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function isAllowedSharedKey(key) {
     if (!key || typeof key !== 'string') return false;
     const k = key.toLowerCase();
+    // แชร์เฉพาะตารางเวร รายชื่อพยาบาล และโหมดเวร ห้ามแชร์สิทธิ์หรือ session
     if (k.startsWith('nurse_system_') || k === 'nurse_master_list' || k === 'nurse_shift_mode') {
       return true;
     }
@@ -5384,19 +5395,22 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function pullFromCloud(isManual = false) {
-    // 🛡️ ป้องกันไม่ให้ดึงข้อมูลเก่ามาเขียนทับ หากเครื่องเราเพิ่งกดจองหรือลบเวรภายใน 8 วินาที
+    // 🛡️ ป้องกันการดึงข้อมูลเก่ามาเขียนทับ: ถ้ากำลังส่งขึ้นคลาวด์ หรือเพิ่งบันทึก/ลบเวรภายใน 5 วินาที ห้าม Pull เด็ดขาด
     const timeSinceLastSave = Date.now() - lastLocalSaveTime;
-    if (!isManual && timeSinceLastSave < 8000) {
+    if (isSavingToCloud || (!isManual && timeSinceLastSave < 5000)) {
       return;
     }
 
     if (isSyncing) return;
     try {
+      isSyncing = true;
       const res = await fetch(`${GAS_API_URL}?_t=${Date.now()}`);
-      if (!res.ok) return;
+      if (!res.ok) { 
+        isSyncing = false; 
+        return; 
+      }
 
       const cloudStore = await res.json();
-      isSyncing = true;
       let hasChanges = false;
       for (const [key, val] of Object.entries(cloudStore)) {
         if (!isAllowedSharedKey(key)) continue;
@@ -5419,14 +5433,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function pushToCloud() {
-    if (isSyncing) return;
+    if (isSavingToCloud) return;
     try {
-      isSyncing = true;
+      isSavingToCloud = true;
+      lastLocalSaveTime = Date.now();
       showSyncStatus('⏳ กำลังบันทึกข้อมูลออนไลน์...', 'rgba(30, 58, 138, 0.85)', false);
 
       const localShared = getCleanSharedData();
       
-      // ✅ ใช้ mode: 'no-cors' เพื่อไม่ให้เบราว์เซอร์บล็อก Redirect ของ Google Apps Script
+      // ส่งผ่าน mode: 'no-cors' เพื่อไม่ให้เบราว์เซอร์บล็อก Redirect 302 ของ Google Apps Script
       await fetch(GAS_API_URL, {
         method: 'POST',
         mode: 'no-cors',
@@ -5434,15 +5449,19 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(localShared)
       });
 
-      showSyncStatus('✅ บันทึกออนไลน์เรียบร้อย', 'rgba(16, 185, 129, 0.95)', true);
+      // หน่วงเวลา 1.2 วินาทีเพื่อให้ Google Sheets เขียนข้อมูลลงแผ่นงานจริงเสร็จสิ้น
+      setTimeout(() => {
+        isSavingToCloud = false;
+        showSyncStatus('✅ บันทึกออนไลน์เรียบร้อย', 'rgba(16, 185, 129, 0.95)', true);
+      }, 1200);
+
     } catch (err) {
+      isSavingToCloud = false;
       showSyncStatus('❌ การเชื่อมต่อขัดข้อง', 'rgba(220, 38, 38, 0.85)', true);
-    } finally {
-      isSyncing = false;
     }
   }
 
-  // สร้างฟังก์ชันให้ส่วนอื่นเรียกบันทึกได้ทันที
+  // ฟังก์ชันส่วนกลางให้ฟังก์ชันจองหรือลบเวรเรียกส่งข้อมูลขึ้น Cloud ทันที
   window.forcePushToCloud = function() {
     lastLocalSaveTime = Date.now();
     clearTimeout(syncTimeout);
@@ -5452,12 +5471,12 @@ document.addEventListener('DOMContentLoaded', () => {
   localStorage.setItem = function(key, value) {
     originalSetItem(key, value);
     if (!isSyncing && isAllowedSharedKey(key)) {
-      lastLocalSaveTime = Date.now(); // ล็อคเวลาป้องกันดึงของเก่าทันที
+      lastLocalSaveTime = Date.now(); // บันทึก timestamp ล่าสุดทันทีที่มีการแก้ Storage
       showSyncStatus('💾 กำลังบันทึกข้อมูล...', 'rgba(217, 119, 6, 0.85)', false);
       clearTimeout(syncTimeout);
       syncTimeout = setTimeout(() => {
         pushToCloud();
-      }, 400);
+      }, 350);
     }
   };
 
@@ -5472,7 +5491,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ดึงข้อมูลครั้งแรกเมื่อเปิดหน้าเว็บ
   pullFromCloud(true);
 
-  // ตรวจสอบข้อมูลใหม่ทุกๆ 15 วินาที
+  // รอบตรวจสอบข้อมูลใหม่ทุกๆ 15 วินาที (หากไม่ได้อยู่ในช่วงแก้ไข)
   setInterval(() => {
     if (!document.hidden) pullFromCloud(false);
   }, 15000);
