@@ -5275,8 +5275,30 @@ document.addEventListener('DOMContentLoaded', () => {
   switchView('dashboard');
 });
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /* ============================================================================
-   GITHUB CLOUD SYNC V20.2 (STABLE ORIGINAL LAYOUT + NEW TOKEN SYNC)
+   GITHUB CLOUD SYNC V20.3 (FIX OVERWRITE BUG & FAST SYNC)
    ============================================================================ */
 try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) {}
 
@@ -5291,6 +5313,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
 
   let isSyncing = false;
   let hasPulledFromCloud = false;
+  let hasPendingLocalChanges = false; // ธงป้องกันไม่ให้ Cloud เก่ามาทับข้อมูลที่เพิ่งเซฟ
   let syncTimeout = null;
   let fileSha = null;
 
@@ -5331,7 +5354,6 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
   function isAllowedNurseSharedKey(key) {
     if (!key || typeof key !== 'string') return false;
     const k = key.toLowerCase();
-    // ป้องกันไม่ให้แชร์คีย์ User/Admin ขึ้นหรือลงจาก GitHub
     if (k.startsWith('nurse_system_') || k === 'nurse_master_list' || k === 'nurse_shift_mode') {
       return true;
     }
@@ -5351,7 +5373,6 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
   }
 
   function reloadAppMemoryState() {
-    // อัปเดต shiftMode จากข้อมูลที่ซิงค์ลงมาจาก GitHub
     const syncedMode = localStorage.getItem('nurse_shift_mode');
     if (syncedMode) {
       shiftMode = parseInt(syncedMode, 10);
@@ -5371,7 +5392,8 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
   }
 
   async function pullFromGitHub() {
-    if (isSyncing) return;
+    // ถ้ากำลังซิงค์ หรือมีข้อมูลใหม่ในเครื่องที่ยังไม่ได้ Push ขึ้น Cloud ห้าม Pull มาทับเด็ดขาด!
+    if (isSyncing || hasPendingLocalChanges) return;
     try {
       const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}?ref=${GITHUB_CONFIG.branch}&t=${Date.now()}`;
       const res = await fetch(url, { cache: 'no-store', headers: { 'Authorization': `token ${GITHUB_CONFIG.token}` } });
@@ -5397,9 +5419,8 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
       isSyncing = false;
       hasPulledFromCloud = true;
 
-      reloadAppMemoryState();
-
       if (hasChanges) {
+        reloadAppMemoryState();
         showSyncStatus('☁️ ซิงค์ข้อมูลล่าสุดสำเร็จ', 'rgba(16, 185, 129, 0.95)', true);
       } else {
         showSyncStatus('☁️ ข้อมูลเป็นปัจจุบัน', 'rgba(16, 185, 129, 0.85)', true);
@@ -5411,13 +5432,16 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
   }
 
   async function pushToGitHub(isForce = false) {
-    if (isSyncing || !hasPulledFromCloud) return;
+    if (isSyncing || (!hasPulledFromCloud && !isForce)) return;
     try {
       isSyncing = true;
       showSyncStatus('⏳ กำลังบันทึกข้อมูลออนไลน์...', 'rgba(30, 58, 138, 0.85)', false);
 
       const apiUrl = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}`;
-      const checkRes = await fetch(`${apiUrl}?ref=${GITHUB_CONFIG.branch}&t=${Date.now()}`, { cache: 'no-store', headers: { 'Authorization': `token ${GITHUB_CONFIG.token}` } });
+      const checkRes = await fetch(`${apiUrl}?ref=${GITHUB_CONFIG.branch}&t=${Date.now()}`, { 
+        cache: 'no-store', 
+        headers: { 'Authorization': `token ${GITHUB_CONFIG.token}` } 
+      });
       if (checkRes.ok) {
         const checkData = await checkRes.json();
         fileSha = checkData.sha;
@@ -5425,7 +5449,7 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
 
       const localShared = getCleanNurseSharedData();
       const body = {
-        message: 'Restore original layout and sync data',
+        message: 'Auto-sync nurse duty bookings',
         content: utf8ToBase64(JSON.stringify(localShared, null, 2)),
         branch: GITHUB_CONFIG.branch
       };
@@ -5433,16 +5457,21 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
 
       const res = await fetch(apiUrl, {
         method: 'PUT',
-        headers: { 'Authorization': `token ${GITHUB_CONFIG.token}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+        headers: { 
+          'Authorization': `token ${GITHUB_CONFIG.token}`, 
+          'Accept': 'application/vnd.github.v3+json', 
+          'Content-Type': 'application/json' 
+        },
         body: JSON.stringify(body)
       });
 
       if (res.ok) {
         const resData = await res.json();
         fileSha = resData.content.sha;
+        hasPendingLocalChanges = false; // ปลดล็อคเมื่อส่งขึ้นสำเร็จ
         showSyncStatus('✅ บันทึกออนไลน์เรียบร้อย', 'rgba(16, 185, 129, 0.95)', true);
       } else {
-        showSyncStatus('⚠️ บันทึกไม่สำเร็จ', 'rgba(220, 38, 38, 0.85)', true);
+        showSyncStatus('⚠️ บันทึกไม่สำเร็จ (รอซิงค์ใหม่)', 'rgba(220, 38, 38, 0.85)', true);
       }
     } catch (err) {
       showSyncStatus('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ', 'rgba(220, 38, 38, 0.85)', true);
@@ -5453,12 +5482,14 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
 
   localStorage.setItem = function(key, value) {
     originalSetItem(key, value);
-    if (!isSyncing && hasPulledFromCloud && isAllowedNurseSharedKey(key)) {
-      showSyncStatus('💾 รอการบันทึก...', 'rgba(217, 119, 6, 0.85)', true);
+    if (!isSyncing && isAllowedNurseSharedKey(key)) {
+      hasPendingLocalChanges = true; // ล็อคทันทีว่ามีข้อมูลใหม่ ห้ามดึงของเก่ามาทับ!
+      showSyncStatus('💾 กำลังบันทึกข้อมูล...', 'rgba(217, 119, 6, 0.85)', false);
       clearTimeout(syncTimeout);
+      // ลดเวลาดีเลย์เหลือ 600ms เพื่อให้ข้อมูลถูกส่งขึ้น GitHub ทันที
       syncTimeout = setTimeout(() => {
         pushToGitHub(false);
-      }, 4000);
+      }, 600);
     }
   };
 
@@ -5470,11 +5501,15 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     originalClear();
   };
 
+  // ดึงข้อมูลครั้งแรกเมื่อเปิดหน้าเว็บ
   pullFromGitHub();
 
+  // รอบตรวจสอบข้อมูลใหม่ทุก 20 วินาที
   setInterval(() => {
-    if (!document.hidden) pullFromGitHub();
-  }, 15000);
+    if (!document.hidden && !hasPendingLocalChanges) pullFromGitHub();
+  }, 20000);
 
-  window.addEventListener('focus', () => pullFromGitHub());
+  window.addEventListener('focus', () => {
+    if (!hasPendingLocalChanges) pullFromGitHub();
+  });
 })();
