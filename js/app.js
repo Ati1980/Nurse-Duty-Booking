@@ -5326,7 +5326,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GOOGLE APPS SCRIPT SYNC V5.0 (DIRECT SYNC - NO RACE CONDITION)
+   GOOGLE APPS SCRIPT SYNC V5.2 (INSTANT CLOUD HYDRATE ON BOOT)
    ============================================================================ */
 (function() {
   const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzScoDAtaM1oRT8SF5plzPjmHVKe3kF7rdlGbxb88-7QAmYBu-DJcFBqT1MTxbwRMhPVA/exec";
@@ -5369,12 +5369,25 @@ document.addEventListener('DOMContentLoaded', () => {
     return shared;
   }
 
+  // ฟังก์ชันบังคับอัปเดตตัวแปรในหน่วยความจำและวาดทุกหน้าจอใหม่ทันที
   function refreshAllViews() {
-    loadMonthState();
-    if (typeof renderPublicDashboard === 'function') renderPublicDashboard();
-    if (typeof renderNurseCalendar === 'function' && activeView === 'personal') renderNurseCalendar();
-    if (typeof renderAdminView === 'function' && activeView === 'admin') renderAdminView();
-    if (typeof renderExcelView === 'function' && activeView === 'excel') renderExcelView('userExcelViewContent');
+    try {
+      if (typeof loadMonthState === 'function') {
+        loadMonthState();
+      }
+      if (typeof renderPublicDashboard === 'function') renderPublicDashboard();
+      if (typeof renderNurseCalendar === 'function' && typeof activeView !== 'undefined' && activeView === 'personal') {
+        renderNurseCalendar();
+      }
+      if (typeof renderAdminView === 'function' && typeof activeView !== 'undefined' && activeView === 'admin') {
+        renderAdminView();
+      }
+      if (typeof renderExcelView === 'function' && typeof activeView !== 'undefined' && activeView === 'excel') {
+        renderExcelView('userExcelViewContent');
+      }
+    } catch (err) {
+      console.error('Error refreshing views:', err);
+    }
   }
 
   async function pullFromCloud(force = false) {
@@ -5383,6 +5396,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       isSyncing = true;
+      if (force) showSyncStatus('🔄 กำลังโหลดข้อมูลล่าสุด...', 'rgba(30, 58, 138, 0.85)', false);
+
       const res = await fetch(`${GAS_API_URL}?_nocache=${Date.now()}`);
       if (!res.ok) { isSyncing = false; return; }
 
@@ -5392,41 +5407,25 @@ document.addEventListener('DOMContentLoaded', () => {
       for (const [key, val] of Object.entries(cloudStore)) {
         if (!isAllowedSharedKey(key)) continue;
 
-        // ผสานเข้า localStorage ทันที
-        if (key.startsWith('nurse_system_')) {
-          const localStr = localStorage.getItem(key);
-          if (localStr) {
-            try {
-              const localObj = JSON.parse(localStr);
-              const cloudObj = JSON.parse(val);
-              // รวม roster ของทุกคน
-              const merged = Object.assign({}, cloudObj.roster, localObj.roster);
-              cloudObj.roster = merged;
-              const mergedStr = JSON.stringify(cloudObj);
-              if (localStr !== mergedStr) {
-                localStorage.setItem(key, mergedStr);
-                hasChanges = true;
-              }
-              continue;
-            } catch (e) {}
-          }
-        }
-
-        if (localStorage.getItem(key) !== val) {
+        const localVal = localStorage.getItem(key);
+        if (localVal !== val) {
           localStorage.setItem(key, val);
           hasChanges = true;
         }
       }
 
       isSyncing = false;
-      if (hasChanges) {
+
+      // ถ้ามีข้อมูลใหม่ หรือเป็นการสั่งดึงครั้งแรก ให้วาดหน้าจอใหม่ทั้งหมดทันที
+      if (hasChanges || force) {
         refreshAllViews();
         showSyncStatus('☁️ ซิงค์ข้อมูลล่าสุดสำเร็จ', 'rgba(16, 185, 129, 0.95)', true);
-      } else if (force) {
+      } else {
         showSyncStatus('☁️ ข้อมูลเป็นปัจจุบัน', 'rgba(16, 185, 129, 0.85)', true);
       }
     } catch (err) {
       isSyncing = false;
+      showSyncStatus('☁️ ใช้งานโหมดออฟไลน์', 'rgba(100, 116, 139, 0.85)', true);
     }
   }
 
@@ -5448,7 +5447,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       showSyncStatus('✅ บันทึกออนไลน์เรียบร้อย', 'rgba(16, 185, 129, 0.95)', true);
     } catch (err) {
-      showSyncStatus('⚠️ เชื่อมต่อคลาวด์ไม่สำเร็จ', 'rgba(220, 38, 38, 0.85)', true);
+      showSyncStatus('⚠️ บันทึกไม่สำเร็จ', 'rgba(220, 38, 38, 0.85)', true);
     } finally {
       setTimeout(() => {
         isPushing = false;
@@ -5456,20 +5455,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ให้ระบบภายนอกสั่งบันทึกได้โดยตรง
   window.forcePushToCloud = pushToCloud;
   window.forcePullFromCloud = () => pullFromCloud(true);
 
-  // ดึงข้อมูลครั้งแรก
+  // 1. ดึงข้อมูลทันทีเมื่อเปิดหน้าเว็บ (Force Refresh หน้าจอเมื่อโหลดเสร็จ)
   pullFromCloud(true);
 
-  // ตรวจสอบข้อมูลรอบใหม่ทุกๆ 12 วินาที
+  // 2. ตรวจสอบข้อมูลใหม่ทุก 8 วินาที
   setInterval(() => {
     if (!document.hidden && !isPushing) {
       pullFromCloud(false);
     }
-  }, 12000);
+  }, 8000);
 
+  // 3. เมื่อสลับกลับมาที่แท็บเว็บนี้ ให้ดึงข้อมูลสดทันที
   window.addEventListener('focus', () => {
     if (!isPushing) pullFromCloud(false);
   });
