@@ -9,7 +9,7 @@
 // 1. Data Definitions
 const ADMIN_CREDENTIALS = {
   username: "Admin",
-  password: "1234"
+  password: "2910"
 };
 
 function getAdminPassword() {
@@ -5298,30 +5298,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ============================================================================
-   GITHUB CLOUD SYNC V20.3 (FIX OVERWRITE BUG & FAST SYNC)
+   GOOGLE APPS SCRIPT SYNC (LOCKSERVICE & MULTI-USER COMPATIBLE)
    ============================================================================ */
-try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) {}
-
 (function() {
-  const GITHUB_CONFIG = {
-    owner: 'Ati1980',
-    repo: 'Nurse-Duty-Booking',
-    path: 'db.json',
-    branch: 'main',
-    token: ['ghp_', 'TI0ldqiMvh4vnzgot', '9tFDUJKj0tRV93o9qh6'].join('')
-  };
+  // นำ URL ที่ได้จากการ Deploy ในขั้นตอนที่ 1 มาวางตรงนี้
+  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzrJLW4aPnH_qLPC72g91ebd1RFflpnmjdknupifamoyjroE9cLFv0VRnbbt-dCbJIL4w/exec";
 
   let isSyncing = false;
-  let hasPulledFromCloud = false;
-  let hasPendingLocalChanges = false; // ธงป้องกันไม่ให้ Cloud เก่ามาทับข้อมูลที่เพิ่งเซฟ
+  let hasPendingLocalChanges = false;
   let syncTimeout = null;
-  let fileSha = null;
 
   const originalSetItem = localStorage.setItem.bind(localStorage);
   const originalRemoveItem = localStorage.removeItem.bind(localStorage);
   const originalClear = localStorage.clear.bind(localStorage);
-
-  originalSetItem('nurse_booking_v4_clean_reset', 'true');
 
   function showSyncStatus(text, bgColor = 'rgba(30, 58, 138, 0.85)', autoHide = true) {
     let badge = document.getElementById('gh-sync-badge');
@@ -5329,29 +5318,19 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
       badge = document.createElement('div');
       badge.id = 'gh-sync-badge';
       badge.style.cssText = 'position:fixed;bottom:12px;right:12px;padding:8px 16px;border-radius:20px;color:#fff;font-size:12px;z-index:99999;backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.25);cursor:pointer;font-family:sans-serif;transition:opacity 0.4s, background 0.3s;';
-      badge.title = 'คลิกเพื่อบังคับซิงค์ข้อมูลทันที';
-      badge.onclick = () => {
-        showSyncStatus('🔄 กำลังซิงค์ข้อมูลด่วน...', 'rgba(30, 58, 138, 0.95)', false);
-        pushToGitHub(true);
-      };
+      badge.title = 'คลิกเพื่อรีเฟรชข้อมูล';
+      badge.onclick = () => pullFromCloud();
       document.body.appendChild(badge);
     }
     badge.style.opacity = '1';
     badge.style.background = bgColor;
     badge.textContent = text;
     if (autoHide) {
-      setTimeout(() => { badge.style.opacity = '0.85'; }, 4000);
+      setTimeout(() => { badge.style.opacity = '0.85'; }, 3500);
     }
   }
 
-  function utf8ToBase64(str) {
-    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) => String.fromCharCode('0x' + p1)));
-  }
-  function base64ToUtf8(str) {
-    return decodeURIComponent(Array.prototype.map.call(atob(str.replace(/\s/g, '')), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-  }
-
-  function isAllowedNurseSharedKey(key) {
+  function isAllowedSharedKey(key) {
     if (!key || typeof key !== 'string') return false;
     const k = key.toLowerCase();
     if (k.startsWith('nurse_system_') || k === 'nurse_master_list' || k === 'nurse_shift_mode') {
@@ -5360,21 +5339,20 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     return false;
   }
 
-  function getCleanNurseSharedData() {
+  function getCleanSharedData() {
     const shared = {};
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (isAllowedNurseSharedKey(k)) {
+      if (isAllowedSharedKey(k)) {
         shared[k] = localStorage.getItem(k);
       }
     }
-    shared['nurse_booking_v4_clean_reset'] = 'true';
     return shared;
   }
 
   function reloadAppMemoryState() {
     const syncedMode = localStorage.getItem('nurse_shift_mode');
-    if (syncedMode) {
+    if (syncedMode && typeof updateShiftModeUI === 'function') {
       shiftMode = parseInt(syncedMode, 10);
       updateShiftModeUI();
     }
@@ -5391,33 +5369,23 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     }
   }
 
-  async function pullFromGitHub() {
-    // ถ้ากำลังซิงค์ หรือมีข้อมูลใหม่ในเครื่องที่ยังไม่ได้ Push ขึ้น Cloud ห้าม Pull มาทับเด็ดขาด!
+  async function pullFromCloud() {
     if (isSyncing || hasPendingLocalChanges) return;
     try {
-      const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}?ref=${GITHUB_CONFIG.branch}&t=${Date.now()}`;
-      const res = await fetch(url, { cache: 'no-store', headers: { 'Authorization': `token ${GITHUB_CONFIG.token}` } });
-      if (!res.ok) {
-        hasPulledFromCloud = true;
-        return;
-      }
+      const res = await fetch(`${GAS_API_URL}?_t=${Date.now()}`);
+      if (!res.ok) return;
 
-      const fileData = await res.json();
-      fileSha = fileData.sha;
-      const cloudStore = JSON.parse(base64ToUtf8(fileData.content));
-
+      const cloudStore = await res.json();
       isSyncing = true;
       let hasChanges = false;
       for (const [key, val] of Object.entries(cloudStore)) {
-        if (!isAllowedNurseSharedKey(key)) continue;
+        if (!isAllowedSharedKey(key)) continue;
         if (localStorage.getItem(key) !== val) {
           originalSetItem(key, val);
           hasChanges = true;
         }
       }
-      originalSetItem('nurse_booking_v4_clean_reset', 'true');
       isSyncing = false;
-      hasPulledFromCloud = true;
 
       if (hasChanges) {
         reloadAppMemoryState();
@@ -5427,54 +5395,30 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
       }
     } catch (err) {
       isSyncing = false;
-      hasPulledFromCloud = true;
     }
   }
 
-  async function pushToGitHub(isForce = false) {
-    if (isSyncing || (!hasPulledFromCloud && !isForce)) return;
+  async function pushToCloud() {
+    if (isSyncing) return;
     try {
       isSyncing = true;
       showSyncStatus('⏳ กำลังบันทึกข้อมูลออนไลน์...', 'rgba(30, 58, 138, 0.85)', false);
 
-      const apiUrl = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}`;
-      const checkRes = await fetch(`${apiUrl}?ref=${GITHUB_CONFIG.branch}&t=${Date.now()}`, { 
-        cache: 'no-store', 
-        headers: { 'Authorization': `token ${GITHUB_CONFIG.token}` } 
-      });
-      if (checkRes.ok) {
-        const checkData = await checkRes.json();
-        fileSha = checkData.sha;
-      }
-
-      const localShared = getCleanNurseSharedData();
-      const body = {
-        message: 'Auto-sync nurse duty bookings',
-        content: utf8ToBase64(JSON.stringify(localShared, null, 2)),
-        branch: GITHUB_CONFIG.branch
-      };
-      if (fileSha) body.sha = fileSha;
-
-      const res = await fetch(apiUrl, {
-        method: 'PUT',
-        headers: { 
-          'Authorization': `token ${GITHUB_CONFIG.token}`, 
-          'Accept': 'application/vnd.github.v3+json', 
-          'Content-Type': 'application/json' 
-        },
-        body: JSON.stringify(body)
+      const localShared = getCleanSharedData();
+      const res = await fetch(GAS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(localShared)
       });
 
       if (res.ok) {
-        const resData = await res.json();
-        fileSha = resData.content.sha;
-        hasPendingLocalChanges = false; // ปลดล็อคเมื่อส่งขึ้นสำเร็จ
+        hasPendingLocalChanges = false;
         showSyncStatus('✅ บันทึกออนไลน์เรียบร้อย', 'rgba(16, 185, 129, 0.95)', true);
       } else {
-        showSyncStatus('⚠️ บันทึกไม่สำเร็จ (รอซิงค์ใหม่)', 'rgba(220, 38, 38, 0.85)', true);
+        showSyncStatus('⚠️ บันทึกไม่สำเร็จ', 'rgba(220, 38, 38, 0.85)', true);
       }
     } catch (err) {
-      showSyncStatus('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ', 'rgba(220, 38, 38, 0.85)', true);
+      showSyncStatus('❌ การเชื่อมต่อขัดข้อง', 'rgba(220, 38, 38, 0.85)', true);
     } finally {
       isSyncing = false;
     }
@@ -5482,14 +5426,13 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
 
   localStorage.setItem = function(key, value) {
     originalSetItem(key, value);
-    if (!isSyncing && isAllowedNurseSharedKey(key)) {
-      hasPendingLocalChanges = true; // ล็อคทันทีว่ามีข้อมูลใหม่ ห้ามดึงของเก่ามาทับ!
+    if (!isSyncing && isAllowedSharedKey(key)) {
+      hasPendingLocalChanges = true;
       showSyncStatus('💾 กำลังบันทึกข้อมูล...', 'rgba(217, 119, 6, 0.85)', false);
       clearTimeout(syncTimeout);
-      // ลดเวลาดีเลย์เหลือ 600ms เพื่อให้ข้อมูลถูกส่งขึ้น GitHub ทันที
       syncTimeout = setTimeout(() => {
-        pushToGitHub(false);
-      }, 600);
+        pushToCloud();
+      }, 400);
     }
   };
 
@@ -5501,15 +5444,13 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
     originalClear();
   };
 
-  // ดึงข้อมูลครั้งแรกเมื่อเปิดหน้าเว็บ
-  pullFromGitHub();
+  pullFromCloud();
 
-  // รอบตรวจสอบข้อมูลใหม่ทุก 20 วินาที
   setInterval(() => {
-    if (!document.hidden && !hasPendingLocalChanges) pullFromGitHub();
-  }, 20000);
+    if (!document.hidden && !hasPendingLocalChanges) pullFromCloud();
+  }, 15000);
 
   window.addEventListener('focus', () => {
-    if (!hasPendingLocalChanges) pullFromGitHub();
+    if (!hasPendingLocalChanges) pullFromCloud();
   });
 })();
