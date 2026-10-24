@@ -105,7 +105,8 @@ loadNurses();
 
 // 1. Core Shift & Calendar Definitions
 // Shift Mode: 2 = 2 เวร/วัน (เช้า, บ่าย), 3 = 3 เวร/วัน (เช้า, บ่าย, ดึก)
-let shiftMode = parseInt(localStorage.getItem('nurse_shift_mode') || '3');
+// ถ้าเปิด Incognito แล้วยังไม่มีการกดเปลี่ยน ให้เริ่มต้นที่ 2 หรืออ่านค่าเดิมที่เคยบันทึกไว้
+let shiftMode = parseInt(localStorage.getItem('nurse_shift_mode') || '2', 10);
 
 const SHIFTS = {
   M: { id: 'M', code: 'ช', name: 'เวรเช้า', time: '08:30 - 16:30 น.', hours: 8, badge: 'shift-m', icon: '☀️' },
@@ -5140,10 +5141,17 @@ window.handleSaveNurse = function(e) {
 
 // 14. EVENT LISTENERS INITIALIZATION
 document.addEventListener('DOMContentLoaded', () => {
+  const savedShiftMode = localStorage.getItem('nurse_shift_mode');
+  if (savedShiftMode) {
+    shiftMode = parseInt(savedShiftMode, 10);
+  }
+  // ปรับ UI ของปุ่มและ Header ให้ตรงกับ shiftMode ทันที
+  updateShiftModeUI();
+
+  // เริ่มต้นระบบอื่นๆ 
   initTheme();
   loadMonthState();
   initAuth();
-  updateShiftModeUI();
   updateCalendarViewDisplay();
   updateRealTimeClock();
   setInterval(updateRealTimeClock, 1000);
@@ -5262,40 +5270,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('regenerateOptimizeBtn')?.addEventListener('click', runOptimization);
   document.getElementById('confirmOptimizeBtn')?.addEventListener('click', confirmOptimization);
 
-// Initial View: ตรวจสอบ currentUser ล่าสุดจาก Storage อีกครั้ง
+  // เริ่มต้นที่หน้าปฏิทินหลักเสมอ ไม่กระโดดเข้าหน้า Admin เอง
   initShiftToggleListeners();
-  const verifyUser = localStorage.getItem('nurse_current_user');
-  if (!verifyUser) {
-    currentUser = null;
-    switchView('dashboard');
-  } else if (currentUser && currentUser.role === 'admin') {
-    switchView('admin');
-  } else if (currentUser && currentUser.role === 'nurse') {
-    switchView('personal');
-  } else {
-    switchView('dashboard');
-  }
+  switchView('dashboard');
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /* ============================================================================
    GITHUB CLOUD SYNC V20.2 (STABLE ORIGINAL LAYOUT + NEW TOKEN SYNC)
@@ -5353,9 +5331,11 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
   function isAllowedNurseSharedKey(key) {
     if (!key || typeof key !== 'string') return false;
     const k = key.toLowerCase();
-    if (!k.startsWith('nurse_')) return false;
-    if (k.includes('login') || k.includes('auth') || k.includes('session') || k.includes('theme')) return false;
-    return true;
+    // ป้องกันไม่ให้แชร์คีย์ User/Admin ขึ้นหรือลงจาก GitHub
+    if (k.startsWith('nurse_system_') || k === 'nurse_master_list' || k === 'nurse_shift_mode') {
+      return true;
+    }
+    return false;
   }
 
   function getCleanNurseSharedData() {
@@ -5371,6 +5351,12 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
   }
 
   function reloadAppMemoryState() {
+    // อัปเดต shiftMode จากข้อมูลที่ซิงค์ลงมาจาก GitHub
+    const syncedMode = localStorage.getItem('nurse_shift_mode');
+    if (syncedMode) {
+      shiftMode = parseInt(syncedMode, 10);
+      updateShiftModeUI();
+    }
     if (typeof loadMonthState === 'function') {
       try { loadMonthState(); } catch (e) {}
     }
@@ -5411,7 +5397,6 @@ try { localStorage.setItem('nurse_booking_v4_clean_reset', 'true'); } catch (e) 
       isSyncing = false;
       hasPulledFromCloud = true;
 
-      // สั่งเรนเดอร์ข้อมูลสดลงตารางทันที
       reloadAppMemoryState();
 
       if (hasChanges) {
