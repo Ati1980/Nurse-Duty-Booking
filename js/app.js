@@ -33,7 +33,7 @@ const DEFAULT_NURSES = [
   { id: "6100002", num: 2, name: "น.ส.จำปา สิมมา", pin: "0002", order: 2, color: "#dc2626", textColor: "#ffffff", bgSoft: "#fee2e2", border: "#fca5a5" }, // สีแดงสดใส แตกต่างจากเลข 1 อย่างชัดเจน
   { id: "6100005", num: 3, name: "น.ส.ระวิวรรณ รัตนปัญญา", pin: "0005", order: 3, color: "#0284c7", textColor: "#ffffff", bgSoft: "#e0f2fe", border: "#7dd3fc" },
   { id: "6100013", num: 4, name: "น.ส.หิรัญญา แสนสุข", pin: "0013", order: 4, color: "#f43f5e", textColor: "#ffffff", bgSoft: "#fff1f2", border: "#fecdd3" },
-  { id: "6100015", num: 5, name: "น.ส.วชิราพรรณ อานุพินิจ", pin: "0015", order: 5, color: "#ea580c", textColor: "#ffffff", bgSoft: "#ffedd5", border: "#fdba74" },
+  { id: "6100015", num: 5, name: "น.ส.วชิราพรรณ อานพินิจ", pin: "0015", order: 5, color: "#ea580c", textColor: "#ffffff", bgSoft: "#ffedd5", border: "#fdba74" },
   { id: "6100021", num: 6, name: "น.ส.ประทุมวัน ชัยยันต์", pin: "0021", order: 6, color: "#2563eb", textColor: "#ffffff", bgSoft: "#dbeafe", border: "#93c5fd" },
   { id: "6100057", num: 7, name: "น.ส.วิชชุดา ศรีหลง", pin: "0057", order: 7, color: "#eab308", textColor: "#713f12", bgSoft: "#fef9c3", border: "#fde047" },
   { id: "6100063", num: 8, name: "น.ส.อังสุมาลี เพียอามาตย์", pin: "0063", order: 8, color: "#1e3a8a", textColor: "#ffffff", bgSoft: "#e0e7ff", border: "#a5b4fc" },
@@ -172,7 +172,7 @@ let calendarViewMode = 'grid';
 try {
   const savedCalView = localStorage.getItem('nurse_cal_view_mode');
   if (savedCalView) calendarViewMode = savedCalView;
-} catch (e) {}
+} catch (e) { }
 
 // ==================== THEME MANAGEMENT (DARK MODE) ====================
 function initTheme() {
@@ -186,7 +186,7 @@ function initTheme() {
   }
 }
 
-window.toggleTheme = function() {
+window.toggleTheme = function () {
   const isDark = document.documentElement.classList.contains('dark');
   applyTheme(!isDark);
 };
@@ -194,10 +194,10 @@ window.toggleTheme = function() {
 function applyTheme(isDark) {
   if (isDark) {
     document.documentElement.classList.add('dark');
-    try { localStorage.setItem('nurse_roster_theme', 'dark'); } catch (e) {}
+    try { localStorage.setItem('nurse_roster_theme', 'dark'); } catch (e) { }
   } else {
     document.documentElement.classList.remove('dark');
-    try { localStorage.setItem('nurse_roster_theme', 'light'); } catch (e) {}
+    try { localStorage.setItem('nurse_roster_theme', 'light'); } catch (e) { }
   }
 
   const icon = isDark ? '☀️' : '🌙';
@@ -219,7 +219,7 @@ function applyTheme(isDark) {
     if (activeView === 'admin' && typeof renderDutyChart === 'function') {
       renderDutyChart();
     }
-  } catch (e) {}
+  } catch (e) { }
 }
 
 // Immediately apply theme
@@ -229,7 +229,7 @@ function getActiveShifts() {
   return shiftMode === 2 ? ['M', 'A'] : ['M', 'A', 'N'];
 }
 
-window.setShiftMode = function(mode) {
+window.setShiftMode = function (mode) {
   shiftMode = mode;
   localStorage.setItem('nurse_shift_mode', mode);
   updateShiftModeUI();
@@ -369,12 +369,12 @@ function getStorageKey() {
 
 function saveMonthState() {
   localStorage.setItem(getStorageKey(), JSON.stringify(monthState));
-  
+
   // บันทึกเวลาเพื่อระงับการดึงข้อมูลจาก Cloud ทับหน้าจอ
   if (typeof window.recordLocalAction === 'function') {
     window.recordLocalAction();
   }
-  
+
   // สั่งส่งขึ้น Google Sheet ทันที
   if (typeof window.forcePushToCloud === 'function') {
     window.forcePushToCloud();
@@ -411,7 +411,7 @@ function initFreshMonth() {
 }
 
 // 4. Authentication Logic & Password Toggle
-window.togglePasswordVisibility = function(inputId, iconId) {
+window.togglePasswordVisibility = function (inputId, iconId) {
   const input = document.getElementById(inputId);
   const icon = document.getElementById(iconId);
   if (!input || !icon) return;
@@ -425,12 +425,12 @@ window.togglePasswordVisibility = function(inputId, iconId) {
   }
 };
 
-window.openNurseLoginModal = function(optionalContext) {
+window.openNurseLoginModal = function (optionalContext) {
   const modal = document.getElementById('nurseLoginModal');
   const sel = document.getElementById('modalLoginNurseIdSelect');
   const pinInput = document.getElementById('modalLoginNursePin');
   const banner = document.getElementById('nurseLoginTargetBanner');
-  
+
   sel.innerHTML = NURSES.map(n => `<option value="${n.id}">[${n.id}] ${n.name}</option>`).join('');
   if (pinInput) pinInput.value = '';
 
@@ -446,19 +446,19 @@ window.openNurseLoginModal = function(optionalContext) {
   modal.classList.remove('hidden');
 };
 
-window.closeNurseLoginModal = function() {
+window.closeNurseLoginModal = function () {
   document.getElementById('nurseLoginModal').classList.add('hidden');
   pendingShiftSelection = null;
 };
 
-window.openAdminLoginModal = function() {
+window.openAdminLoginModal = function () {
   const modal = document.getElementById('adminLoginModal');
   const passInput = document.getElementById('modalAdminPasswordOnly');
   if (passInput) passInput.value = '';
   modal.classList.remove('hidden');
 };
 
-window.closeAdminLoginModal = function() {
+window.closeAdminLoginModal = function () {
   document.getElementById('adminLoginModal').classList.add('hidden');
 };
 
@@ -477,7 +477,7 @@ function initAuth() {
   updateAuthUI();
 }
 
-window.showToast = function(message, duration = 3000) {
+window.showToast = function (message, duration = 3000) {
   let toast = document.getElementById('appToastNotification');
   if (!toast) {
     toast = document.createElement('div');
@@ -493,7 +493,7 @@ window.showToast = function(message, duration = 3000) {
   }, duration);
 };
 
-window.handleAdminRefresh = function() {
+window.handleAdminRefresh = function () {
   if (typeof window.forcePullFromCloud === 'function') {
     window.forcePullFromCloud();
   } else {
@@ -527,7 +527,7 @@ function triggerFireworks(durationMs = 1800) {
     let height = canvas.height = window.innerHeight;
 
     const colors = [
-      '#f59e0b', '#ef4444', '#10b981', '#3b82f6', '#8b5cf6', 
+      '#f59e0b', '#ef4444', '#10b981', '#3b82f6', '#8b5cf6',
       '#ec4899', '#06b6d4', '#eab308', '#ffffff', '#6366f1'
     ];
 
@@ -675,7 +675,7 @@ function loginAsAdmin(password) {
 }
 
 // ==================== ADMIN PASSWORD CHANGE ====================
-window.openAdminChangePasswordModal = function() {
+window.openAdminChangePasswordModal = function () {
   const modal = document.getElementById('adminChangePasswordModal');
   if (!modal) return;
   const curInp = document.getElementById('adminCurrentPassword');
@@ -693,12 +693,12 @@ window.openAdminChangePasswordModal = function() {
   setTimeout(() => { curInp?.focus(); }, 100);
 };
 
-window.closeAdminChangePasswordModal = function() {
+window.closeAdminChangePasswordModal = function () {
   const modal = document.getElementById('adminChangePasswordModal');
   if (modal) modal.classList.add('hidden');
 };
 
-window.handleAdminChangePassword = function(e) {
+window.handleAdminChangePassword = function (e) {
   if (e) e.preventDefault();
   const currentPass = document.getElementById('adminCurrentPassword')?.value || '';
   const newPass = document.getElementById('adminNewPassword')?.value || '';
@@ -740,7 +740,7 @@ window.handleAdminChangePassword = function(e) {
 };
 
 // ==================== NURSE PASSWORD (PIN) CHANGE ====================
-window.openNurseChangePasswordModal = function() {
+window.openNurseChangePasswordModal = function () {
   if (!currentUser || currentUser.role !== 'nurse') {
     alert('กรุณาเข้าสู่ระบบในฐานะพยาบาลก่อนเปลี่ยนรหัสผ่าน (PIN)');
     return;
@@ -767,12 +767,12 @@ window.openNurseChangePasswordModal = function() {
   setTimeout(() => { curInp?.focus(); }, 100);
 };
 
-window.closeNurseChangePasswordModal = function() {
+window.closeNurseChangePasswordModal = function () {
   const modal = document.getElementById('nurseChangePasswordModal');
   if (modal) modal.classList.add('hidden');
 };
 
-window.handleNurseChangePassword = function(e) {
+window.handleNurseChangePassword = function (e) {
   if (e) e.preventDefault();
   if (!currentUser || currentUser.role !== 'nurse') {
     alert('กรุณาเข้าสู่ระบบในฐานะพยาบาลก่อน');
@@ -824,16 +824,16 @@ window.handleNurseChangePassword = function(e) {
   return true;
 };
 
-window.handleLogout = function() {
+window.handleLogout = function () {
   currentUser = null;
   localStorage.removeItem('nurse_current_user');
   sessionStorage.removeItem('nurse_current_user');
-  
+
   // บังคับเปลี่ยน View กลับหน้าปฏิทินหลักทันที
   activeView = 'dashboard';
   updateAuthUI();
   switchView('dashboard');
-  
+
   if (typeof window.showToast === 'function') {
     window.showToast('🚪 ออกจากระบบเรียบร้อยแล้ว');
   }
@@ -1004,7 +1004,7 @@ function updateNavSwitcher(viewName) {
 }
 
 // 5. Global View Switching
-window.switchView = function(viewName) {
+window.switchView = function (viewName) {
   // Permission checks
   if (viewName === 'personal' && (!currentUser || currentUser.role !== 'nurse')) {
     openNurseLoginModal();
@@ -1063,7 +1063,7 @@ window.switchView = function(viewName) {
 };
 
 // 6. MAIN MONTHLY CALENDAR DASHBOARD (แสดงทุกวัน ทุกเวร เลือกได้ทุกเวร แสดงจำนวนคนเลือก และเวรที่ไม่มีคนเลือกเด่นชัด ไม่แสดงชื่อในช่อง)
-window.setDashboardFilter = function(filter) {
+window.setDashboardFilter = function (filter) {
   dashboardShiftFilter = filter;
   ['ALL', 'UNASSIGNED', 'M', 'A', 'N'].forEach(f => {
     const btn = document.getElementById(`filterBtn${f}`);
@@ -1255,11 +1255,11 @@ function renderPublicDashboard() {
 }
 
 // ==================== CALENDAR VIEW SWITCHER (รายวัน vs ตาราง 7 วัน) ====================
-window.setCalendarViewMode = function(mode) {
+window.setCalendarViewMode = function (mode) {
   calendarViewMode = mode;
   try {
     localStorage.setItem('nurse_cal_view_mode', mode);
-  } catch (e) {}
+  } catch (e) { }
   updateCalendarViewDisplay();
 };
 
@@ -1411,7 +1411,7 @@ function renderPublicDashboardDailyCards(activeShifts) {
 
 
 // 7. SHIFT CLICK & POPUP MODAL (ระบุรายชื่อพยาบาลเฉพาะใน popup และแสดงตามจำนวนพยาบาล)
-window.handleShiftClick = function(day, shift) {
+window.handleShiftClick = function (day, shift) {
   const shiftObj = SHIFTS[shift];
   const dt = new Date(currentYear, currentMonth, day);
   const dayName = CALENDAR_HEADERS[dt.getDay()].th;
@@ -1551,45 +1551,45 @@ window.handleShiftClick = function(day, shift) {
   }
 };
 
-  window.closeShiftActionModal = function() {
-    document.getElementById('shiftActionModal').classList.add('hidden');
-    activeModalShiftContext = null;
-  };
+window.closeShiftActionModal = function () {
+  document.getElementById('shiftActionModal').classList.add('hidden');
+  activeModalShiftContext = null;
+};
 
-window.confirmToggleShiftBooking = function(addShift) {
-    if (monthState.isConfirmed && (!currentUser || currentUser.role !== 'admin')) {
-      alert('🔒 ตารางเวรประจำเดือนนี้ปิดรับการจองแล้ว');
-      return;
+window.confirmToggleShiftBooking = function (addShift) {
+  if (monthState.isConfirmed && (!currentUser || currentUser.role !== 'admin')) {
+    alert('🔒 ตารางเวรประจำเดือนนี้ปิดรับการจองแล้ว');
+    return;
+  }
+  if (!activeModalShiftContext) return;
+  const { day, shift, nurseId } = activeModalShiftContext;
+
+  if (!monthState.roster[nurseId]) monthState.roster[nurseId] = {};
+  if (!monthState.roster[nurseId][day]) monthState.roster[nurseId][day] = [];
+
+  if (addShift) {
+    if (!monthState.roster[nurseId][day].includes(shift)) {
+      monthState.roster[nurseId][day].push(shift);
     }
-    if (!activeModalShiftContext) return;
-    const { day, shift, nurseId } = activeModalShiftContext;
-
-    if (!monthState.roster[nurseId]) monthState.roster[nurseId] = {};
-    if (!monthState.roster[nurseId][day]) monthState.roster[nurseId][day] = [];
-
-    if (addShift) {
-      if (!monthState.roster[nurseId][day].includes(shift)) {
-        monthState.roster[nurseId][day].push(shift);
-      }
-    } else {
-      // เอาเวรนั้นออก
-      monthState.roster[nurseId][day] = monthState.roster[nurseId][day].filter(s => s !== shift);
-      // หากวันนั้นไม่เหลือเวรใดๆ แล้ว ให้ลบ Key วันนั้นทิ้งทันที
-      if (monthState.roster[nurseId][day].length === 0) {
-        delete monthState.roster[nurseId][day];
-      }
+  } else {
+    // เอาเวรนั้นออก
+    monthState.roster[nurseId][day] = monthState.roster[nurseId][day].filter(s => s !== shift);
+    // หากวันนั้นไม่เหลือเวรใดๆ แล้ว ให้ลบ Key วันนั้นทิ้งทันที
+    if (monthState.roster[nurseId][day].length === 0) {
+      delete monthState.roster[nurseId][day];
     }
+  }
 
-    saveMonthState();
-    closeShiftActionModal();
-    renderPublicDashboard();
-    if (activeView === 'personal') renderNurseCalendar();
-    if (activeView === 'admin') renderAdminView();
+  saveMonthState();
+  closeShiftActionModal();
+  renderPublicDashboard();
+  if (activeView === 'personal') renderNurseCalendar();
+  if (activeView === 'admin') renderAdminView();
 
-    if (typeof window.forcePushToCloud === 'function') {
-      window.forcePushToCloud();
-    }
-  };
+  if (typeof window.forcePushToCloud === 'function') {
+    window.forcePushToCloud();
+  }
+};
 
 // 8. NURSE PERSONAL CALENDAR VIEW (PAGE หน้า USER จะมองเห็นเฉพาะ USER เลือก)
 function renderNurseCalendar() {
@@ -1824,7 +1824,7 @@ function renderAdminControls() {
   }
 }
 
-window.handleUnconfirmSchedule = function() {
+window.handleUnconfirmSchedule = function () {
   const monthName = THAI_MONTHS[currentMonth];
   const yearBE = currentYear + 543;
   if (confirm(`คุณต้องการยกเลิกการยืนยันตารางเวรประจำเดือน ${monthName} พ.ศ. ${yearBE} ใช่หรือไม่?\n\n(เมื่อยกเลิกแล้ว ระบบจะอนุญาตให้ผู้ดูแลระบบจัดตารางเวรใหม่ และเปิดให้พยาบาลสามารถจองหรือแก้ไขเวรได้อีกครั้ง)`)) {
@@ -1863,7 +1863,7 @@ function renderAdminSubView() {
   if (adminActiveSubView === 'chart') renderDutyChart();
 }
 
-window.scrollMatrixTo = function(direction) {
+window.scrollMatrixTo = function (direction) {
   const container = document.getElementById('matrixViewSection');
   if (!container) return;
   if (direction === 'first') {
@@ -2278,8 +2278,8 @@ function renderDailyView() {
       if (shifts.includes('N') && shiftMode === 3) nNurses.push(n.name);
     });
 
-    const dayTotalNurses = shiftMode === 2 
-      ? (mNurses.length + aNurses.length) 
+    const dayTotalNurses = shiftMode === 2
+      ? (mNurses.length + aNurses.length)
       : (mNurses.length + aNurses.length + nNurses.length);
 
     html += `
@@ -2348,9 +2348,9 @@ function renderSummaryView() {
       if (arr.includes('N') && shiftMode === 3) n++;
     }
     const totalShifts = shiftMode === 2 ? (m + a) : (m + a + n);
-    grandM += m; 
-    grandA += a; 
-    if (shiftMode === 3) grandN += n; 
+    grandM += m;
+    grandA += a;
+    if (shiftMode === 3) grandN += n;
     grandTotal += totalShifts;
 
     const isEven = (index % 2 === 1);
@@ -2454,9 +2454,9 @@ let chartSelectedNurseId = 'ALL';
 let chartCumulativeSubMode = 'total_bar'; // 'total_bar' (สะสมทุกคน 14 ท่าน), 'trend_line' (แนวโน้มสะสม 12 เดือน)
 let dutyChartInstance = null;
 
-window.setChartDisplayMode = function(mode) {
+window.setChartDisplayMode = function (mode) {
   chartDisplayMode = mode;
-  
+
   // Update Tab Buttons UI
   const tabCompare = document.getElementById('chartTabCompareMonthlyBtn');
   const tabIndiv = document.getElementById('chartTabIndividualMonthlyBtn');
@@ -2472,17 +2472,17 @@ window.setChartDisplayMode = function(mode) {
   renderDutyChart();
 };
 
-window.setChartSelectedMonth = function(m) {
+window.setChartSelectedMonth = function (m) {
   chartSelectedMonth = parseInt(m, 10);
   renderDutyChart();
 };
 
-window.setChartSelectedNurse = function(nurseId) {
+window.setChartSelectedNurse = function (nurseId) {
   chartSelectedNurseId = nurseId;
   renderDutyChart();
 };
 
-window.setChartCumulativeSubMode = function(subMode) {
+window.setChartCumulativeSubMode = function (subMode) {
   chartCumulativeSubMode = subMode;
   renderDutyChart();
 };
@@ -2782,9 +2782,9 @@ function renderDutyChart() {
         <tfoot class="bg-slate-100 font-black text-slate-800 border-t-2 border-slate-300">
           <tr>
             <td colspan="3" class="py-2.5 px-3 text-right">รวมทั้งสิ้นในเดือนนี้:</td>
-            <td class="py-2.5 px-3 text-center text-sky-900 font-black">${mCounts.reduce((a,b)=>a+b,0)}</td>
-            <td class="py-2.5 px-3 text-center text-amber-900 font-black">${aCounts.reduce((a,b)=>a+b,0)}</td>
-            ${shiftMode === 3 ? `<td class="py-2.5 px-3 text-center text-purple-900 font-black">${nCounts.reduce((a,b)=>a+b,0)}</td>` : ''}
+            <td class="py-2.5 px-3 text-center text-sky-900 font-black">${mCounts.reduce((a, b) => a + b, 0)}</td>
+            <td class="py-2.5 px-3 text-center text-amber-900 font-black">${aCounts.reduce((a, b) => a + b, 0)}</td>
+            ${shiftMode === 3 ? `<td class="py-2.5 px-3 text-center text-purple-900 font-black">${nCounts.reduce((a, b) => a + b, 0)}</td>` : ''}
             <td class="py-2.5 px-3 text-center text-blue-950 font-black">${totalMonthShifts}</td>
             <td class="py-2.5 px-3 text-center font-mono font-black">${totalMonthShifts * 8} ชม.</td>
             <td class="py-2.5 px-3 text-center text-slate-500 font-normal">เฉลี่ย ${targetAvg.toFixed(1)}/ท่าน</td>
@@ -3363,9 +3363,9 @@ function renderDutyChart() {
         <tfoot class="bg-slate-100 font-black text-slate-800 border-t-2 border-slate-300">
           <tr>
             <td colspan="3" class="py-2.5 px-3 text-right">รวมสะสมทั้งแผนก:</td>
-            <td class="py-2.5 px-3 text-center text-sky-900 font-black">${nurseCumStats.reduce((a,b)=>a+b.M,0)}</td>
-            <td class="py-2.5 px-3 text-center text-amber-900 font-black">${nurseCumStats.reduce((a,b)=>a+b.A,0)}</td>
-            ${shiftMode === 3 ? `<td class="py-2.5 px-3 text-center text-purple-900 font-black">${nurseCumStats.reduce((a,b)=>a+b.N,0)}</td>` : ''}
+            <td class="py-2.5 px-3 text-center text-sky-900 font-black">${nurseCumStats.reduce((a, b) => a + b.M, 0)}</td>
+            <td class="py-2.5 px-3 text-center text-amber-900 font-black">${nurseCumStats.reduce((a, b) => a + b.A, 0)}</td>
+            ${shiftMode === 3 ? `<td class="py-2.5 px-3 text-center text-purple-900 font-black">${nurseCumStats.reduce((a, b) => a + b.N, 0)}</td>` : ''}
             <td class="py-2.5 px-3 text-center text-blue-950 font-black">${deptGrandTotal}</td>
             <td class="py-2.5 px-3 text-center font-mono font-black">${deptGrandTotal * 8} ชม.</td>
             <td class="py-2.5 px-3 text-center text-slate-500 font-normal">เฉลี่ย ${targetCumAvg.toFixed(1)}/ท่าน</td>
@@ -3412,7 +3412,7 @@ function renderDutyChart() {
             titleFont: { size: 13, weight: 'bold' },
             bodyFont: { size: 12 },
             callbacks: {
-              label: function(context) {
+              label: function (context) {
                 return ` ${context.dataset.label}: ${context.parsed.y} เวร`;
               }
             }
@@ -3435,7 +3435,7 @@ function renderDutyChart() {
               precision: 0,
               font: { weight: 'bold', size: 11 },
               color: isDark ? '#cbd5e1' : '#334155',
-              callback: function(v) { return v + ' เวร'; }
+              callback: function (v) { return v + ' เวร'; }
             }
           }
         }
@@ -3575,7 +3575,7 @@ function drawCanvasChartFallback(canvas, labels, datasets, isStacked) {
   }
 }
 
-window.openBookingForVacancy = function(day, shift) {
+window.openBookingForVacancy = function (day, shift) {
   openBookingModal();
   const checkboxes = document.querySelectorAll('input[name="modalShift"]');
   checkboxes.forEach(cb => {
@@ -3597,7 +3597,7 @@ window.openBookingForVacancy = function(day, shift) {
 };
 
 // 10. CELL EDIT MODAL LOGIC (ADMIN MATRIX)
-window.openCellEditor = function(nurseId, day) {
+window.openCellEditor = function (nurseId, day) {
   if (monthState.isConfirmed && (!currentUser || currentUser.role !== 'admin')) {
     window.showToast('🔒 ตารางเวรประจำเดือนนี้ได้รับการยืนยันทางการแล้ว ปิดรับการแก้ไขหรือจองเพิ่ม');
     return;
@@ -3667,7 +3667,7 @@ function saveCellEditor() {
   // บังคับยิงข้อมูลขึ้น Google Sheets ทันที
   if (typeof window.forcePushToCloud === 'function') {
     window.forcePushToCloud();
-  } 
+  }
 }
 
 function clearCellShifts() {
@@ -3680,7 +3680,7 @@ function clearCellShifts() {
   if (monthState.roster && monthState.roster[activeEditNurseId]) {
     delete monthState.roster[activeEditNurseId][activeEditDay];
   }
-  
+
   saveMonthState();
   closeCellEditor();
   renderPublicDashboard();
@@ -3736,7 +3736,7 @@ function populateBookingModal(nurseIdToLock) {
   const daysCount = getDaysCount(currentYear, currentMonth);
   const firstDayIndex = getFirstDayIndex(currentYear, currentMonth);
   const dateCont = document.getElementById('modalDateSelector');
-  
+
   let html = '';
 
   // 1. Calendar day header row
@@ -3783,7 +3783,7 @@ function populateBookingModal(nurseIdToLock) {
   }
 }
 
-window.toggleDateSelection = function(el, day) {
+window.toggleDateSelection = function (el, day) {
   const cb = el.querySelector('input[type="checkbox"]');
   if (!cb) return;
   cb.checked = !cb.checked;
@@ -3805,7 +3805,7 @@ window.toggleDateSelection = function(el, day) {
   }
 };
 
-window.toggleSelectAllDates = function() {
+window.toggleSelectAllDates = function () {
   const container = document.getElementById('modalDateSelector');
   if (!container) return;
   const cards = container.querySelectorAll('.booking-date-btn');
@@ -3827,7 +3827,7 @@ window.toggleSelectAllDates = function() {
   }
 };
 
-window.openPersonalBookingModal = function() {
+window.openPersonalBookingModal = function () {
   if (monthState.isConfirmed && (!currentUser || currentUser.role !== 'admin')) {
     alert('🔒 ตารางเวรประจำเดือนนี้ได้รับการยืนยันและประกาศอย่างเป็นทางการแล้ว ปิดรับการจองสำหรับเดือนนี้ (สามารถเปลี่ยนไปดูหรือจองในเดือนถัดไปได้)');
     return;
@@ -3932,13 +3932,13 @@ function hasRestConflict(nurseId, d, s, roster, daysCount) {
 
 // 12. AUTOMATED SHIFT OPTIMIZER ALGORITHM (จัดตารางเวรอัตโนมัติ - เกลี่ยเวรเท่าๆ กัน + ต่อเนื่องสูงสุด 2 เวร/วัน)
 // 12. AUTOMATED SHIFT OPTIMIZER ALGORITHM (จัดตารางเวรอัตโนมัติ: 1 คนต่อเวร, สูงสุด 2 เวร/วัน, เฉลี่ยตามเป้าหมาย)
+// 12. AUTOMATED SHIFT OPTIMIZER ALGORITHM (จัดตารางเวรอัตโนมัติ: นับเฉพาะพยาบาลที่เลือกเวร)
+// 12. AUTOMATED SHIFT OPTIMIZER ALGORITHM (จัดตารางเวรอัตโนมัติ: ล็อกโควตาคนขอน้อย + เกลี่ยตามสัดส่วน % คนขอเยอะ)
 function runOptimization() {
   const daysCount = getDaysCount(currentYear, currentMonth);
   const activeShifts = getActiveShifts();
-  const shiftsPerDay = activeShifts.length; // 2 in mode 2, 3 in mode 3
+  const shiftsPerDay = activeShifts.length;
   const totalSlots = daysCount * shiftsPerDay;
-  const nurseCount = NURSES.length;
-  const targetAvg = totalSlots / nurseCount; // (จำนวนวันต่อเดือน x เวรต่อวัน) / จำนวนพยาบาล
 
   // 1. คำนวณจำนวนเวรเดิมที่พยาบาลแต่ละท่านเลือกไว้ในเดือนนี้
   const initialRequests = {};
@@ -3952,13 +3952,73 @@ function runOptimization() {
     initialRequests[n.id] = count;
   });
 
-  // พยาบาลที่เลือกเวรน้อยกว่าหรือเท่ากับค่าเฉลี่ย (ได้สิทธิ์พิจารณาเวรที่เลือกไว้ก่อน)
-  const isBelowAvg = {};
-  NURSES.forEach(n => {
-    isBelowAvg[n.id] = initialRequests[n.id] <= targetAvg;
+  // กรองเฉพาะพยาบาลที่มีการเลือกเวรเข้ามา (> 0 เวร) เท่านั้น
+  const participatingNurses = NURSES.filter(n => (initialRequests[n.id] || 0) > 0);
+  const participatingCount = participatingNurses.length;
+  const nurseCount = NURSES.length;
+
+  if (participatingCount === 0) {
+    alert('⚠️ ยังไม่มีพยาบาลท่านใดกดเลือกเวรในเดือนนี้ ไม่สามารถประมวลผลจัดตารางเวรอัตโนมัติได้');
+    return;
+  }
+
+  // ค่าเฉลี่ยกลาง
+  const targetAvg = totalSlots / participatingCount;
+
+  // 2. แบ่งกลุ่ม: กลุ่มขอน้อยกว่าหรือเท่ากับค่าเฉลี่ย vs กลุ่มขอเกินค่าเฉลี่ย
+  const belowNurses = participatingNurses.filter(n => initialRequests[n.id] <= targetAvg);
+  const aboveNurses = participatingNurses.filter(n => initialRequests[n.id] > targetAvg);
+
+  // คำนวณเพดานโควตาเป้าหมายส่วนบุคคล (Target Quotas)
+  const targetQuotas = {};
+
+  // กลุ่มขอน้อยกว่าหรือเท่ากับค่าเฉลี่ย: ล็อกโควตาสูงสุดให้เท่ากับจำนวนที่เลือกมาจริงเท่านั้น ไม่บวกเพิ่ม
+  let totalBelowAllocated = 0;
+  belowNurses.forEach(n => {
+    targetQuotas[n.id] = initialRequests[n.id];
+    totalBelowAllocated += initialRequests[n.id];
   });
 
-  // สร้างตารางผลลัพธ์ใหม่ว่างเปล่า เพื่อให้ได้เป๊ะ 1 คนต่อเวร
+  // เวรส่วนที่เหลือทั้งหมดที่จะนำมาจัดสรรให้กลุ่มที่ขอเกิน
+  const remainingSlots = Math.max(0, totalSlots - totalBelowAllocated);
+
+  // คำนวณน้ำหนักสัดส่วน % ให้กลุ่มที่ขอเกิน (คนที่ขอเยอะ จะได้เยอะตามสัดส่วน)
+  const totalAboveExcess = aboveNurses.reduce((sum, n) => sum + (initialRequests[n.id] - targetAvg), 0);
+
+  if (aboveNurses.length > 0) {
+    let allocatedAboveSum = 0;
+    aboveNurses.forEach(n => {
+      let quota = 0;
+      if (totalAboveExcess > 0) {
+        const weight = (initialRequests[n.id] - targetAvg) / totalAboveExcess;
+        quota = Math.round(targetAvg + (weight * (remainingSlots - (targetAvg * aboveNurses.length))));
+      } else {
+        quota = Math.round(remainingSlots / aboveNurses.length);
+      }
+      quota = Math.min(quota, initialRequests[n.id]); // ไม่ให้เกินที่ขอมาจริง
+      targetQuotas[n.id] = Math.max(1, quota);
+      allocatedAboveSum += targetQuotas[n.id];
+    });
+
+    // ปรับเศษให้ยอดรวมตรงกับ remainingSlots พอดี
+    let diff = remainingSlots - allocatedAboveSum;
+    const sortedAbove = [...aboveNurses].sort((a, b) => initialRequests[b.id] - initialRequests[a.id]);
+    let i = 0;
+    while (diff !== 0 && sortedAbove.length > 0) {
+      const targetNurse = sortedAbove[i % sortedAbove.length];
+      if (diff > 0) {
+        targetQuotas[targetNurse.id]++;
+        diff--;
+      } else if (diff < 0 && targetQuotas[targetNurse.id] > 1) {
+        targetQuotas[targetNurse.id]--;
+        diff++;
+      }
+      i++;
+      if (i > 100) break;
+    }
+  }
+
+  // สร้างตารางผลลัพธ์
   const optimizedRoster = {};
   NURSES.forEach(n => {
     optimizedRoster[n.id] = {};
@@ -3980,15 +4040,15 @@ function runOptimization() {
   // Phase 1: คัดเลือกจากคำขอเดิมที่มีคนเลือก (ถ้าเลือกหลายคน คัดเหลือ 1 คนต่อเวร)
   for (let d = 1; d <= daysCount; d++) {
     activeShifts.forEach(s => {
-      // ค้นหาพยาบาลทุกคนที่เลือกเวรนี้ในวันที่ d
-      const applicants = NURSES.filter(n => {
+      const applicants = participatingNurses.filter(n => {
         const sArr = (monthState.roster[n.id] && monthState.roster[n.id][d]) || [];
         return sArr.includes(s);
       });
 
       if (applicants.length > 0) {
-        // กรองเฉพาะพยาบาลที่เข้าเงื่อนไข (ไม่เกิน 2 เวร/วัน, เวรต่อเนื่อง, พักผ่อนเพียงพอ)
         const eligible = applicants.filter(n => {
+          // ตรวจสอบว่าจำนวนเวรที่ได้รับยังไม่เกินเพดานโควตาเป้าหมายของตนเอง
+          if (assignedCounts[n.id] >= (targetQuotas[n.id] || 0)) return false;
           const today = getDayShifts(n.id, d);
           if (!isValidShiftAddition(today, s, shiftMode)) return false;
           if (hasRestConflict(n.id, d, s, optimizedRoster, daysCount)) return false;
@@ -3996,27 +4056,28 @@ function runOptimization() {
         });
 
         if (eligible.length > 0) {
-          // จัดลำดับความสำคัญตามเงื่อนไข:
-          // 1. สำคัญที่สุด: ให้พยาบาลที่วันนี้ยังไม่มีเวรเลย (0 เวรวันนี้) ก่อนคนที่มีแล้ว 1 เวร (เพื่อหลีกเลี่ยง 2 เวร/วัน เป็นลำดับสุดท้าย)
-          // 2. พยาบาลที่เลือกมาน้อยกว่าหรือเท่ากับค่าเฉลี่ยได้สิทธิ์ก่อน
-          // 3. ถ้าสถานะเท่ากัน ให้เฉลี่ยโดยดูจากยอดเวรที่ได้จัดไปแล้ว (คนที่ได้น้อยกว่าได้ก่อน)
-          // 4. ดูจากจำนวนที่ขอเริ่มต้น (ขอน้อยกว่าได้ก่อน)
-          // 5. สุ่ม tie-breaker เพื่อให้การกด "สุ่มจัดรอบใหม่" ได้ผลลัพธ์กระจายหลากหลาย
+          // จัดลำดับความสำคัญ
           eligible.sort((a, b) => {
+            // 1. วันนี้ยังไม่มีเวรเลย (0 เวรวันนี้) ได้ก่อนคนที่มีแล้ว 1 เวร
             const aToday = getDayShifts(a.id, d).length;
             const bToday = getDayShifts(b.id, d).length;
             if (aToday !== bToday) return aToday - bToday;
 
-            const aBelow = isBelowAvg[a.id];
-            const bBelow = isBelowAvg[b.id];
-            if (aBelow !== bBelow) return aBelow ? -1 : 1;
+            // 2. กลุ่มขอน้อยกว่าหรือเท่ากับค่าเฉลี่ย ได้รับพิจารณาตามที่ตนเองขอก่อน
+            const aIsBelow = (initialRequests[a.id] <= targetAvg);
+            const bIsBelow = (initialRequests[b.id] <= targetAvg);
+            if (aIsBelow !== bIsBelow) return aIsBelow ? -1 : 1;
 
-            const countDiff = assignedCounts[a.id] - assignedCounts[b.id];
-            if (countDiff !== 0) return countDiff;
+            // 3. จัดสรรตาม % ความคืบหน้าเทียบกับเป้าหมาย (คนที่ยังได้ไม่ถึงเป้าหมายได้ก่อน)
+            const aRatio = assignedCounts[a.id] / (targetQuotas[a.id] || 1);
+            const bRatio = assignedCounts[b.id] / (targetQuotas[b.id] || 1);
+            if (aRatio !== bRatio) return aRatio - bRatio;
 
-            const initDiff = initialRequests[a.id] - initialRequests[b.id];
+            // 4. ดูจำนวนที่ขอเริ่มต้น
+            const initDiff = initialRequests[b.id] - initialRequests[a.id];
             if (initDiff !== 0) return initDiff;
 
+            // 🌟 5. หากเท่ากันทุกอย่าง ให้ใช้การสุ่ม (Random) เพื่อความเท่าเทียม
             return Math.random() - 0.5;
           });
 
@@ -4048,13 +4109,14 @@ function runOptimization() {
   }
 
   // Phase 2: เติมเต็มเวรที่ยังไม่มีพยาบาลเข้าเวร (0 คน) ให้ครบ 1 คนต่อเวร
+  // เติมเฉพาะพยาบาลในกลุ่มที่ขอเกินค่าเฉลี่ย (aboveNurses) เท่านั้น
+  const candidateNursesForFill = aboveNurses.length > 0 ? aboveNurses : participatingNurses;
+
   for (let d = 1; d <= daysCount; d++) {
     activeShifts.forEach(s => {
-      // ตรวจสอบว่าเวรนี้มีพยาบาลได้รับจัดหรือยัง
-      const isAssigned = NURSES.some(n => (optimizedRoster[n.id][d] || []).includes(s));
+      const isAssigned = participatingNurses.some(n => (optimizedRoster[n.id][d] || []).includes(s));
       if (!isAssigned) {
-        // ค้นหาพยาบาลที่ว่างและจัดลงเวรนี้ได้ตามกฎ
-        const available = NURSES.filter(n => {
+        const available = candidateNursesForFill.filter(n => {
           const today = getDayShifts(n.id, d);
           if (!isValidShiftAddition(today, s, shiftMode)) return false;
           if (hasRestConflict(n.id, d, s, optimizedRoster, daysCount)) return false;
@@ -4062,19 +4124,16 @@ function runOptimization() {
         });
 
         if (available.length > 0) {
-          // จัดลำดับความสำคัญเพื่อให้ยอดเวรสมดุลใกล้เคียงค่าเฉลี่ยที่สุด:
-          // 1. สำคัญที่สุด: ต้องเลือกพยาบาลที่วันนี้ยังไม่มีเวรเลย (0 เวรวันนี้) ก่อนคนที่มี 1 เวร (2 เวรต่อวัน เป็นลำดับสุดท้าย ถ้าไม่มีตัวเลือก)
-          // 2. พยาบาลที่ยอดเวรรวมสะสมน้อยที่สุด
-          // 3. สุ่ม tie-breaker เพื่อให้การกด "สุ่มจัดรอบใหม่" ได้ผลลัพธ์กระจายหลากหลาย
           available.sort((a, b) => {
             const aToday = getDayShifts(a.id, d).length;
             const bToday = getDayShifts(b.id, d).length;
             if (aToday !== bToday) return aToday - bToday;
 
-            const countDiff = assignedCounts[a.id] - assignedCounts[b.id];
-            if (countDiff !== 0) return countDiff;
+            const aRemain = (targetQuotas[a.id] || 0) - assignedCounts[a.id];
+            const bRemain = (targetQuotas[b.id] || 0) - assignedCounts[b.id];
+            if (aRemain !== bRemain) return bRemain - aRemain;
 
-            return Math.random() - 0.5;
+            return (initialRequests[b.id] - initialRequests[a.id]);
           });
 
           const picked = available[0];
@@ -4100,9 +4159,10 @@ function runOptimization() {
     shiftsPerDay,
     totalSlots,
     nurseCount,
+    participatingCount,
     targetAvg,
+    targetQuotas,
     initialRequests,
-    isBelowAvg,
     assignedCounts,
     prunedLog,
     keptLog,
@@ -4118,9 +4178,10 @@ function renderOptimizationResultModal(data) {
     shiftsPerDay,
     totalSlots,
     nurseCount,
+    participatingCount,
     targetAvg,
+    targetQuotas,
     initialRequests,
-    isBelowAvg,
     assignedCounts,
     prunedLog,
     keptLog,
@@ -4147,45 +4208,48 @@ function renderOptimizationResultModal(data) {
 
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-center font-mono">
         <div class="p-2 bg-white/80 rounded-xl border border-blue-100 shadow-2xs">
-          <div class="text-[10px] text-slate-500 font-sans">จำนวนวันในเดือน</div>
-          <div class="font-black text-slate-800 text-sm">${daysCount} วัน</div>
-        </div>
-        <div class="p-2 bg-white/80 rounded-xl border border-blue-100 shadow-2xs">
           <div class="text-[10px] text-slate-500 font-sans">จำนวนเวรรวมทั้งเดือน</div>
           <div class="font-black text-slate-800 text-sm">${totalSlots} เวร</div>
         </div>
         <div class="p-2 bg-white/80 rounded-xl border border-blue-100 shadow-2xs">
-          <div class="text-[10px] text-slate-500 font-sans">จำนวนพยาบาล</div>
+          <div class="text-[10px] text-slate-500 font-sans">พยาบาลทั้งหมด</div>
           <div class="font-black text-slate-800 text-sm">${nurseCount} ท่าน</div>
         </div>
+        <div class="p-2 bg-blue-50/80 rounded-xl border border-blue-200 shadow-2xs">
+          <div class="text-[10px] text-blue-700 font-sans font-bold">พยาบาลที่ร่วมเลือกเวร</div>
+          <div class="font-black text-blue-900 text-sm">${participatingCount} ท่าน</div>
+        </div>
         <div class="p-2 bg-emerald-50 rounded-xl border border-emerald-200 shadow-2xs">
-          <div class="text-[10px] text-emerald-700 font-sans font-bold">ค่าเฉลี่ยเป้าหมาย</div>
-          <div class="font-black text-emerald-800 text-sm">${targetAvg.toFixed(2)} เวร/คน</div>
+          <div class="text-[10px] text-emerald-700 font-sans font-bold">ค่าเฉลี่ยกลาง</div>
+          <div class="font-black text-emerald-800 text-sm">${targetAvg.toFixed(1)} เวร/คน</div>
         </div>
       </div>
 
       <div class="text-[11px] text-blue-900 pt-1 border-t border-blue-200/60 leading-relaxed font-sans">
-        💡 <b>สูตรคำนวณ:</b> (${daysCount} วัน × ${shiftsPerDay} เวร) ÷ ${nurseCount} พยาบาล = <b>${targetAvg.toFixed(2)} เวร/ท่าน</b>
+        💡 <b>เกณฑ์การจัดเวรตามเงื่อนไข:</b>
         <br>
-        ระบบได้คัดเลือกเวรที่มีคนเลือกซ้ำให้เหลือเวรละ 1 คน <b>${prunedLog.length} เวร</b> และเกลี่ยเติมเต็มเวรที่ว่าง <b>${autoFilledLog.length} เวร</b> โดยให้สิทธิ์ผู้ที่เลือกน้อยกว่าค่าเฉลี่ยก่อน
+        1. <b>คนที่เลือกน้อยกว่าหรือเท่ากับค่าเฉลี่ย (&le; ${targetAvg.toFixed(1)} เวร):</b> ล็อกโควตาให้ได้ตามที่เลือกมาจริงเท่านั้น ระบบจะไม่เติมเวรเพิ่มให้
+        <br>
+        2. <b>คนที่เลือกมากกว่าค่าเฉลี่ย (> ${targetAvg.toFixed(1)} เวร):</b> ได้รับจัดสรรเวรที่เหลือตามสัดส่วนร้อยละ (%) คนที่ขอเยอะจะได้เยอะลดหลั่นกันลงมา
       </div>
     </div>
 
     <!-- Per-Nurse Balance Table -->
     <div class="mb-4">
       <div class="flex items-center justify-between mb-2">
-        <h4 class="text-xs font-bold text-slate-800">📊 ตารางสรุปการเกลี่ยเวรของพยาบาลทั้ง ${nurseCount} ท่าน:</h4>
-        <span class="text-[11px] text-slate-500 font-semibold">เป้าหมาย: ~${Math.floor(targetAvg)}-${Math.ceil(targetAvg)} เวร/คน</span>
+        <h4 class="text-xs font-bold text-slate-800">📊 ตารางสรุปการจัดสรรเวรตามสัดส่วนรายบุคคล:</h4>
+        <span class="text-[11px] text-slate-500 font-semibold">เกณฑ์เฉลี่ยกลาง: ${targetAvg.toFixed(1)} เวร</span>
       </div>
-      <div class="border border-slate-200 rounded-2xl overflow-hidden max-h-52 overflow-y-auto shadow-2xs">
+      <div class="border border-slate-200 rounded-2xl overflow-hidden max-h-56 overflow-y-auto shadow-2xs">
         <table class="w-full text-xs text-left">
           <thead class="bg-slate-100 font-bold text-slate-700 sticky top-0 border-b border-slate-200">
             <tr>
-              <th class="p-2 text-center w-12">ลำดับ</th>
+              <th class="p-2 text-center w-10">#</th>
               <th class="p-2">พยาบาล</th>
               <th class="p-2 text-center">เลือกก่อนจัด</th>
+              <th class="p-2 text-center">สัดส่วนเป้าหมาย</th>
               <th class="p-2 text-center">จัดจริง</th>
-              <th class="p-2 text-center">สถานะ</th>
+              <th class="p-2 text-center">ประเภทการจัดสรร</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100 bg-white">
@@ -4194,30 +4258,30 @@ function renderOptimizationResultModal(data) {
   NURSES.forEach(n => {
     const init = initialRequests[n.id] || 0;
     const finalCount = assignedCounts[n.id] || 0;
-    const below = isBelowAvg[n.id];
-    const diff = finalCount - targetAvg;
-    const diffStr = diff >= 0 ? `+${diff.toFixed(1)}` : `${diff.toFixed(1)}`;
+    const targetQuota = targetQuotas ? (targetQuotas[n.id] || 0) : 0;
+    const isParticipating = init > 0;
 
-    let statusBadge = '';
-    if (finalCount === Math.round(targetAvg)) {
-      statusBadge = '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">สมดุลเป๊ะ</span>';
-    } else if (finalCount > targetAvg) {
-      statusBadge = `<span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-bold">${diffStr}</span>`;
+    let typeBadge = '';
+    if (!isParticipating) {
+      typeBadge = '<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold">ไม่เข้าร่วม (0 เวร)</span>';
+    } else if (init <= targetAvg) {
+      typeBadge = '<span class="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 text-[10px] font-bold">🔒 ล็อกตามที่ขอ (&le; เฉลี่ย)</span>';
     } else {
-      statusBadge = `<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">${diffStr}</span>`;
+      typeBadge = '<span class="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-bold">📈 ตามสัดส่วน % ที่ขอเกิน</span>';
     }
 
     html += `
-      <tr class="hover:bg-slate-50">
+      <tr class="${isParticipating ? 'hover:bg-slate-50' : 'bg-slate-50/50 opacity-60'}">
         <td class="p-2 text-center font-mono">
           <span class="nurse-num-badge w-5 h-5 text-[10px] font-black inline-flex items-center justify-center rounded-md" style="background-color: ${n.color}; color: ${n.textColor};">
             ${n.num}
           </span>
         </td>
         <td class="p-2 font-semibold text-slate-800">${n.name} <span class="text-slate-400 font-mono text-[10px]">[${n.id}]</span></td>
-        <td class="p-2 text-center font-mono">${init} เวร ${below ? '<span class="text-emerald-600 text-[10px] font-bold" title="เลือกน้อยกว่าค่าเฉลี่ย (ได้สิทธิ์ก่อน)">★</span>' : ''}</td>
+        <td class="p-2 text-center font-mono">${init} เวร</td>
+        <td class="p-2 text-center font-mono text-slate-600 font-semibold">${isParticipating ? targetQuota + ' เวร' : '-'}</td>
         <td class="p-2 text-center font-bold font-mono text-blue-900">${finalCount} เวร (${finalCount * 8} ชม.)</td>
-        <td class="p-2 text-center">${statusBadge}</td>
+        <td class="p-2 text-center">${typeBadge}</td>
       </tr>
     `;
   });
@@ -4228,7 +4292,7 @@ function renderOptimizationResultModal(data) {
       </div>
     </div>
 
-    <!-- Details Accordion / Tabs: Pruned and Auto-Filled Lists -->
+    <!-- Details Lists -->
     <div class="space-y-2 text-xs">
       <details class="p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer">
         <summary class="font-bold text-slate-800 flex justify-between items-center select-none">
@@ -4263,7 +4327,7 @@ function renderOptimizationResultModal(data) {
 
       <details class="p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer">
         <summary class="font-bold text-slate-800 flex justify-between items-center select-none">
-          <span>➕ รายการเวรที่เติมเต็มอัตโนมัติ (${autoFilledLog.length} เวร)</span>
+          <span>➕ รายการเวรที่เติมเต็มอัตโนมัติให้กลุ่มที่ขอเกิน (${autoFilledLog.length} เวร)</span>
           <span class="text-[11px] text-blue-600 font-bold">คลิกเพื่อดูรายละเอียด ▾</span>
         </summary>
         <div class="mt-2 space-y-1.5 max-h-36 overflow-y-auto pr-1">
@@ -4314,7 +4378,7 @@ function confirmOptimization() {
   if (activeView === 'excel') renderExcelView('userExcelViewContent');
 }
 
-window.cancelOptimization = function() {
+window.cancelOptimization = function () {
   window.pendingOptimizedRoster = null;
   document.getElementById('optimizeModal').classList.add('hidden');
   window.showToast('↩️ ยกเลิกผลการจัดตารางเวร กลับสู่สถานะเดิม');
@@ -4868,7 +4932,7 @@ async function exportRoster() {
         <th rowspan="2" class="header-main">ลำดับ</th>
         <th rowspan="2" class="header-main">รหัส</th>
         <th rowspan="2" class="header-main">ชื่อ - สกุล</th>`;
-  
+
   for (let d = 1; d <= daysCount; d++) {
     html += `<th class="header-date">${d}</th>`;
   }
@@ -4944,11 +5008,11 @@ function initNurseColorPalette() {
   `).join('');
 }
 
-window.selectNurseColor = function(color) {
+window.selectNurseColor = function (color) {
   window.syncNurseColorPicker(color);
 };
 
-window.syncNurseColorPicker = function(color) {
+window.syncNurseColorPicker = function (color) {
   const picker = document.getElementById('nurseFormColorPicker');
   const input = document.getElementById('nurseFormColor');
   if (picker) picker.value = color;
@@ -4956,7 +5020,7 @@ window.syncNurseColorPicker = function(color) {
   updateNursePreviewBadge(color);
 };
 
-window.syncNurseColorInput = function(color) {
+window.syncNurseColorInput = function (color) {
   const input = document.getElementById('nurseFormColor');
   if (input) input.value = color.toUpperCase();
   updateNursePreviewBadge(color);
@@ -4972,14 +5036,14 @@ function updateNursePreviewBadge(color) {
   }
 }
 
-window.openNurseManageModal = function() {
+window.openNurseManageModal = function () {
   initNurseColorPalette();
   resetNurseForm();
   renderNurseManageList();
   document.getElementById('nurseManageModal')?.classList.remove('hidden');
 };
 
-window.closeNurseManageModal = function() {
+window.closeNurseManageModal = function () {
   document.getElementById('nurseManageModal')?.classList.add('hidden');
   resetNurseForm();
 };
@@ -5019,7 +5083,7 @@ function renderNurseManageList() {
   tbody.innerHTML = html;
 }
 
-window.resetNurseForm = function() {
+window.resetNurseForm = function () {
   const origId = document.getElementById('editNurseOriginalId');
   if (origId) origId.value = '';
   const formId = document.getElementById('nurseFormId');
@@ -5041,7 +5105,7 @@ window.resetNurseForm = function() {
   if (cancelBtn) cancelBtn.classList.add('hidden');
 };
 
-window.editNurse = function(nurseId) {
+window.editNurse = function (nurseId) {
   const n = NURSES.find(x => x.id === nurseId);
   if (!n) return;
 
@@ -5062,7 +5126,7 @@ window.editNurse = function(nurseId) {
   document.getElementById('nurseFormName').focus();
 };
 
-window.deleteNurse = function(nurseId) {
+window.deleteNurse = function (nurseId) {
   const n = NURSES.find(x => x.id === nurseId);
   if (!n) return;
 
@@ -5091,7 +5155,7 @@ window.deleteNurse = function(nurseId) {
   updateAuthUI();
 };
 
-window.handleSaveNurse = function(e) {
+window.handleSaveNurse = function (e) {
   e.preventDefault();
   const origId = document.getElementById('editNurseOriginalId').value.trim();
   const id = document.getElementById('nurseFormId').value.trim();
@@ -5336,7 +5400,7 @@ document.addEventListener('DOMContentLoaded', () => {
 /* ============================================================================
    GOOGLE APPS SCRIPT SYNC V6.0 (SOLID REALTIME SYNC & LOCAL LOCK)
    ============================================================================ */
-(function() {
+(function () {
   const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyyXLK0M-d53FMlNWbm_iZT_WxusZrJPSuCczH867Z2prfCBps0DQsNDQUiiLUdGjPhuw/exec";
 
   let isSyncing = false;
@@ -5434,7 +5498,7 @@ document.addEventListener('DOMContentLoaded', () => {
               }
               finalValToStore = JSON.stringify(cloudObj);
             }
-          } catch (e) {}
+          } catch (e) { }
         }
 
         if (localVal !== finalValToStore) {
@@ -5499,7 +5563,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 300);
   }
 
-  window.recordLocalAction = function() {
+  window.recordLocalAction = function () {
     lastActionTime = Date.now();
   };
 
