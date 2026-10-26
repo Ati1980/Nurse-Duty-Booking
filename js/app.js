@@ -3899,22 +3899,29 @@ function handleQuickBookingSubmit(e) {
 }
 
 // Helper: Check if adding newShift on today satisfies maximum 2 consecutive shifts rule
+// ตรวจสอบเงื่อนไข: ห้ามทำงานติดต่อกัน 2 เวรในวันเดียวกัน (ห้าม เช้า+บ่าย, ห้าม บ่าย+ดึก)
+// แต่อนุญาต เช้า+ดึก ได้ (เฉพาะโหมด 3 เวร)
 function isValidShiftAddition(todayShifts, newShift, mode) {
   if (todayShifts.includes(newShift)) return false;
-  if (todayShifts.length >= 2) return false; // Strictly max 2 shifts per day
-  if (todayShifts.length === 0) return true;
+  if (todayShifts.length >= 2) return false; // ห้ามเกิน 2 เวรต่อวัน
+  if (todayShifts.length === 0) return true;  // ถ้าวันนี้ยังไม่มีเวร สามารถลงได้
 
-  // If already 1 shift, the second shift must be consecutive
   const existing = todayShifts[0];
+
+  // โหมด 2 เวร/วัน (มีแค่เช้า M กับบ่าย A ซึ่งติดกัน): ห้ามควบ 2 เวรในวันเดียวกันเด็ดขาด
   if (mode === 2) {
-    // Mode 2: M and A are consecutive
-    return (existing === 'M' && newShift === 'A') || (existing === 'A' && newShift === 'M');
-  } else {
-    // Mode 3: M-A or A-N are consecutive. M-N is NOT consecutive.
-    if (existing === 'M') return (newShift === 'A');
-    if (existing === 'A') return (newShift === 'M' || newShift === 'N');
-    if (existing === 'N') return (newShift === 'A');
+    return false;
   }
+
+  // โหมด 3 เวร/วัน (เช้า M, บ่าย A, ดึก N):
+  // อนุญาตเฉพาะคู่ "เช้า และ ดึก" (M + N) เท่านั้น
+  // ห้าม เช้า+บ่าย (M+A) และห้าม บ่าย+ดึก (A+N)
+  if (mode === 3) {
+    if ((existing === 'M' && newShift === 'N') || (existing === 'N' && newShift === 'M')) {
+      return true;
+    }
+  }
+
   return false;
 }
 
