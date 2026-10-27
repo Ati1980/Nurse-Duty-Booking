@@ -530,10 +530,6 @@
               <span>ดูปฏิทินหลัก</span>
             </button>
           </div>
-              <span>📊</span>
-              <span>ดูปฏิทินหลัก</span>
-            </button>
-          </div>
         </div>
 
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -590,6 +586,15 @@
               <span class="text-sm">🔄</span>
               <span>รีเฟรช</span>
             </button>
+
+            <!-- 🌟 วางปุ่ม ดึงข้อมูลจองเดิม ตรงนี้ 🌟 -->
+            <button onclick="restoreOriginalBookingsFromCloud()" 
+                    class="flex items-center gap-1.5 px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer" 
+                    title="ดึงข้อมูลเวรที่พยาบาลแต่ละท่านเคยกดจองไว้กลับมา">
+              <span class="text-sm">📥</span>
+              <span>ดึงข้อมูลจองเดิม</span>
+            </button>
+
             <button id="exportExcelBtn" class="flex items-center gap-1 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-xl text-xs font-bold shadow-xs transition">
               <span>📊 ส่งออก Excel</span>
             </button>
