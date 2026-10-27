@@ -1827,13 +1827,47 @@ function renderAdminControls() {
 window.handleUnconfirmSchedule = function () {
   const monthName = THAI_MONTHS[currentMonth];
   const yearBE = currentYear + 543;
-  if (confirm(`คุณต้องการยกเลิกการยืนยันตารางเวรประจำเดือน ${monthName} พ.ศ. ${yearBE} ใช่หรือไม่?\n\n(เมื่อยกเลิกแล้ว ระบบจะอนุญาตให้ผู้ดูแลระบบจัดตารางเวรใหม่ และเปิดให้พยาบาลสามารถจองหรือแก้ไขเวรได้อีกครั้ง)`)) {
+  if (confirm(`คุณต้องการยกเลิกการยืนยันตารางเวรประจำเดือน ${monthName} พ.ศ. ${yearBE} ใช่หรือไม่?\n\n(ระบบจะคืนค่าเป็นข้อมูลเวรที่พยาบาลแต่ละท่านกดจองเข้ามาเดิม เพื่อให้สามารถแก้ไขหรือจัดตารางใหม่ได้)`)) {
     monthState.isConfirmed = false;
+
+    // 🌟 ดึงข้อมูลที่พยาบาลจองไว้เดิมกลับมาใช้งาน
+    if (monthState.raw_roster && Object.keys(monthState.raw_roster).length > 0) {
+      monthState.roster = JSON.parse(JSON.stringify(monthState.raw_roster));
+    }
+
     saveMonthState();
     renderAdminView();
     renderPublicDashboard();
     updateNavSwitcher(activeView);
-    window.showToast('🔓 ปลดล็อกการยืนยันตารางเวรเรียบร้อยแล้ว สามารถจัดตารางใหม่ได้');
+    window.showToast('↩️ คืนค่าข้อมูลการจองเดิมของพยาบาลเรียบร้อยแล้ว สามารถจัดตารางใหม่ได้');
+  }
+};
+
+// ฟังก์ชันดึงข้อมูลการจองดั้งเดิมจาก Cloud หรือรีเซ็ตกลับเป็นข้อมูลจองดิบ
+window.restoreOriginalBookingsFromCloud = async function () {
+  const monthName = THAI_MONTHS[currentMonth];
+  const yearBE = currentYear + 543;
+  if (!confirm(`คุณต้องการดึงข้อมูลการจองของพยาบาลประจำเดือน ${monthName} ${yearBE} กลับมาใช่หรือไม่?`)) {
+    return;
+  }
+
+  // 1. ถ้ามี raw_roster อยู่แล้ว ให้คืนค่าทันที
+  if (monthState.raw_roster && Object.keys(monthState.raw_roster).length > 0) {
+    monthState.roster = JSON.parse(JSON.stringify(monthState.raw_roster));
+    monthState.isConfirmed = false;
+    saveMonthState();
+    renderAdminView();
+    renderPublicDashboard();
+    window.showToast('✓ ดึงข้อมูลการจองของพยาบาลกลับมาเรียบร้อยแล้ว');
+    return;
+  }
+
+  // 2. ถ้าไม่มีในเครื่อง ให้สั่ง Pull จาก Cloud ล่าสุด
+  if (typeof window.forcePullFromCloud === 'function') {
+    window.showToast('⏳ กำลังดึงข้อมูลล่าสุดจาก Cloud...');
+    await window.forcePullFromCloud();
+    renderAdminView();
+    renderPublicDashboard();
   }
 };
 
@@ -3946,6 +3980,11 @@ function runOptimization() {
   const activeShifts = getActiveShifts();
   const shiftsPerDay = activeShifts.length;
   const totalSlots = daysCount * shiftsPerDay;
+
+  // 🌟 บันทึกสำรองข้อมูลดิบที่พยาบาลจองไว้ก่อนจัดตารางเวร
+  if (!monthState.raw_roster || Object.keys(monthState.raw_roster).length === 0) {
+    monthState.raw_roster = JSON.parse(JSON.stringify(monthState.roster || {}));
+  }
 
   // 1. คำนวณจำนวนเวรเดิมที่พยาบาลแต่ละท่านเลือกไว้ในเดือนนี้
   const initialRequests = {};
