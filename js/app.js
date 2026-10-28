@@ -4226,14 +4226,14 @@ function renderOptimizationResultModal(data) {
 
   const modeName = shiftsPerDay === 2 ? '2 เวร/วัน (เช้า, บ่าย)' : '3 เวร/วัน (เช้า, บ่าย, ดึก)';
 
-  // คำนวณจำนวนเวรที่จัดให้กลุ่มขอน้อยกว่าหรือเท่ากับค่าเฉลี่ย
+  // คำนวณจำนวนเวรของกลุ่มที่ขอน้อยกว่าหรือเท่ากับค่าเฉลี่ย
   let totalBelowAllocated = 0;
   Object.keys(initialRequests).forEach(id => {
     if ((initialRequests[id] || 0) <= targetAvg) {
       totalBelowAllocated += (initialRequests[id] || 0);
     }
   });
-  const remainingForAbove = Math.max(0, requestedSlotsCount - totalBelowAllocated);
+  const remainingSlotsForAbove = Math.max(0, requestedSlotsCount - totalBelowAllocated);
 
   let html = `
     <!-- Top Summary Banner -->
@@ -4274,7 +4274,7 @@ function renderOptimizationResultModal(data) {
         <br>
         2. <b>คนที่เลือกน้อยกว่าหรือเท่ากับค่าเฉลี่ย (&le; ${targetAvg.toFixed(1)} เวร):</b> ได้รับสิทธิ์ล็อกโควตาตามที่ขอจริงก่อนเสมอ
         <br>
-        3. <b>เวรส่วนที่เหลือจริง (${remainingForAbove} เวร):</b> แบ่งสัดส่วน % ให้กับคนที่เลือกเยอะก่อน โดยคนที่ขอเยอะจะได้เยอะลดหลั่นลงมา
+        3. <b>เวรส่วนที่เหลือจริง (${remainingSlotsForAbove} เวร):</b> แบ่งสัดส่วน % ให้กับคนที่เลือกเยอะก่อน โดยคนที่ขอเยอะจะได้เยอะลดหลั่นลงมา
         <br>
         4. <b>เวรที่ไม่มีคนเลือกเลย (${vacantShiftsCount} เวร):</b> ปล่อยว่างตามเดิม ไม่นำพยาบาลคนอื่นมาเติมแทน
       </div>
