@@ -4244,6 +4244,7 @@ function renderOptimizationResultModal(data) {
   if (!modalBody) return;
 
   const modeName = shiftsPerDay === 2 ? '2 เวร/วัน (เช้า, บ่าย)' : '3 เวร/วัน (เช้า, บ่าย, ดึก)';
+  const baseAvgFloor = Math.floor(targetAvg); // 🌟 คำนวณค่าฐานขั้นต่ำตรงนี้ ป้องกันตัวแปร undefined
 
   // คำนวณจำนวนเวรของกลุ่มที่ขอน้อยกว่าหรือเท่ากับค่าเฉลี่ย
   let totalBelowAllocated = 0;
