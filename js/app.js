@@ -4038,54 +4038,73 @@ function runOptimization() {
     });
   }
 
-  // 3. แบ่งกลุ่ม: กลุ่มขอน้อยกว่าหรือเท่ากับค่าเฉลี่ยกลาง vs กลุ่มขอเกินค่าเฉลี่ยกลาง
+  // 3. แบ่งกลุ่ม: กลุ่มขอน้อยกว่าหรือเท่ากับค่าเฉลี่ย vs กลุ่มขอเกินค่าเฉลี่ย
   const belowNurses = participatingNurses.filter(n => initialRequests[n.id] <= targetAvg);
   const aboveNurses = participatingNurses.filter(n => initialRequests[n.id] > targetAvg);
 
   // คำนวณเพดานโควตาเป้าหมายส่วนบุคคล (Target Quotas)
   const targetQuotas = {};
 
-  // กลุ่มขอน้อยกว่าหรือเท่ากับค่าเฉลี่ย: ล็อกโควตาให้ได้ตามที่ขอจริงเท่านั้น ไม่เติมเพิ่ม
+  // 1. กลุ่มขอน้อยกว่าหรือเท่ากับค่าเฉลี่ย: ล็อกโควตาให้เท่ากับจำนวนที่ขอจริง
   let totalBelowAllocated = 0;
   belowNurses.forEach(n => {
     targetQuotas[n.id] = initialRequests[n.id];
     totalBelowAllocated += initialRequests[n.id];
   });
 
-  // 🌟 เวรส่วนที่เหลือจริงที่จะนำมาแบ่งสัดส่วนให้กลุ่มที่ขอเยอะ (ไม่รวมเวรว่าง 0 คน)
-  const remainingSlots = Math.max(0, requestedSlotsCount - totalBelowAllocated);
+  // 🌟 2. กลุ่มคนที่จองเกินค่าเฉลี่ย: ทุกคนจะได้ขั้นต่ำเท่ากับค่าเฉลี่ยก่อน
+  const baseAvgFloor = Math.floor(targetAvg);
+  let totalAboveBaseAllocated = 0;
+  aboveNurses.forEach(n => {
+    // การันตีขั้นต่ำคือค่าเฉลี่ย (แต่ไม่เกินที่ตนเองขอมา)
+    const baseQuota = Math.min(initialRequests[n.id], baseAvgFloor);
+    targetQuotas[n.id] = baseQuota;
+    totalAboveBaseAllocated += baseQuota;
+  });
 
-  // คำนวณน้ำหนักสัดส่วน % ให้กลุ่มที่ขอเกิน (คนที่ขอเยอะ จะได้สัดส่วนเยอะลดหลั่นกันลงมา)
-  const totalAboveRequests = aboveNurses.reduce((sum, n) => sum + initialRequests[n.id], 0);
+  // เวรส่วนที่เหลือจริงหลังจากหักของกลุ่มขอน้อยและโควตาขั้นต่ำของกลุ่มขอเกินแล้ว
+  let remainingExcessSlots = Math.max(0, requestedSlotsCount - totalBelowAllocated - totalAboveBaseAllocated);
 
-  if (aboveNurses.length > 0) {
-    let allocatedAboveSum = 0;
+  // คำนวณความต้องการส่วนเกินที่ขอเกินค่าเฉลี่ย (Excess Request) ของแต่ละคน
+  const totalAboveExcessRequests = aboveNurses.reduce((sum, n) => {
+    return sum + Math.max(0, initialRequests[n.id] - targetQuotas[n.id]);
+  }, 0);
+
+  // 🌟 3. เกลี่ยเวรส่วนที่เหลือให้กับคนที่จองมากสุดตามสัดส่วน %
+  if (aboveNurses.length > 0 && remainingExcessSlots > 0) {
+    let extraAllocatedSum = 0;
+    const extraAllocations = {};
+
     aboveNurses.forEach(n => {
-      let quota = 0;
-      if (totalAboveRequests > 0) {
-        const weight = initialRequests[n.id] / totalAboveRequests;
-        quota = Math.round(weight * remainingSlots);
-      } else {
-        quota = Math.round(remainingSlots / aboveNurses.length);
+      const excessWanted = Math.max(0, initialRequests[n.id] - targetQuotas[n.id]);
+      let extra = 0;
+      if (totalAboveExcessRequests > 0) {
+        const weight = excessWanted / totalAboveExcessRequests;
+        extra = Math.round(weight * remainingExcessSlots);
       }
-      // ไม่ให้เกินจำนวนที่ตนเองขอมาจริง
-      quota = Math.min(quota, initialRequests[n.id]);
-      targetQuotas[n.id] = Math.max(1, quota);
-      allocatedAboveSum += targetQuotas[n.id];
+      // ไม่ให้เกินความต้องการส่วนที่เหลือ
+      extra = Math.min(extra, excessWanted);
+      extraAllocations[n.id] = extra;
+      extraAllocatedSum += extra;
     });
 
-    // ปรับเศษให้ยอดรวมตรงกับ remainingSlots พอดี โดยให้สิทธิ์คนที่ขอเยอะที่สุดก่อน
-    let diff = remainingSlots - allocatedAboveSum;
+    // บวกรวมโควตาพิเศษเข้ากับโควตาขั้นต่ำ
+    aboveNurses.forEach(n => {
+      targetQuotas[n.id] += (extraAllocations[n.id] || 0);
+    });
+
+    // ปรับเศษเวรที่เหลือ โดยให้สิทธิ์คนที่ขอจำนวนเวรเริ่มต้นมากที่สุดก่อน
+    let remainderDiff = remainingExcessSlots - extraAllocatedSum;
     const sortedAbove = [...aboveNurses].sort((a, b) => initialRequests[b.id] - initialRequests[a.id]);
     let i = 0;
-    while (diff !== 0 && sortedAbove.length > 0) {
+    while (remainderDiff !== 0 && sortedAbove.length > 0) {
       const targetNurse = sortedAbove[i % sortedAbove.length];
-      if (diff > 0 && targetQuotas[targetNurse.id] < initialRequests[targetNurse.id]) {
+      if (remainderDiff > 0 && targetQuotas[targetNurse.id] < initialRequests[targetNurse.id]) {
         targetQuotas[targetNurse.id]++;
-        diff--;
-      } else if (diff < 0 && targetQuotas[targetNurse.id] > 1) {
+        remainderDiff--;
+      } else if (remainderDiff < 0 && targetQuotas[targetNurse.id] > baseAvgFloor) {
         targetQuotas[targetNurse.id]--;
-        diff++;
+        remainderDiff++;
       }
       i++;
       if (i > 100) break;
@@ -4274,7 +4293,7 @@ function renderOptimizationResultModal(data) {
         <br>
         2. <b>คนที่เลือกน้อยกว่าหรือเท่ากับค่าเฉลี่ย (&le; ${targetAvg.toFixed(1)} เวร):</b> ได้รับสิทธิ์ล็อกโควตาตามที่ขอจริงก่อนเสมอ
         <br>
-        3. <b>เวรส่วนที่เหลือจริง (${remainingSlotsForAbove} เวร):</b> แบ่งสัดส่วน % ให้กับคนที่เลือกเยอะก่อน โดยคนที่ขอเยอะจะได้เยอะลดหลั่นลงมา
+        3. <b>คนที่เลือกเกินค่าเฉลี่ย (> ${targetAvg.toFixed(1)} เวร):</b> การันตีได้ขั้นต่ำทุกคนเท่ากับค่าเฉลี่ยก่อน (${baseAvgFloor} เวร) จากนั้นเวรที่เหลือจะเกลี่ยให้กับคนที่เลือกมากที่สุดตามสัดส่วน %
         <br>
         4. <b>เวรที่ไม่มีคนเลือกเลย (${vacantShiftsCount} เวร):</b> ปล่อยว่างตามเดิม ไม่นำพยาบาลคนอื่นมาเติมแทน
       </div>
