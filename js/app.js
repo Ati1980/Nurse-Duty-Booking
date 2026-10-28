@@ -3989,9 +3989,9 @@ function runOptimization() {
   const daysCount = getDaysCount(currentYear, currentMonth);
   const activeShifts = getActiveShifts();
   const shiftsPerDay = activeShifts.length;
-  const totalMonthSlots = daysCount * shiftsPerDay;
+  const totalMonthSlots = daysCount * shiftsPerDay; // เช่น 30 วัน x 2 เวร = 60 เวร
 
-  // 🌟 บันทึกสำรองข้อมูลดิบที่พยาบาลจองไว้ก่อนจัดตารางเวร
+  // 🌟 สำรองข้อมูลดิบที่พยาบาลจองไว้เดิมก่อนจัดตารางเวร
   if (!monthState.raw_roster || Object.keys(monthState.raw_roster).length === 0) {
     monthState.raw_roster = JSON.parse(JSON.stringify(monthState.roster || {}));
   }
@@ -4018,7 +4018,10 @@ function runOptimization() {
     return;
   }
 
-  // 2. ตรวจสอบและนับเฉพาะเวรที่มีคนเลือกจริง (Requested Slots)
+  // 🌟 คำนวณค่าเฉลี่ยกลางจากจำนวนเวรเต็มเดือน (เช่น 60 / 14 = 4.28 เวร/คน)
+  const targetAvg = totalMonthSlots / participatingCount;
+
+  // 2. ตรวจสอบเวรที่มีคนเลือกจริง vs เวรที่ไม่มีคนเลือกเลย (เวรว่าง 0 คน)
   let requestedSlotsCount = 0;
   let vacantShiftsCount = 0;
   for (let d = 1; d <= daysCount; d++) {
@@ -4035,51 +4038,49 @@ function runOptimization() {
     });
   }
 
-  // คำนวณค่าเฉลี่ยเป้าหมายจาก "จำนวนเวรที่มีคนเลือกจริง" หารด้วยจำนวนพยาบาลที่ร่วมเลือก
-  const targetAvg = requestedSlotsCount / participatingCount;
-
-  // 3. แบ่งกลุ่ม: กลุ่มขอน้อยกว่าหรือเท่ากับค่าเฉลี่ย vs กลุ่มขอเกินค่าเฉลี่ย
+  // 3. แบ่งกลุ่ม: กลุ่มขอน้อยกว่าหรือเท่ากับค่าเฉลี่ยกลาง vs กลุ่มขอเกินค่าเฉลี่ยกลาง
   const belowNurses = participatingNurses.filter(n => initialRequests[n.id] <= targetAvg);
   const aboveNurses = participatingNurses.filter(n => initialRequests[n.id] > targetAvg);
 
   // คำนวณเพดานโควตาเป้าหมายส่วนบุคคล (Target Quotas)
   const targetQuotas = {};
 
-  // กลุ่มขอน้อยกว่าหรือเท่ากับค่าเฉลี่ย: ล็อกโควตาสูงสุดให้เท่ากับจำนวนที่เลือกมาจริงเท่านั้น ไม่บวกเพิ่ม
+  // กลุ่มขอน้อยกว่าหรือเท่ากับค่าเฉลี่ย: ล็อกโควตาให้ได้ตามที่ขอจริงเท่านั้น ไม่เติมเพิ่ม
   let totalBelowAllocated = 0;
   belowNurses.forEach(n => {
     targetQuotas[n.id] = initialRequests[n.id];
     totalBelowAllocated += initialRequests[n.id];
   });
 
-  // เวรส่วนที่เหลือทั้งหมดที่จะนำมาจัดสรรให้กลุ่มที่ขอเกิน
+  // 🌟 เวรส่วนที่เหลือจริงที่จะนำมาแบ่งสัดส่วนให้กลุ่มที่ขอเยอะ (ไม่รวมเวรว่าง 0 คน)
   const remainingSlots = Math.max(0, requestedSlotsCount - totalBelowAllocated);
 
-  // คำนวณน้ำหนักสัดส่วน % ให้กลุ่มที่ขอเกิน (คนที่ขอเยอะ จะได้เยอะตามสัดส่วน)
-  const totalAboveExcess = aboveNurses.reduce((sum, n) => sum + (initialRequests[n.id] - targetAvg), 0);
+  // คำนวณน้ำหนักสัดส่วน % ให้กลุ่มที่ขอเกิน (คนที่ขอเยอะ จะได้สัดส่วนเยอะลดหลั่นกันลงมา)
+  const totalAboveRequests = aboveNurses.reduce((sum, n) => sum + initialRequests[n.id], 0);
 
   if (aboveNurses.length > 0) {
     let allocatedAboveSum = 0;
     aboveNurses.forEach(n => {
       let quota = 0;
-      if (totalAboveExcess > 0) {
-        const weight = (initialRequests[n.id] - targetAvg) / totalAboveExcess;
-        quota = Math.round(targetAvg + (weight * (remainingSlots - (targetAvg * aboveNurses.length))));
+      if (totalAboveRequests > 0) {
+        const weight = initialRequests[n.id] / totalAboveRequests;
+        quota = Math.round(weight * remainingSlots);
       } else {
         quota = Math.round(remainingSlots / aboveNurses.length);
       }
-      quota = Math.min(quota, initialRequests[n.id]); // ไม่ให้เกินที่ขอมาจริง
+      // ไม่ให้เกินจำนวนที่ตนเองขอมาจริง
+      quota = Math.min(quota, initialRequests[n.id]);
       targetQuotas[n.id] = Math.max(1, quota);
       allocatedAboveSum += targetQuotas[n.id];
     });
 
-    // ปรับเศษให้ยอดรวมตรงกับ remainingSlots พอดี
+    // ปรับเศษให้ยอดรวมตรงกับ remainingSlots พอดี โดยให้สิทธิ์คนที่ขอเยอะที่สุดก่อน
     let diff = remainingSlots - allocatedAboveSum;
     const sortedAbove = [...aboveNurses].sort((a, b) => initialRequests[b.id] - initialRequests[a.id]);
     let i = 0;
     while (diff !== 0 && sortedAbove.length > 0) {
       const targetNurse = sortedAbove[i % sortedAbove.length];
-      if (diff > 0) {
+      if (diff > 0 && targetQuotas[targetNurse.id] < initialRequests[targetNurse.id]) {
         targetQuotas[targetNurse.id]++;
         diff--;
       } else if (diff < 0 && targetQuotas[targetNurse.id] > 1) {
@@ -4109,8 +4110,7 @@ function runOptimization() {
     return optimizedRoster[nurseId][day] || [];
   }
 
-  // Phase 1: คัดเลือกเฉพาะเวรที่มีพยาบาลเลือกเข้ามา (หากมีคนเลือกซ้ำ คัดเหลือเวรละ 1 คน)
-  // 🌟 เวรใดที่ไม่มีคนเลือกเลย จะถูกข้ามไปและปล่อยให้เป็นเวรว่างตามเดิม
+  // Phase 1: คัดเลือกเฉพาะเวรที่มีคนเลือกเข้ามา (เวรว่าง 0 คนปล่อยว่างตามเดิม)
   for (let d = 1; d <= daysCount; d++) {
     activeShifts.forEach(s => {
       const applicants = participatingNurses.filter(n => {
@@ -4118,7 +4118,7 @@ function runOptimization() {
         return sArr.includes(s);
       });
 
-      // ถ้าไม่มีคนเลือกเลย ให้ข้ามทันที ปล่อยว่างไว้
+      // ถ้าไม่มีคนเลือกเลย ให้ปล่อยว่างตามเดิม
       if (applicants.length === 0) return;
 
       const eligible = applicants.filter(n => {
@@ -4137,7 +4137,7 @@ function runOptimization() {
           const bToday = getDayShifts(b.id, d).length;
           if (aToday !== bToday) return aToday - bToday;
 
-          // 2. กลุ่มขอน้อยกว่าหรือเท่ากับค่าเฉลี่ย ได้รับพิจารณาตามที่ตนเองขอก่อน
+          // 2. กลุ่มที่เลือกน้อยกว่าหรือเท่ากับค่าเฉลี่ย ได้รับการพิจารณาก่อน
           const aIsBelow = (initialRequests[a.id] <= targetAvg);
           const bIsBelow = (initialRequests[b.id] <= targetAvg);
           if (aIsBelow !== bIsBelow) return aIsBelow ? -1 : 1;
@@ -4147,7 +4147,7 @@ function runOptimization() {
           const bRatio = assignedCounts[b.id] / (targetQuotas[b.id] || 1);
           if (aRatio !== bRatio) return aRatio - bRatio;
 
-          // 4. ดูจำนวนที่ขอเริ่มต้น
+          // 4. ดูจำนวนที่ขอเริ่มต้น (ขอเยอะกว่าได้สิทธิ์ก่อน)
           const initDiff = initialRequests[b.id] - initialRequests[a.id];
           if (initDiff !== 0) return initDiff;
 
@@ -4181,7 +4181,7 @@ function runOptimization() {
     });
   }
 
-  // 🌟 หมายเหตุ: ตัด Phase 2 (Auto-fill เติมเวรว่าง 0 คน) ออกตามเงื่อนไขที่กำหนด
+  // 🌟 เวรว่าง 0 คน จะไม่ถูกเกลี่ยเวรอื่นมาแทน ปล่อยว่างตามเดิม
 
   window.pendingOptimizedRoster = optimizedRoster;
 
@@ -4235,7 +4235,7 @@ function renderOptimizationResultModal(data) {
           <span>โหมด: ${modeName}</span>
         </span>
         <span class="font-black px-2.5 py-1 bg-amber-600 text-white rounded-xl text-xs shadow-2xs">
-          🎯 จัดเฉพาะเวรที่เลือก (เวรว่าง 0 คน = ปล่อยว่าง ${vacantShiftsCount} เวร)
+          🎯 เวรว่าง 0 คน = ปล่อยว่าง ${vacantShiftsCount} เวร (ไม่เกลี่ยแทน)
         </span>
       </div>
 
@@ -4245,25 +4245,29 @@ function renderOptimizationResultModal(data) {
           <div class="font-black text-slate-800 text-sm">${requestedSlotsCount} / ${totalMonthSlots} เวร</div>
         </div>
         <div class="p-2 bg-rose-50/80 rounded-xl border border-rose-200 shadow-2xs">
-          <div class="text-[10px] text-rose-700 font-sans font-bold">เวรว่าง (ไม่จัดคนลง)</div>
+          <div class="text-[10px] text-rose-700 font-sans font-bold">เวรว่าง (ปล่อยว่าง)</div>
           <div class="font-black text-rose-900 text-sm">${vacantShiftsCount} เวร</div>
         </div>
         <div class="p-2 bg-blue-50/80 rounded-xl border border-blue-200 shadow-2xs">
-          <div class="text-[10px] text-blue-700 font-sans font-bold">พยาบาลที่ร่วมเลือกเวร</div>
+          <div class="text-[10px] text-blue-700 font-sans font-bold">พยาบาลที่ร่วมเลือก</div>
           <div class="font-black text-blue-900 text-sm">${participatingCount} / ${nurseCount} ท่าน</div>
         </div>
         <div class="p-2 bg-emerald-50 rounded-xl border border-emerald-200 shadow-2xs">
-          <div class="text-[10px] text-emerald-700 font-sans font-bold">ค่าเฉลี่ยเฉพาะที่เลือก</div>
+          <div class="text-[10px] text-emerald-700 font-sans font-bold">ค่าเฉลี่ยกลาง (${totalMonthSlots}/${participatingCount})</div>
           <div class="font-black text-emerald-800 text-sm">${targetAvg.toFixed(1)} เวร/คน</div>
         </div>
       </div>
 
       <div class="text-[11px] text-blue-900 pt-1 border-t border-blue-200/60 leading-relaxed font-sans">
-        💡 <b>เงื่อนไขการจัดตาราง:</b>
+        💡 <b>เกณฑ์การคำนวณและจัดสรร:</b>
         <br>
-        • <b>เวรที่ไม่มีคนเลือก (0 คน):</b> ปล่อยว่างไว้ตามเดิม ไม่นำพยาบาลคนอื่นมาเติมแทน
+        1. <b>เกณฑ์ค่าเฉลี่ยกลาง:</b> คำนวณจาก ${totalMonthSlots} เวร ÷ ${participatingCount} ท่าน = <b>${targetAvg.toFixed(1)} เวร/คน</b>
         <br>
-        • <b>เวรที่มีคนเลือกซ้ำ:</b> คัดเลือกให้เหลือเวรละ 1 คน (คัดออก ${prunedLog.length} ครั้ง) โดยล็อกโควตาคนที่ขอน้อย (&le; ${targetAvg.toFixed(1)} เวร) ให้ได้ตามที่ขอ และเกลี่ยเวรที่เหลือตามสัดส่วน % ให้คนที่ขอเยอะ
+        2. <b>คนที่เลือกน้อยกว่าหรือเท่ากับค่าเฉลี่ย (&le; ${targetAvg.toFixed(1)} เวร):</b> ได้รับสิทธิ์ล็อกโควตาตามที่ขอจริงก่อนเสมอ
+        <br>
+        3. <b>เวรส่วนที่เหลือจริง (${requestedSlotsCount - Object.values(targetQuotas).slice(0, belowNurses.length).reduce((a,b)=>a+b,0)} เวร):</b> แบ่งสัดส่วน % ให้กับคนที่เลือกเยอะก่อน โดยคนที่ขอเยอะจะได้เยอะลดหลั่นลงมา
+        <br>
+        4. <b>เวรที่ไม่มีคนเลือกเลย (${vacantShiftsCount} เวร):</b> ปล่อยว่างตามเดิม ไม่นำพยาบาลคนอื่นมาเติมแทน
       </div>
     </div>
 
