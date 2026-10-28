@@ -2113,6 +2113,7 @@ function renderExcelView(targetContainerId = 'excelRosterContainer') {
   const daysCount = getDaysCount(currentYear, currentMonth);
   const monthTitle = `ตารางเวรพยาบาล ประจำเดือน ${THAI_MONTHS[currentMonth]} ${currentYear + 543}`;
   const isConfirmed = !!(monthState && monthState.isConfirmed);
+  const isAdmin = !!(currentUser && currentUser.role === 'admin');
 
   // Update Status Badge if on User Excel View Section
   const statusBadge = document.getElementById('userExcelStatusBadge');
@@ -2153,8 +2154,8 @@ function renderExcelView(targetContainerId = 'excelRosterContainer') {
     let dayTds = '';
     for (let d = 1; d <= daysCount; d++) {
       let cellContent = '';
-      if (!isConfirmed) {
-        // ให้ว่างไว้จนกว่าจะกด จัดตารางเวรอัตโนมัติ
+      if (!isConfirmed && !isAdmin) {
+        // สำหรับ User ทั่วไป: ให้ว่างไว้จนกว่า Admin จะกดยืนยันจัดตารางเวร
         cellContent = `
           <div class="min-h-[30px] flex items-center justify-center text-slate-300 font-bold select-none">
             -
@@ -2174,18 +2175,26 @@ function renderExcelView(targetContainerId = 'excelRosterContainer') {
                 <span class="nurse-num-badge w-7 h-7 text-xs font-black cursor-pointer shadow-xs transition hover:scale-110" 
                       style="background-color: ${n.color}; color: ${n.textColor};"
                       onclick="handleShiftClick(${d}, '${sDef.key}')"
-                      title="${n.name} (${n.id})">
+                      title="${n.name} (${n.id}) - คลิกเพื่อดูหรือแก้ไข">
                   ${n.num}
                 </span>
               `).join('')}
             </div>
           `;
         } else {
+          // 🌟 จุดที่ปรับปรุง: ถ้าเป็น Admin ให้คลิกเพื่อเปิดหน้าต่างเลือกพยาบาลเข้าเวรแบบ Manual ได้ทันที
+          const clickAction = isAdmin 
+            ? `onclick="openBookingForVacancy(${d}, '${sDef.key}')"` 
+            : `onclick="handleShiftClick(${d}, '${sDef.key}')"`;
+          const titleText = isAdmin 
+            ? 'คลิกเพื่อเลือกพยาบาลเข้าเวรนี้แบบ Manual' 
+            : 'คลิกเพื่อดูรายละเอียด';
+
           cellContent = `
             <div class="min-h-[30px] flex items-center justify-center">
-              <span class="text-[10px] font-bold text-rose-500 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded cursor-pointer hover:bg-rose-100"
-                    onclick="handleShiftClick(${d}, '${sDef.key}')"
-                    title="คลิกเพื่อดูรายละเอียด">
+              <span class="text-[10px] font-bold text-rose-500 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded cursor-pointer hover:bg-rose-100 transition"
+                    ${clickAction}
+                    title="${titleText}">
                 ว่าง
               </span>
             </div>
@@ -3632,6 +3641,7 @@ window.openBookingForVacancy = function (day, shift) {
 
 // 10. CELL EDIT MODAL LOGIC (ADMIN MATRIX)
 window.openCellEditor = function (nurseId, day) {
+  // อนุญาตให้ Admin แก้ไขได้เสมอ แม้จะยืนยันตารางแล้ว
   if (monthState.isConfirmed && (!currentUser || currentUser.role !== 'admin')) {
     window.showToast('🔒 ตารางเวรประจำเดือนนี้ได้รับการยืนยันทางการแล้ว ปิดรับการแก้ไขหรือจองเพิ่ม');
     return;
@@ -3668,6 +3678,7 @@ function closeCellEditor() {
 
 function saveCellEditor() {
   if (!activeEditNurseId || !activeEditDay) return;
+  // อนุญาตให้ Admin บันทึกได้เสมอ
   if (monthState.isConfirmed && (!currentUser || currentUser.role !== 'admin')) {
     alert('🔒 ตารางเวรประจำเดือนนี้ได้รับการยืนยันทางการแล้ว ปิดรับการแก้ไข');
     return;
@@ -3697,8 +3708,8 @@ function saveCellEditor() {
   renderPublicDashboard();
   if (activeView === 'personal') renderNurseCalendar();
   if (activeView === 'admin') renderAdminSubView();
+  if (activeView === 'excel') renderExcelView('userExcelViewContent');
 
-  // บังคับยิงข้อมูลขึ้น Google Sheets ทันที
   if (typeof window.forcePushToCloud === 'function') {
     window.forcePushToCloud();
   }
@@ -3880,6 +3891,7 @@ window.openPersonalBookingModal = function () {
 
 function handleQuickBookingSubmit(e) {
   e.preventDefault();
+  // อนุญาตให้ Admin จองเพิ่มแบบ Manual ได้เสมอ
   if (monthState.isConfirmed && (!currentUser || currentUser.role !== 'admin')) {
     alert('🔒 ตารางเวรประจำเดือนนี้ได้รับการยืนยันและประกาศอย่างเป็นทางการแล้ว ไม่สามารถบันทึกการจองได้');
     return;
@@ -3889,7 +3901,7 @@ function handleQuickBookingSubmit(e) {
   const selectedShifts = [];
   shiftCheckboxes.forEach(cb => {
     if (cb.checked) {
-      if (shiftMode === 2 && cb.value === 'N') return; // Ignore Night in 2-shift mode
+      if (shiftMode === 2 && cb.value === 'N') return;
       selectedShifts.push(cb.value);
     }
   });
@@ -3926,10 +3938,11 @@ function handleQuickBookingSubmit(e) {
   renderPublicDashboard();
   if (activeView === 'personal') renderNurseCalendar();
   if (activeView === 'admin') renderAdminSubView();
+  if (activeView === 'excel') renderExcelView('userExcelViewContent');
 
   const nurse = NURSES.find(n => n.id === nurseId);
   const shiftNames = selectedShifts.map(s => SHIFTS[s].name).join(' + ');
-  window.showToast(`✓ บันทึกการจอง ${shiftNames} สำหรับ ${nurse?.name || nurseId} (${selectedDates.length} วัน) เรียบร้อยแล้ว`);
+  window.showToast(`✓ บันทึกการเพิ่มเวร ${shiftNames} สำหรับ ${nurse?.name || nurseId} เรียบร้อยแล้ว`);
 }
 
 // Helper: Check if adding newShift on today satisfies maximum 2 consecutive shifts rule
@@ -3971,15 +3984,12 @@ function hasRestConflict(nurseId, d, s, roster, daysCount) {
   return false;
 }
 
-// 12. AUTOMATED SHIFT OPTIMIZER ALGORITHM (จัดตารางเวรอัตโนมัติ - เกลี่ยเวรเท่าๆ กัน + ต่อเนื่องสูงสุด 2 เวร/วัน)
-// 12. AUTOMATED SHIFT OPTIMIZER ALGORITHM (จัดตารางเวรอัตโนมัติ: 1 คนต่อเวร, สูงสุด 2 เวร/วัน, เฉลี่ยตามเป้าหมาย)
-// 12. AUTOMATED SHIFT OPTIMIZER ALGORITHM (จัดตารางเวรอัตโนมัติ: นับเฉพาะพยาบาลที่เลือกเวร)
-// 12. AUTOMATED SHIFT OPTIMIZER ALGORITHM (จัดตารางเวรอัตโนมัติ: ล็อกโควตาคนขอน้อย + เกลี่ยตามสัดส่วน % คนขอเยอะ)
+// 12. AUTOMATED SHIFT OPTIMIZER ALGORITHM (จัดเฉพาะเวรที่มีคนเลือก - เวรว่าง 0 คนปล่อยว่าง ไม่เกลี่ยแทน)
 function runOptimization() {
   const daysCount = getDaysCount(currentYear, currentMonth);
   const activeShifts = getActiveShifts();
   const shiftsPerDay = activeShifts.length;
-  const totalSlots = daysCount * shiftsPerDay;
+  const totalMonthSlots = daysCount * shiftsPerDay;
 
   // 🌟 บันทึกสำรองข้อมูลดิบที่พยาบาลจองไว้ก่อนจัดตารางเวร
   if (!monthState.raw_roster || Object.keys(monthState.raw_roster).length === 0) {
@@ -4008,10 +4018,27 @@ function runOptimization() {
     return;
   }
 
-  // ค่าเฉลี่ยกลาง
-  const targetAvg = totalSlots / participatingCount;
+  // 2. ตรวจสอบและนับเฉพาะเวรที่มีคนเลือกจริง (Requested Slots)
+  let requestedSlotsCount = 0;
+  let vacantShiftsCount = 0;
+  for (let d = 1; d <= daysCount; d++) {
+    activeShifts.forEach(s => {
+      const applicants = participatingNurses.filter(n => {
+        const sArr = (monthState.roster[n.id] && monthState.roster[n.id][d]) || [];
+        return sArr.includes(s);
+      });
+      if (applicants.length > 0) {
+        requestedSlotsCount++;
+      } else {
+        vacantShiftsCount++;
+      }
+    });
+  }
 
-  // 2. แบ่งกลุ่ม: กลุ่มขอน้อยกว่าหรือเท่ากับค่าเฉลี่ย vs กลุ่มขอเกินค่าเฉลี่ย
+  // คำนวณค่าเฉลี่ยเป้าหมายจาก "จำนวนเวรที่มีคนเลือกจริง" หารด้วยจำนวนพยาบาลที่ร่วมเลือก
+  const targetAvg = requestedSlotsCount / participatingCount;
+
+  // 3. แบ่งกลุ่ม: กลุ่มขอน้อยกว่าหรือเท่ากับค่าเฉลี่ย vs กลุ่มขอเกินค่าเฉลี่ย
   const belowNurses = participatingNurses.filter(n => initialRequests[n.id] <= targetAvg);
   const aboveNurses = participatingNurses.filter(n => initialRequests[n.id] > targetAvg);
 
@@ -4026,7 +4053,7 @@ function runOptimization() {
   });
 
   // เวรส่วนที่เหลือทั้งหมดที่จะนำมาจัดสรรให้กลุ่มที่ขอเกิน
-  const remainingSlots = Math.max(0, totalSlots - totalBelowAllocated);
+  const remainingSlots = Math.max(0, requestedSlotsCount - totalBelowAllocated);
 
   // คำนวณน้ำหนักสัดส่วน % ให้กลุ่มที่ขอเกิน (คนที่ขอเยอะ จะได้เยอะตามสัดส่วน)
   const totalAboveExcess = aboveNurses.reduce((sum, n) => sum + (initialRequests[n.id] - targetAvg), 0);
@@ -4077,13 +4104,13 @@ function runOptimization() {
 
   const prunedLog = [];
   const keptLog = [];
-  const autoFilledLog = [];
 
   function getDayShifts(nurseId, day) {
     return optimizedRoster[nurseId][day] || [];
   }
 
-  // Phase 1: คัดเลือกจากคำขอเดิมที่มีคนเลือก (ถ้าเลือกหลายคน คัดเหลือ 1 คนต่อเวร)
+  // Phase 1: คัดเลือกเฉพาะเวรที่มีพยาบาลเลือกเข้ามา (หากมีคนเลือกซ้ำ คัดเหลือเวรละ 1 คน)
+  // 🌟 เวรใดที่ไม่มีคนเลือกเลย จะถูกข้ามไปและปล่อยให้เป็นเวรว่างตามเดิม
   for (let d = 1; d <= daysCount; d++) {
     activeShifts.forEach(s => {
       const applicants = participatingNurses.filter(n => {
@@ -4091,119 +4118,79 @@ function runOptimization() {
         return sArr.includes(s);
       });
 
-      if (applicants.length > 0) {
-        const eligible = applicants.filter(n => {
-          // ตรวจสอบว่าจำนวนเวรที่ได้รับยังไม่เกินเพดานโควตาเป้าหมายของตนเอง
-          if (assignedCounts[n.id] >= (targetQuotas[n.id] || 0)) return false;
-          const today = getDayShifts(n.id, d);
-          if (!isValidShiftAddition(today, s, shiftMode)) return false;
-          if (hasRestConflict(n.id, d, s, optimizedRoster, daysCount)) return false;
-          return true;
+      // ถ้าไม่มีคนเลือกเลย ให้ข้ามทันที ปล่อยว่างไว้
+      if (applicants.length === 0) return;
+
+      const eligible = applicants.filter(n => {
+        if (assignedCounts[n.id] >= (targetQuotas[n.id] || 0)) return false;
+        const today = getDayShifts(n.id, d);
+        if (!isValidShiftAddition(today, s, shiftMode)) return false;
+        if (hasRestConflict(n.id, d, s, optimizedRoster, daysCount)) return false;
+        return true;
+      });
+
+      if (eligible.length > 0) {
+        // จัดลำดับความสำคัญ
+        eligible.sort((a, b) => {
+          // 1. วันนี้ยังไม่มีเวรเลย (0 เวรวันนี้) ได้ก่อนคนที่มีแล้ว 1 เวร
+          const aToday = getDayShifts(a.id, d).length;
+          const bToday = getDayShifts(b.id, d).length;
+          if (aToday !== bToday) return aToday - bToday;
+
+          // 2. กลุ่มขอน้อยกว่าหรือเท่ากับค่าเฉลี่ย ได้รับพิจารณาตามที่ตนเองขอก่อน
+          const aIsBelow = (initialRequests[a.id] <= targetAvg);
+          const bIsBelow = (initialRequests[b.id] <= targetAvg);
+          if (aIsBelow !== bIsBelow) return aIsBelow ? -1 : 1;
+
+          // 3. จัดสรรตาม % ความคืบหน้าเทียบกับเป้าหมาย (คนที่ยังได้ไม่ถึงเป้าหมายได้ก่อน)
+          const aRatio = assignedCounts[a.id] / (targetQuotas[a.id] || 1);
+          const bRatio = assignedCounts[b.id] / (targetQuotas[b.id] || 1);
+          if (aRatio !== bRatio) return aRatio - bRatio;
+
+          // 4. ดูจำนวนที่ขอเริ่มต้น
+          const initDiff = initialRequests[b.id] - initialRequests[a.id];
+          if (initDiff !== 0) return initDiff;
+
+          // 5. สุ่มเพื่อความเท่าเทียม
+          return Math.random() - 0.5;
         });
 
-        if (eligible.length > 0) {
-          // จัดลำดับความสำคัญ
-          eligible.sort((a, b) => {
-            // 1. วันนี้ยังไม่มีเวรเลย (0 เวรวันนี้) ได้ก่อนคนที่มีแล้ว 1 เวร
-            const aToday = getDayShifts(a.id, d).length;
-            const bToday = getDayShifts(b.id, d).length;
-            if (aToday !== bToday) return aToday - bToday;
+        const winner = eligible[0];
+        if (!optimizedRoster[winner.id][d]) optimizedRoster[winner.id][d] = [];
+        optimizedRoster[winner.id][d].push(s);
+        assignedCounts[winner.id]++;
 
-            // 2. กลุ่มขอน้อยกว่าหรือเท่ากับค่าเฉลี่ย ได้รับพิจารณาตามที่ตนเองขอก่อน
-            const aIsBelow = (initialRequests[a.id] <= targetAvg);
-            const bIsBelow = (initialRequests[b.id] <= targetAvg);
-            if (aIsBelow !== bIsBelow) return aIsBelow ? -1 : 1;
-
-            // 3. จัดสรรตาม % ความคืบหน้าเทียบกับเป้าหมาย (คนที่ยังได้ไม่ถึงเป้าหมายได้ก่อน)
-            const aRatio = assignedCounts[a.id] / (targetQuotas[a.id] || 1);
-            const bRatio = assignedCounts[b.id] / (targetQuotas[b.id] || 1);
-            if (aRatio !== bRatio) return aRatio - bRatio;
-
-            // 4. ดูจำนวนที่ขอเริ่มต้น
-            const initDiff = initialRequests[b.id] - initialRequests[a.id];
-            if (initDiff !== 0) return initDiff;
-
-            // 🌟 5. หากเท่ากันทุกอย่าง ให้ใช้การสุ่ม (Random) เพื่อความเท่าเทียม
-            return Math.random() - 0.5;
-          });
-
-          const winner = eligible[0];
-          if (!optimizedRoster[winner.id][d]) optimizedRoster[winner.id][d] = [];
-          optimizedRoster[winner.id][d].push(s);
-          assignedCounts[winner.id]++;
-
-          if (applicants.length > 1) {
-            prunedLog.push({
-              day: d,
-              shift: s,
-              shiftName: SHIFTS[s].name,
-              winner: winner,
-              totalApplicants: applicants.length,
-              competitors: applicants.filter(x => x.id !== winner.id)
-            });
-          } else {
-            keptLog.push({
-              day: d,
-              shift: s,
-              shiftName: SHIFTS[s].name,
-              nurse: winner
-            });
-          }
-        }
-      }
-    });
-  }
-
-  // Phase 2: เติมเต็มเวรที่ยังไม่มีพยาบาลเข้าเวร (0 คน) ให้ครบ 1 คนต่อเวร
-  // เติมเฉพาะพยาบาลในกลุ่มที่ขอเกินค่าเฉลี่ย (aboveNurses) เท่านั้น
-  const candidateNursesForFill = aboveNurses.length > 0 ? aboveNurses : participatingNurses;
-
-  for (let d = 1; d <= daysCount; d++) {
-    activeShifts.forEach(s => {
-      const isAssigned = participatingNurses.some(n => (optimizedRoster[n.id][d] || []).includes(s));
-      if (!isAssigned) {
-        const available = candidateNursesForFill.filter(n => {
-          const today = getDayShifts(n.id, d);
-          if (!isValidShiftAddition(today, s, shiftMode)) return false;
-          if (hasRestConflict(n.id, d, s, optimizedRoster, daysCount)) return false;
-          return true;
-        });
-
-        if (available.length > 0) {
-          available.sort((a, b) => {
-            const aToday = getDayShifts(a.id, d).length;
-            const bToday = getDayShifts(b.id, d).length;
-            if (aToday !== bToday) return aToday - bToday;
-
-            const aRemain = (targetQuotas[a.id] || 0) - assignedCounts[a.id];
-            const bRemain = (targetQuotas[b.id] || 0) - assignedCounts[b.id];
-            if (aRemain !== bRemain) return bRemain - aRemain;
-
-            return (initialRequests[b.id] - initialRequests[a.id]);
-          });
-
-          const picked = available[0];
-          if (!optimizedRoster[picked.id][d]) optimizedRoster[picked.id][d] = [];
-          optimizedRoster[picked.id][d].push(s);
-          assignedCounts[picked.id]++;
-
-          autoFilledLog.push({
+        if (applicants.length > 1) {
+          prunedLog.push({
             day: d,
             shift: s,
             shiftName: SHIFTS[s].name,
-            nurse: picked
+            winner: winner,
+            totalApplicants: applicants.length,
+            competitors: applicants.filter(x => x.id !== winner.id)
+          });
+        } else {
+          keptLog.push({
+            day: d,
+            shift: s,
+            shiftName: SHIFTS[s].name,
+            nurse: winner
           });
         }
       }
     });
   }
+
+  // 🌟 หมายเหตุ: ตัด Phase 2 (Auto-fill เติมเวรว่าง 0 คน) ออกตามเงื่อนไขที่กำหนด
 
   window.pendingOptimizedRoster = optimizedRoster;
 
   renderOptimizationResultModal({
     daysCount,
     shiftsPerDay,
-    totalSlots,
+    totalMonthSlots,
+    requestedSlotsCount,
+    vacantShiftsCount,
     nurseCount,
     participatingCount,
     targetAvg,
@@ -4211,8 +4198,7 @@ function runOptimization() {
     initialRequests,
     assignedCounts,
     prunedLog,
-    keptLog,
-    autoFilledLog
+    keptLog
   });
 
   document.getElementById('optimizeModal').classList.remove('hidden');
@@ -4222,7 +4208,9 @@ function renderOptimizationResultModal(data) {
   const {
     daysCount,
     shiftsPerDay,
-    totalSlots,
+    totalMonthSlots,
+    requestedSlotsCount,
+    vacantShiftsCount,
     nurseCount,
     participatingCount,
     targetAvg,
@@ -4230,8 +4218,7 @@ function renderOptimizationResultModal(data) {
     initialRequests,
     assignedCounts,
     prunedLog,
-    keptLog,
-    autoFilledLog
+    keptLog
   } = data;
 
   const modalBody = document.getElementById('optimizeModalBody');
@@ -4247,36 +4234,36 @@ function renderOptimizationResultModal(data) {
           <span>⚙️</span>
           <span>โหมด: ${modeName}</span>
         </span>
-        <span class="font-black px-2.5 py-1 bg-emerald-600 text-white rounded-xl text-xs shadow-2xs">
-          🎯 โควตา: 1 คนต่อเวร (จัดครบ 100%)
+        <span class="font-black px-2.5 py-1 bg-amber-600 text-white rounded-xl text-xs shadow-2xs">
+          🎯 จัดเฉพาะเวรที่เลือก (เวรว่าง 0 คน = ปล่อยว่าง ${vacantShiftsCount} เวร)
         </span>
       </div>
 
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-center font-mono">
         <div class="p-2 bg-white/80 rounded-xl border border-blue-100 shadow-2xs">
-          <div class="text-[10px] text-slate-500 font-sans">จำนวนเวรรวมทั้งเดือน</div>
-          <div class="font-black text-slate-800 text-sm">${totalSlots} เวร</div>
+          <div class="text-[10px] text-slate-500 font-sans">เวรที่มีคนเลือกจริง</div>
+          <div class="font-black text-slate-800 text-sm">${requestedSlotsCount} / ${totalMonthSlots} เวร</div>
         </div>
-        <div class="p-2 bg-white/80 rounded-xl border border-blue-100 shadow-2xs">
-          <div class="text-[10px] text-slate-500 font-sans">พยาบาลทั้งหมด</div>
-          <div class="font-black text-slate-800 text-sm">${nurseCount} ท่าน</div>
+        <div class="p-2 bg-rose-50/80 rounded-xl border border-rose-200 shadow-2xs">
+          <div class="text-[10px] text-rose-700 font-sans font-bold">เวรว่าง (ไม่จัดคนลง)</div>
+          <div class="font-black text-rose-900 text-sm">${vacantShiftsCount} เวร</div>
         </div>
         <div class="p-2 bg-blue-50/80 rounded-xl border border-blue-200 shadow-2xs">
           <div class="text-[10px] text-blue-700 font-sans font-bold">พยาบาลที่ร่วมเลือกเวร</div>
-          <div class="font-black text-blue-900 text-sm">${participatingCount} ท่าน</div>
+          <div class="font-black text-blue-900 text-sm">${participatingCount} / ${nurseCount} ท่าน</div>
         </div>
         <div class="p-2 bg-emerald-50 rounded-xl border border-emerald-200 shadow-2xs">
-          <div class="text-[10px] text-emerald-700 font-sans font-bold">ค่าเฉลี่ยกลาง</div>
+          <div class="text-[10px] text-emerald-700 font-sans font-bold">ค่าเฉลี่ยเฉพาะที่เลือก</div>
           <div class="font-black text-emerald-800 text-sm">${targetAvg.toFixed(1)} เวร/คน</div>
         </div>
       </div>
 
       <div class="text-[11px] text-blue-900 pt-1 border-t border-blue-200/60 leading-relaxed font-sans">
-        💡 <b>เกณฑ์การจัดเวรตามเงื่อนไข:</b>
+        💡 <b>เงื่อนไขการจัดตาราง:</b>
         <br>
-        1. <b>คนที่เลือกน้อยกว่าหรือเท่ากับค่าเฉลี่ย (&le; ${targetAvg.toFixed(1)} เวร):</b> ล็อกโควตาให้ได้ตามที่เลือกมาจริงเท่านั้น ระบบจะไม่เติมเวรเพิ่มให้
+        • <b>เวรที่ไม่มีคนเลือก (0 คน):</b> ปล่อยว่างไว้ตามเดิม ไม่นำพยาบาลคนอื่นมาเติมแทน
         <br>
-        2. <b>คนที่เลือกมากกว่าค่าเฉลี่ย (> ${targetAvg.toFixed(1)} เวร):</b> ได้รับจัดสรรเวรที่เหลือตามสัดส่วนร้อยละ (%) คนที่ขอเยอะจะได้เยอะลดหลั่นกันลงมา
+        • <b>เวรที่มีคนเลือกซ้ำ:</b> คัดเลือกให้เหลือเวรละ 1 คน (คัดออก ${prunedLog.length} ครั้ง) โดยล็อกโควตาคนที่ขอน้อย (&le; ${targetAvg.toFixed(1)} เวร) ให้ได้ตามที่ขอ และเกลี่ยเวรที่เหลือตามสัดส่วน % ให้คนที่ขอเยอะ
       </div>
     </div>
 
@@ -4342,10 +4329,10 @@ function renderOptimizationResultModal(data) {
     <div class="space-y-2 text-xs">
       <details class="p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer">
         <summary class="font-bold text-slate-800 flex justify-between items-center select-none">
-          <span>✂️ รายการเวรที่คัดเลือกจากคนเลือกซ้ำให้เหลือ 1 คน (${prunedLog.length} เวร)</span>
+          <span>✂️ รายการเวรที่มีคนเลือกซ้ำและคัดเหลือ 1 คน (${prunedLog.length} เวร)</span>
           <span class="text-[11px] text-blue-600 font-bold">คลิกเพื่อดูรายละเอียด ▾</span>
         </summary>
-        <div class="mt-2 space-y-1.5 max-h-36 overflow-y-auto pr-1">
+        <div class="mt-2 space-y-1.5 max-h-48 overflow-y-auto pr-1">
   `;
 
   if (prunedLog.length === 0) {
@@ -4361,37 +4348,6 @@ function renderOptimizationResultModal(data) {
           <div class="flex items-center gap-1.5">
             <span class="text-emerald-700 font-bold">✓ ได้รับเวร:</span>
             <span class="font-bold text-blue-900">${item.winner.name}</span>
-          </div>
-        </div>
-      `;
-    });
-  }
-
-  html += `
-        </div>
-      </details>
-
-      <details class="p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer">
-        <summary class="font-bold text-slate-800 flex justify-between items-center select-none">
-          <span>➕ รายการเวรที่เติมเต็มอัตโนมัติให้กลุ่มที่ขอเกิน (${autoFilledLog.length} เวร)</span>
-          <span class="text-[11px] text-blue-600 font-bold">คลิกเพื่อดูรายละเอียด ▾</span>
-        </summary>
-        <div class="mt-2 space-y-1.5 max-h-36 overflow-y-auto pr-1">
-  `;
-
-  if (autoFilledLog.length === 0) {
-    html += `<div class="text-slate-400 italic p-2 text-center">ไม่มีเวรที่ต้องเติมเต็ม (ครบถ้วนแล้ว)</div>`;
-  } else {
-    autoFilledLog.forEach(item => {
-      html += `
-        <div class="p-2 bg-white rounded-lg border border-slate-200 flex items-center justify-between text-[11px]">
-          <div>
-            <span class="font-bold text-slate-800">วันที่ ${item.day} ${item.shiftName}</span>
-            <span class="text-rose-500 ml-1">(เดิมว่าง 0 คน)</span>
-          </div>
-          <div class="flex items-center gap-1.5">
-            <span class="text-blue-700 font-bold">จัดให้:</span>
-            <span class="font-bold text-blue-900">${item.nurse.name}</span>
           </div>
         </div>
       `;
